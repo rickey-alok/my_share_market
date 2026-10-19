@@ -66,9 +66,11 @@ export class AnalysisView {
           </div>
           <!-- Timeframe Filter for FII/DII -->
           <div class="filter-pills-group" id="fii-dii-timeframe-pills">
-            <button type="button" class="filter-pill active" data-timeframe="week">1 Week</button>
-            <button type="button" class="filter-pill" data-timeframe="month">1 Month</button>
-            <button type="button" class="filter-pill" data-timeframe="year">1 Year</button>
+            <button type="button" class="filter-pill active" data-timeframe="week">1W</button>
+            <button type="button" class="filter-pill" data-timeframe="month">1M</button>
+            <button type="button" class="filter-pill" data-timeframe="year">1Y</button>
+            <button type="button" class="filter-pill" data-timeframe="3year">3Y</button>
+            <button type="button" class="filter-pill" data-timeframe="5year">5Y</button>
           </div>
         </div>
 
@@ -100,6 +102,8 @@ export class AnalysisView {
               <button type="button" class="filter-pill active" data-timeframe="week">1W</button>
               <button type="button" class="filter-pill" data-timeframe="month">1M</button>
               <button type="button" class="filter-pill" data-timeframe="year">1Y</button>
+              <button type="button" class="filter-pill" data-timeframe="3year">3Y</button>
+              <button type="button" class="filter-pill" data-timeframe="5year">5Y</button>
             </div>
           </div>
         </div>
@@ -126,7 +130,9 @@ export class AnalysisView {
             <div class="filter-pills-group" id="stock-timeframe-pills">
               <button type="button" class="filter-pill" data-timeframe="week">1W</button>
               <button type="button" class="filter-pill active" data-timeframe="month">1M</button>
-              <button type="button" class="filter-pill" data-timeframe="year">1Y (52-Week)</button>
+              <button type="button" class="filter-pill" data-timeframe="year">1Y</button>
+              <button type="button" class="filter-pill" data-timeframe="3year">3Y</button>
+              <button type="button" class="filter-pill" data-timeframe="5year">5Y</button>
             </div>
           </div>
         </div>
@@ -396,6 +402,27 @@ export class AnalysisView {
       const rangeSpan = high - low || 1;
       const pointerPositionPct = Math.min(96, Math.max(4, ((current - low) / rangeSpan) * 100));
 
+      const tfLabel = {
+        week: '1W',
+        month: '1M',
+        year: '1Y',
+        '3year': '3Y',
+        '5year': '5Y'
+      }[this.indexTimeframe] || this.indexTimeframe.toUpperCase();
+
+      let indexLowTitle = 'Period Low';
+      let indexHighTitle = 'Period High';
+      if (this.indexTimeframe === 'year') {
+        indexLowTitle = '52-Week Low';
+        indexHighTitle = '52-Week High';
+      } else if (this.indexTimeframe === '3year') {
+        indexLowTitle = '3-Year Low';
+        indexHighTitle = '3-Year High';
+      } else if (this.indexTimeframe === '5year') {
+        indexLowTitle = '5-Year Low';
+        indexHighTitle = '5-Year High';
+      }
+
       summaryContainer.innerHTML = `
         <div class="index-meta-row">
           <div>
@@ -405,10 +432,10 @@ export class AnalysisView {
           <div style="text-align: right;">
             <div class="return-badge ${isPositive ? 'bull' : 'bear'}" style="font-size: 0.95rem; padding: 0.45rem 0.85rem;">
               ${isPositive ? icons.trendingUp : icons.trendingDown}
-              ${isPositive ? '+' : ''}${indexInfo.changePct.toFixed(2)}% (${this.indexTimeframe.toUpperCase()})
+              ${isPositive ? '+' : ''}${indexInfo.changePct.toFixed(2)}% (${tfLabel})
             </div>
             <div style="font-size: 0.76rem; color: var(--text-muted); margin-top: 0.25rem;">
-              Period Range: ${low.toLocaleString()} - ${high.toLocaleString()}
+              Range: ${low.toLocaleString()} - ${high.toLocaleString()}
             </div>
           </div>
         </div>
@@ -417,14 +444,14 @@ export class AnalysisView {
         <div class="range-gauge-container">
           <div class="range-gauge-header">
             <span class="range-bound low">
-              <strong>Period Low</strong>
+              <strong>${indexLowTitle}</strong>
               <span class="mono">${low.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</span>
             </span>
             <span class="range-indicator-badge">
-              Trading at ${pointerPositionPct.toFixed(0)}% of Period Range (${pointerPositionPct > 65 ? 'Near Highs' : pointerPositionPct < 35 ? 'Near Lows' : 'Mid Range'})
+              Trading at ${pointerPositionPct.toFixed(0)}% of Range (${pointerPositionPct > 65 ? 'Near Highs' : pointerPositionPct < 35 ? 'Near Lows' : 'Mid Range'})
             </span>
             <span class="range-bound high">
-              <strong>Period High</strong>
+              <strong>${indexHighTitle}</strong>
               <span class="mono">${high.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</span>
             </span>
           </div>
@@ -565,6 +592,19 @@ export class AnalysisView {
     const data = getStockAnalysisData(holding, this.stockTimeframe);
     const isAboveAvg = data.cmpVsAvgPct >= 0;
 
+    let lowTitle = 'Period Low';
+    let highTitle = 'Period High';
+    if (this.stockTimeframe === 'year') {
+      lowTitle = '52-Week Low';
+      highTitle = '52-Week High';
+    } else if (this.stockTimeframe === '3year') {
+      lowTitle = '3-Year Low';
+      highTitle = '3-Year High';
+    } else if (this.stockTimeframe === '5year') {
+      lowTitle = '5-Year Low';
+      highTitle = '5-Year High';
+    }
+
     content.innerHTML = `
       <!-- Stock Metrics Banner -->
       <div class="stock-analysis-banner">
@@ -593,14 +633,14 @@ export class AnalysisView {
       <div class="range-gauge-container" style="margin-top: 1.5rem; margin-bottom: 1.5rem;">
         <div class="range-gauge-header">
           <span class="range-bound low">
-            <strong>${this.stockTimeframe === 'year' ? '52-Week Low' : 'Period Low'}</strong>
+            <strong>${lowTitle}</strong>
             <span class="mono">${portfolioStore.formatMoney(data.periodLow)}</span>
           </span>
           <span class="range-indicator-badge">
             +${data.distFromLowPct.toFixed(1)}% from Low • -${data.distFromHighPct.toFixed(1)}% from High
           </span>
           <span class="range-bound high">
-            <strong>${this.stockTimeframe === 'year' ? '52-Week High' : 'Period High'}</strong>
+            <strong>${highTitle}</strong>
             <span class="mono">${portfolioStore.formatMoney(data.periodHigh)}</span>
           </span>
         </div>

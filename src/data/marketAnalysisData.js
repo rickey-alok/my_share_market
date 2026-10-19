@@ -31,6 +31,26 @@ export const FII_DII_DATA = {
     fiiGrossSell: [120000, 125950, 126640, 130000, 140000, 150000, 140000, 143680, 140000, 150000, 140000, 160000],
     diiGrossBuy: [104250, 119450, 108200, 116800, 121450, 129850, 132400, 128500, 127200, 144100, 146800, 161760],
     diiGrossSell: [90000, 100000, 90000, 100000, 100000, 110000, 110000, 110000, 110000, 120000, 120000, 130000]
+  },
+  '3year': {
+    periodName: 'Past 3 Years (FY 2023 - 2026)',
+    labels: ['FY 2023-24', 'FY 2024-25', 'FY 2025-26'],
+    fiiNet: [-37650, 42180, 78450],
+    diiNet: [182400, 214500, 248900],
+    fiiGrossBuy: [1420000, 1680000, 1890000],
+    fiiGrossSell: [1457650, 1637820, 1811550],
+    diiGrossBuy: [1120000, 1340000, 1560000],
+    diiGrossSell: [937600, 1125500, 1311100]
+  },
+  '5year': {
+    periodName: 'Past 5 Years (FY 2021 - 2026)',
+    labels: ['FY 2021-22', 'FY 2022-23', 'FY 2023-24', 'FY 2024-25', 'FY 2025-26'],
+    fiiNet: [-140010, -35630, 42180, 58450, 78450],
+    diiNet: [221380, 255740, 182400, 214500, 248900],
+    fiiGrossBuy: [1320000, 1410000, 1550000, 1720000, 1890000],
+    fiiGrossSell: [1460010, 1445630, 1507820, 1661550, 1811550],
+    diiGrossBuy: [980000, 1080000, 1220000, 1390000, 1560000],
+    diiGrossSell: [758620, 824260, 1037600, 1175500, 1311100]
   }
 };
 
@@ -115,13 +135,51 @@ export const INDICES_DATA = {
       high: 85978.25,
       changePct: 13.32
     }
+  },
+  '3year': {
+    labels: ['Oct 2023', 'Apr 2024', 'Oct 2024', 'Apr 2025', 'Oct 2025', 'Apr 2026', 'Current'],
+    nifty: {
+      name: 'NIFTY 50',
+      current: 25124.60,
+      points: [19047.25, 22419.95, 24200.50, 24850.10, 25400.30, 24900.20, 25124.60],
+      low: 18837.85,
+      high: 26277.35,
+      changePct: 31.91
+    },
+    sensex: {
+      name: 'SENSEX',
+      current: 82045.10,
+      points: [63782.80, 73872.30, 79402.30, 81500.20, 83120.40, 81450.60, 82045.10],
+      low: 63183.77,
+      high: 85978.25,
+      changePct: 28.63
+    }
+  },
+  '5year': {
+    labels: ['Oct 2021', 'Oct 2022', 'Oct 2023', 'Oct 2024', 'Oct 2025', 'Current'],
+    nifty: {
+      name: 'NIFTY 50',
+      current: 25124.60,
+      points: [17929.65, 17786.80, 19047.25, 24200.50, 25400.30, 25124.60],
+      low: 15183.40,
+      high: 26277.35,
+      changePct: 40.13
+    },
+    sensex: {
+      name: 'SENSEX',
+      current: 82045.10,
+      points: [60718.70, 59959.85, 63782.80, 79402.30, 83120.40, 82045.10],
+      low: 50921.22,
+      high: 85978.25,
+      changePct: 35.12
+    }
   }
 };
 
 /**
  * Generates accurate trajectory and High-Low range gauge values for any held stock
  * @param {Object} holding - holding item from portfolioStore
- * @param {string} timeframe - 'week' | 'month' | 'year'
+ * @param {string} timeframe - 'week' | 'month' | 'year' | '3year' | '5year'
  */
 export function getStockAnalysisData(holding, timeframe = 'week') {
   if (!holding) return null;
@@ -144,12 +202,24 @@ export function getStockAnalysisData(holding, timeframe = 'week') {
     deltaFactors = [-0.042, -0.021, -0.005, 0.012, 0];
     lowSpread = 0.06;
     highSpread = 0.08;
-  } else {
-    // year (52-week)
+  } else if (timeframe === 'year') {
+    // 1 year (52-week)
     labels = ['Nov', 'Jan', 'Mar', 'May', 'Jul', 'Sep', 'Current'];
     deltaFactors = [-0.18, -0.14, -0.08, -0.02, 0.06, -0.03, 0];
     lowSpread = 0.22;
     highSpread = 0.16;
+  } else if (timeframe === '3year') {
+    // 3 years compounding trajectory
+    labels = ['2023 H2', '2024 H1', '2024 H2', '2025 H1', '2025 H2', 'Current'];
+    deltaFactors = [-0.34, -0.22, -0.12, 0.04, -0.05, 0];
+    lowSpread = 0.38;
+    highSpread = 0.18;
+  } else if (timeframe === '5year') {
+    // 5 years long term trajectory
+    labels = ['2021', '2022', '2023', '2024', '2025', 'Current'];
+    deltaFactors = [-0.52, -0.44, -0.30, -0.10, 0.06, 0];
+    lowSpread = 0.55;
+    highSpread = 0.22;
   }
 
   // Calculate realistic historical trajectory ending at current market price (CMP)
