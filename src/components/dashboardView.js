@@ -5,9 +5,10 @@ import { SECTORS } from '../data/stocksDatabase.js';
 import Chart from 'chart.js/auto';
 
 export class DashboardView {
-  constructor(containerElement, onNavigateToAddHolding) {
+  constructor(containerElement, onNavigateToAddHolding, onNavigateToStockDetail) {
     this.container = containerElement;
     this.onNavigateToAddHolding = onNavigateToAddHolding;
+    this.onNavigateToStockDetail = onNavigateToStockDetail;
     this.chartInstance = null;
     this.searchTerm = '';
     this.selectedSector = 'ALL';
@@ -198,6 +199,17 @@ export class DashboardView {
           this.onNavigateToAddHolding({ symbol });
         }
         return;
+      }
+
+      // Click on Stock row or mobile card to view dedicated Stock Detail page
+      const row = e.target.closest('tr[data-symbol]');
+      const card = e.target.closest('.holding-mobile-card[data-symbol]');
+      const targetEl = row || card;
+      if (targetEl && !e.target.closest('button')) {
+        const symbol = targetEl.getAttribute('data-symbol');
+        if (symbol && this.onNavigateToStockDetail) {
+          this.onNavigateToStockDetail(symbol);
+        }
       }
     });
 
@@ -570,7 +582,7 @@ export class DashboardView {
       const tickClass = isTicking ? (tickDirection === 'up' ? 'tick-up' : 'tick-down') : '';
 
       return `
-        <div class="holding-mobile-card">
+        <div class="holding-mobile-card" data-symbol="${h.symbol}" title="Click to view ${h.symbol} transactions & details">
           <div class="mobile-card-top">
             <div class="stock-identity">
               <div class="stock-symbol-chip">${h.symbol.substring(0, 3)}</div>

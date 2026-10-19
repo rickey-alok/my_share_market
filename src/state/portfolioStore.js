@@ -1,5 +1,5 @@
-// Portfolio State Store with LocalStorage Persistence & Share Market Math
 import { POPULAR_STOCKS } from '../data/stocksDatabase.js';
+import { firebaseService } from '../services/firebase.js';
 
 const STORAGE_KEY_HOLDINGS = 'apex_portfolio_holdings_v1';
 const STORAGE_KEY_TRANSACTIONS = 'apex_portfolio_txs_v1';
@@ -84,10 +84,57 @@ class PortfolioStore {
     this.isLiveFeedActive = localStorage.getItem(STORAGE_KEY_LIVE_FEED) !== 'false';
     this.timer = null;
     this.lastTickSymbol = null;
+    this.isCloudSyncing = false;
+    this.firestoreUnsubscribeHoldings = null;
+    this.firestoreUnsubscribeTransactions = null;
 
     if (this.isLiveFeedActive) {
       this.startLiveSimulation();
     }
+
+    if (firebaseService.isConfigured) {
+      this.initFirestoreSync();
+    }
+  }
+
+  initFirestoreSync() {
+    if (!firebaseService.isConfigured) return;
+
+    // Listen to Holdings collection in real time
+    if (this.firestoreUnsubscribeHoldings) this.firestoreUnsubscribeHoldings();
+    this.firestoreUnsubscribeHoldings = firebaseService.listenToHoldings((cloudHoldings) => {
+      if (cloudHoldings && cloudHoldings.length > 0) {
+        this.holdings = cloudHoldings;
+        this.saveHoldings(this.holdings);
+        this.notify({ type: 'CLOUD_SYNC_UPDATED' });
+      } else if (this.holdings.length > 0) {
+        // Seed initial holdings to Firestore if cloud collection is currently empty
+        for (const h of this.holdings) {
+          firebaseService.saveHolding(h);
+        }
+      }
+    });
+
+    // Listen to Transactions collection in real time
+    if (this.firestoreUnsubscribeTransactions) this.firestoreUnsubscribeTransactions();
+    this.firestoreUnsubscribeTransactions = firebaseService.listenToTransactions((cloudTxs) => {
+      if (cloudTxs && cloudTxs.length > 0) {
+        this.transactions = cloudTxs;
+        this.saveTransactions(this.transactions);
+        this.notify({ type: 'CLOUD_TX_UPDATED' });
+      }
+    });
+
+    this.isCloudSyncing = true;
+    this.notify({ type: 'FIREBASE_CONNECTED' });
+  }
+
+  async connectFirebase(config) {
+    const success = firebaseService.saveConfig(config);
+    if (success) {
+      this.initFirestoreSync();
+    }
+    return success;
   }
 
   loadHoldings() {
@@ -252,6 +299,12 @@ class PortfolioStore {
     this.saveHoldings(this.holdings);
     this.saveTransactions(this.transactions);
 
+    // Sync to Firestore if configured
+    if (firebaseService.isConfigured) {
+      firebaseService.saveHolding(this.getHoldingById(holdingId));
+      firebaseService.recordTransaction(newTx);
+    }
+
     this.notify({
       type: 'HOLDING_ADDED',
       symbol: symbol,
@@ -272,6 +325,12 @@ class PortfolioStore {
     if (idx !== -1) {
       const deleted = this.holdings.splice(idx, 1)[0];
       this.saveHoldings(this.holdings);
+
+      // Sync delete to Firestore
+      if (firebaseService.isConfigured) {
+        firebaseService.removeHolding(id);
+      }
+
       this.notify({ type: 'HOLDING_DELETED', holding: deleted });
       return true;
     }
@@ -296,6 +355,39 @@ class PortfolioStore {
   getHoldingBySymbol(symbol) {
     if (!symbol) return null;
     return this.holdings.find(h => h.symbol.toUpperCase() === symbol.toUpperCase().trim());
+  }
+
+  getTransactionsForStock(symbol) {
+    if (!symbol) return [];
+    const sym = symbol.toUpperCase().trim();
+    let txs = this.transactions.filter(t => t.symbol && t.symbol.toUpperCase().trim() === sym);
+
+    // If holding exists but no transactions found (e.g. legacy storage), synthesize initial record
+    const holding = this.getHoldingBySymbol(sym);
+    if (txs.length === 0 && holding) {
+      const syntheticTx = {
+        id: `tx_init_${holding.id}`,
+        holdingId: holding.id,
+        symbol: holding.symbol,
+        type: 'BUY',
+        quantity: holding.quantity,
+        price: holding.avgPrice,
+        date: holding.buyDate || new Date().toISOString().split('T')[0],
+        totalAmount: holding.quantity * holding.avgPrice,
+        notes: holding.notes || 'Initial Position Purchase',
+        timestamp: holding.buyDate ? new Date(holding.buyDate).getTime() : Date.now()
+      };
+      this.transactions.push(syntheticTx);
+      this.saveTransactions(this.transactions);
+      txs = [syntheticTx];
+    }
+
+    // Sort by timestamp/date descending (most recent first)
+    return txs.sort((a, b) => {
+      const timeA = a.timestamp || (a.date ? new Date(a.date).getTime() : 0);
+      const timeB = b.timestamp || (b.date ? new Date(b.date).getTime() : 0);
+      return timeB - timeA;
+    });
   }
 
   // Calculate detailed financial metrics across the entire portfolio
