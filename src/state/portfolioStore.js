@@ -665,6 +665,45 @@ class PortfolioStore {
     this.saveHoldings(this.holdings);
     this.notify({ type: 'RESET_DEMO' });
   }
+
+  exportData() {
+    return {
+      version: '1.0',
+      app: 'Apna Share Calculator',
+      exportedAt: new Date().toISOString(),
+      holdings: this.holdings,
+      transactions: this.transactions
+    };
+  }
+
+  importData(data) {
+    if (!data || !Array.isArray(data.holdings)) {
+      throw new Error('Invalid portfolio file. Missing holdings array.');
+    }
+    this.holdings = data.holdings;
+    this.saveHoldings(this.holdings);
+
+    if (Array.isArray(data.transactions)) {
+      this.transactions = data.transactions;
+      this.saveTransactions(this.transactions);
+    }
+
+    if (firebaseService.isConfigured) {
+      this.holdings.forEach(h => firebaseService.saveHolding(h));
+      this.transactions.forEach(t => firebaseService.recordTransaction(t));
+    }
+
+    this.notify({ type: 'DATA_IMPORTED' });
+    return true;
+  }
+
+  clearAllData() {
+    this.holdings = [];
+    this.transactions = [];
+    this.saveHoldings(this.holdings);
+    this.saveTransactions(this.transactions);
+    this.notify({ type: 'DATA_CLEARED' });
+  }
 }
 
 export const portfolioStore = new PortfolioStore();

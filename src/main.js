@@ -6,6 +6,8 @@ import { DashboardView } from './components/dashboardView.js';
 import { AddHoldingView } from './components/addHoldingView.js';
 import { StockDetailView } from './components/stockDetailView.js';
 import { AnalysisView } from './components/analysisView.js';
+import { ProfileModal } from './components/profileModal.js';
+import { authService } from './services/authService.js';
 
 class App {
   constructor() {
@@ -14,6 +16,7 @@ class App {
     this.addHoldingView = null;
     this.stockDetailView = null;
     this.analysisView = null;
+    this.profileModal = null;
 
     this.init();
   }
@@ -49,6 +52,10 @@ class App {
         (symbol) => this.navigateTo('stock', { symbol })
       );
     }
+
+    // User Profile, Login, Data & Settings Modal
+    this.profileModal = new ProfileModal('modal-user-profile');
+    this.setupUserProfile();
 
     this.setupNavigation();
     this.setupThemeSelector();
@@ -382,6 +389,54 @@ class App {
         } else {
           alert('Failed to connect to Firebase. Please verify your API Key and Project ID.');
         }
+      });
+    }
+  }
+
+  setupUserProfile() {
+    const btnProfile = document.getElementById('btn-user-profile');
+    const mobBtnProfile = document.getElementById('mob-nav-profile');
+    const avatarEl = document.getElementById('header-user-avatar');
+    const nameEl = document.getElementById('header-user-name');
+    const badgeEl = document.getElementById('header-user-badge');
+
+    const updateHeaderUser = (user) => {
+      if (!user) user = authService.getUser();
+      if (nameEl) nameEl.textContent = user.displayName || 'Investor';
+      if (badgeEl) badgeEl.textContent = user.isGuest ? 'Demo' : 'Pro';
+      if (avatarEl) {
+        if (user.photoURL) {
+          avatarEl.innerHTML = `<img src="${user.photoURL}" alt="${user.displayName}" class="user-avatar-mini-img">`;
+        } else {
+          const parts = (user.displayName || 'IN').trim().split(' ');
+          const initials = parts.length >= 2 
+            ? (parts[0][0] + parts[parts.length - 1][0]).toUpperCase()
+            : (user.displayName || 'IN').slice(0, 2).toUpperCase();
+          avatarEl.innerHTML = `<span>${initials}</span>`;
+        }
+      }
+    };
+
+    updateHeaderUser();
+    authService.subscribe((event) => {
+      if (event && event.user) {
+        updateHeaderUser(event.user);
+      } else {
+        updateHeaderUser();
+      }
+    });
+
+    const openProfile = () => {
+      if (this.profileModal) {
+        this.profileModal.open('profile');
+      }
+    };
+
+    if (btnProfile) btnProfile.addEventListener('click', openProfile);
+    if (mobBtnProfile) {
+      mobBtnProfile.addEventListener('click', (e) => {
+        e.preventDefault();
+        openProfile();
       });
     }
   }

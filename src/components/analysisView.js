@@ -15,6 +15,7 @@ export class AnalysisView {
     this.selectedIndex = 'nifty';
     this.stockTimeframe = 'month';
     this.selectedSymbol = null;
+    this.slideDirection = null; // 'next' or 'prev' for smooth slide animation
 
     // Technical Indicator / Overlay States (all 4 requested features)
     this.showVolume = true;
@@ -128,7 +129,7 @@ export class AnalysisView {
       </div>
 
       <!-- Section 3: User Held Stock Auto-Analysis & 52-Week High/Low Pointer Bar -->
-      <div class="analysis-card">
+      <div class="analysis-card" id="stock-analysis-card">
         <div class="card-header-with-actions">
           <div class="card-title-row" style="margin-bottom: 0;">
             <h2 class="card-title">${icons.layers} Your Holdings Range & Price Position</h2>
@@ -228,6 +229,9 @@ export class AnalysisView {
         this.renderStockAnalysis();
       }
     });
+
+    // Setup Touch and Mouse Swipe Gestures for Stocks
+    this.setupStockSwipeGestures();
   }
 
   updateTheme() {
@@ -605,16 +609,39 @@ export class AnalysisView {
 
           <!-- Quick Navigation Previous / Next Step Buttons -->
           <div class="dropdown-step-btns">
-            <button type="button" class="btn-step-stock" id="btn-prev-stock" title="Previous Stock" ${currentIndex <= 0 ? 'disabled' : ''}>
+            <button type="button" class="btn-step-stock" id="btn-prev-stock" title="Previous Stock (Swipe Right or ← Arrow)" aria-label="Previous Stock">
               <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
                 <polyline points="15 18 9 12 15 6"></polyline>
               </svg>
             </button>
-            <button type="button" class="btn-step-stock" id="btn-next-stock" title="Next Stock" ${currentIndex >= holdings.length - 1 ? 'disabled' : ''}>
+            <button type="button" class="btn-step-stock" id="btn-next-stock" title="Next Stock (Swipe Left or → Arrow)" aria-label="Next Stock">
               <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
                 <polyline points="9 18 15 12 9 6"></polyline>
               </svg>
             </button>
+          </div>
+        </div>
+
+        <!-- Left / Right Touch Swipe Guidance Bar & Pagination Dots -->
+        <div class="stock-swipe-hint-bar">
+          <div class="swipe-hint-pill" title="You can swipe left or right on mobile to change stocks">
+            <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+              <polyline points="15 18 9 12 15 6"></polyline>
+            </svg>
+            <span>Swipe Left / Right to browse stocks</span>
+            <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+              <polyline points="9 18 15 12 9 6"></polyline>
+            </svg>
+          </div>
+          <div class="stock-swipe-meta">
+            <span class="stock-swipe-counter">Stock ${currentIndex + 1} of ${holdings.length}</span>
+            ${holdings.length <= 15 ? `
+              <div class="stock-pagination-dots" role="tablist" aria-label="Stock Pagination">
+                ${holdings.map((h, i) => `
+                  <button type="button" class="swipe-dot ${i === currentIndex ? 'active' : ''}" data-symbol="${h.symbol}" title="${h.symbol} (${i + 1}/${holdings.length})" aria-label="Select ${h.symbol}"></button>
+                `).join('')}
+              </div>
+            ` : ''}
           </div>
         </div>
       </div>
@@ -624,7 +651,10 @@ export class AnalysisView {
     const selectEl = selectorContainer.querySelector('#select-holding-stock');
     if (selectEl) {
       selectEl.addEventListener('change', (e) => {
-        this.selectedSymbol = e.target.value;
+        const newSym = e.target.value;
+        const newIdx = holdings.findIndex(h => h.symbol === newSym);
+        this.slideDirection = newIdx > currentIndex ? 'next' : 'prev';
+        this.selectedSymbol = newSym;
         this.updateStockSelector();
         this.renderStockAnalysis();
       });
@@ -634,30 +664,152 @@ export class AnalysisView {
     const btnPrev = selectorContainer.querySelector('#btn-prev-stock');
     if (btnPrev) {
       btnPrev.addEventListener('click', () => {
-        if (currentIndex > 0) {
-          this.selectedSymbol = holdings[currentIndex - 1].symbol;
-          this.updateStockSelector();
-          this.renderStockAnalysis();
-        }
+        this.stepStock(-1);
       });
     }
 
     const btnNext = selectorContainer.querySelector('#btn-next-stock');
     if (btnNext) {
       btnNext.addEventListener('click', () => {
-        if (currentIndex < holdings.length - 1) {
-          this.selectedSymbol = holdings[currentIndex + 1].symbol;
+        this.stepStock(1);
+      });
+    }
+
+    // Attach listeners to Pagination Dots
+    const dots = selectorContainer.querySelectorAll('.swipe-dot');
+    dots.forEach((dot, idx) => {
+      dot.addEventListener('click', () => {
+        const sym = dot.getAttribute('data-symbol');
+        if (sym && sym !== this.selectedSymbol) {
+          this.slideDirection = idx > currentIndex ? 'next' : 'prev';
+          this.selectedSymbol = sym;
           this.updateStockSelector();
           this.renderStockAnalysis();
         }
       });
+    });
+  }
+
+  // Step to Next (+1) or Previous (-1) Stock with circular looping
+  stepStock(direction = 1) {
+    const holdings = portfolioStore.holdings;
+    if (!holdings || holdings.length <= 1) return;
+
+    const currentIndex = holdings.findIndex(h => h.symbol === this.selectedSymbol);
+    let nextIndex = currentIndex + direction;
+
+    if (nextIndex < 0) {
+      nextIndex = holdings.length - 1; // circular loop to end
+    } else if (nextIndex >= holdings.length) {
+      nextIndex = 0; // circular loop to start
     }
+
+    this.slideDirection = direction > 0 ? 'next' : 'prev';
+    this.selectedSymbol = holdings[nextIndex].symbol;
+    this.updateStockSelector();
+    this.renderStockAnalysis();
+  }
+
+  // Setup Touch and Mouse Swipe Gestures for Stocks
+  setupStockSwipeGestures() {
+    const card = this.container.querySelector('#stock-analysis-card');
+    if (!card) return;
+
+    let touchStartX = 0;
+    let touchStartY = 0;
+    let touchStartTime = 0;
+    let isTrackingTouch = false;
+
+    // Mobile Touch Gesture Listeners (Passive for butter-smooth vertical scroll)
+    card.addEventListener('touchstart', (e) => {
+      // Don't intercept dropdown select menu or button clicks
+      if (e.target.closest('select') || e.target.closest('button') || e.target.closest('input')) return;
+      if (e.touches.length === 1) {
+        touchStartX = e.touches[0].clientX;
+        touchStartY = e.touches[0].clientY;
+        touchStartTime = Date.now();
+        isTrackingTouch = true;
+      }
+    }, { passive: true });
+
+    card.addEventListener('touchend', (e) => {
+      if (!isTrackingTouch) return;
+      isTrackingTouch = false;
+
+      if (e.changedTouches.length === 1) {
+        const deltaX = e.changedTouches[0].clientX - touchStartX;
+        const deltaY = e.changedTouches[0].clientY - touchStartY;
+        const duration = Date.now() - touchStartTime;
+
+        // Criteria: quick swipe (< 650ms), distance >= 40px, predominantly horizontal
+        if (duration < 650 && Math.abs(deltaX) >= 40 && Math.abs(deltaX) > Math.abs(deltaY) * 1.3) {
+          if (deltaX < 0) {
+            // Swiped Left -> Advance to Next stock
+            this.stepStock(1);
+          } else {
+            // Swiped Right -> Go to Previous stock
+            this.stepStock(-1);
+          }
+        }
+      }
+    }, { passive: true });
+
+    // Desktop Mouse Drag / Swipe Simulation
+    let mouseStartX = 0;
+    let mouseStartY = 0;
+    let mouseStartTime = 0;
+    let isMouseDown = false;
+
+    card.addEventListener('mousedown', (e) => {
+      if (e.button !== 0) return; // Left mouse button only
+      if (e.target.closest('select') || e.target.closest('button') || e.target.closest('input') || e.target.closest('canvas')) return;
+      mouseStartX = e.clientX;
+      mouseStartY = e.clientY;
+      mouseStartTime = Date.now();
+      isMouseDown = true;
+    });
+
+    card.addEventListener('mouseup', (e) => {
+      if (!isMouseDown) return;
+      isMouseDown = false;
+      const deltaX = e.clientX - mouseStartX;
+      const deltaY = e.clientY - mouseStartY;
+      const duration = Date.now() - mouseStartTime;
+
+      if (duration < 600 && Math.abs(deltaX) >= 50 && Math.abs(deltaX) > Math.abs(deltaY) * 1.3) {
+        if (deltaX < 0) {
+          this.stepStock(1);
+        } else {
+          this.stepStock(-1);
+        }
+      }
+    });
+
+    card.addEventListener('mouseleave', () => {
+      isMouseDown = false;
+    });
+
+    // Keyboard Arrow Left & Arrow Right Navigation when viewing Analysis
+    document.addEventListener('keydown', (e) => {
+      if (!this.container || !this.container.classList.contains('active')) return;
+      if (e.target.tagName === 'INPUT' || e.target.tagName === 'SELECT' || e.target.tagName === 'TEXTAREA') return;
+      if (e.key === 'ArrowLeft') {
+        this.stepStock(-1);
+      } else if (e.key === 'ArrowRight') {
+        this.stepStock(1);
+      }
+    });
   }
 
   // 4. Render Selected Stock Analysis, High/Low Range Pointer, and Trajectory
   renderStockAnalysis() {
     const content = this.container.querySelector('#stock-analysis-content');
     if (!content) return;
+
+    // Apply slide animation class if navigating
+    const animClass = this.slideDirection === 'next' ? 'slide-in-right' : (this.slideDirection === 'prev' ? 'slide-in-left' : '');
+    content.className = animClass;
+    this.slideDirection = null;
 
     const holding = portfolioStore.getHoldingBySymbol(this.selectedSymbol);
     if (!holding) {
