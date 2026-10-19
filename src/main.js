@@ -9,6 +9,10 @@ import { AnalysisView } from './components/analysisView.js';
 import { ProfileModal } from './components/profileModal.js';
 import { authService } from './services/authService.js';
 
+if (typeof window !== 'undefined') {
+  window.authService = authService;
+}
+
 class App {
   constructor() {
     this.currentView = 'dashboard';

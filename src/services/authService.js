@@ -15,13 +15,13 @@ const STORAGE_KEY_AUTH_USER = 'apna_share_auth_user_v1';
 const STORAGE_KEY_USER_PREFS = 'apna_share_user_prefs_v1';
 
 const DEFAULT_GUEST_USER = {
-  uid: 'usr_alok_ranjan_01',
-  displayName: 'Alok Ranjan',
-  email: 'alok.ranjan@sharemarket.in',
+  uid: 'usr_guest',
+  displayName: 'Guest Trader',
+  email: 'Sign in with Google to sync',
   photoURL: null,
-  role: 'Pro Investor',
-  accountTier: 'Alpha Tier • Realtime Active',
-  joinedDate: 'October 2024',
+  role: 'Guest Investor',
+  accountTier: 'Not Signed In',
+  joinedDate: 'Active Session',
   isGuest: true,
   provider: 'local'
 };
@@ -56,12 +56,16 @@ class AuthService {
               displayName: firebaseUser.displayName || firebaseUser.email.split('@')[0],
               email: firebaseUser.email,
               photoURL: firebaseUser.photoURL || null,
-              role: 'Verified Cloud Investor',
-              accountTier: 'Cloud Synced • Firebase Live',
+              role: 'Verified Google Investor',
+              accountTier: 'Google Cloud Verified',
               joinedDate: new Date(firebaseUser.metadata?.creationTime || Date.now()).toLocaleDateString('en-IN', { month: 'short', year: 'numeric' }),
               isGuest: false,
-              provider: firebaseUser.providerData?.[0]?.providerId || 'firebase'
+              provider: 'google.com'
             };
+            this.saveUser(this.currentUser);
+            this.notify({ type: 'AUTH_STATE_CHANGED', user: this.currentUser });
+          } else {
+            this.currentUser = { ...DEFAULT_GUEST_USER };
             this.saveUser(this.currentUser);
             this.notify({ type: 'AUTH_STATE_CHANGED', user: this.currentUser });
           }
@@ -76,7 +80,10 @@ class AuthService {
     try {
       const stored = localStorage.getItem(STORAGE_KEY_AUTH_USER);
       if (stored) {
-        return JSON.parse(stored);
+        const parsed = JSON.parse(stored);
+        if (parsed && !parsed.isGuest && parsed.provider === 'google.com') {
+          return parsed;
+        }
       }
     } catch (e) {
       console.warn('Could not load user from localStorage', e);
@@ -139,11 +146,10 @@ class AuthService {
     });
   }
 
-  // Google Sign-In
+  // Google Sign-In (Sole Authentication Method)
   async loginWithGoogle() {
     if (!this.auth) {
-      // If Firebase config isn't populated or offline, throw informative error
-      throw new Error('Firebase Auth is not connected. Please check Firebase settings or use Guest Investor mode.');
+      throw new Error('Firebase Auth is not initialized. Please ensure your internet connection is active.');
     }
     try {
       const provider = new GoogleAuthProvider();
@@ -154,9 +160,9 @@ class AuthService {
         uid: user.uid,
         displayName: user.displayName || 'Google Investor',
         email: user.email,
-        photoURL: user.photoURL,
+        photoURL: user.photoURL || null,
         role: 'Verified Google Investor',
-        accountTier: 'Cloud Pro • Verified',
+        accountTier: 'Google Cloud Verified',
         joinedDate: new Date().toLocaleDateString('en-IN', { month: 'short', year: 'numeric' }),
         isGuest: false,
         provider: 'google.com'
@@ -166,7 +172,15 @@ class AuthService {
       return this.currentUser;
     } catch (error) {
       console.error('Google Sign-In Error:', error);
-      throw error;
+      let friendlyMsg = error.message;
+      if (error.code === 'auth/popup-closed-by-user') {
+        friendlyMsg = 'Google sign-in popup was closed before completion. Please try again.';
+      } else if (error.code === 'auth/unauthorized-domain') {
+        friendlyMsg = 'This web domain is not authorized in Firebase Console (Authentication > Settings > Authorized domains).';
+      } else if (error.code === 'auth/network-request-failed') {
+        friendlyMsg = 'Network connection error. Please check your internet connection.';
+      }
+      throw new Error(friendlyMsg);
     }
   }
 
@@ -299,15 +313,8 @@ class AuthService {
         console.warn('SignOut error from Firebase:', e);
       }
     }
-    // Revert to Guest User
-    this.currentUser = {
-      ...DEFAULT_GUEST_USER,
-      displayName: 'Guest Trader',
-      email: 'guest@sharemarket.in',
-      accountTier: 'Guest Mode • Local Only',
-      role: 'Guest Investor',
-      isGuest: true
-    };
+    // Revert to default guest state
+    this.currentUser = { ...DEFAULT_GUEST_USER };
     this.saveUser(this.currentUser);
     this.notify({ type: 'LOGOUT', user: this.currentUser });
     return this.currentUser;

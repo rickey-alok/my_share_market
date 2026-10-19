@@ -97,11 +97,11 @@ export class ProfileModal {
         <div class="modal-header">
           <div class="profile-header-title-box">
             <div class="profile-avatar-pill">
-              ${user.photoURL ? `<img src="${user.photoURL}" alt="${user.displayName}" class="user-avatar-img">` : `<span>${initials}</span>`}
+              ${!user.isGuest && user.photoURL ? `<img src="${user.photoURL}" alt="${user.displayName}" class="user-avatar-img">` : (!user.isGuest ? `<span>${initials}</span>` : `<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg>`)}
             </div>
             <div>
-              <h3 class="modal-title" style="margin: 0; line-height: 1.2;">${user.displayName}</h3>
-              <span class="user-tier-tag">${user.accountTier}</span>
+              <h3 class="modal-title" style="margin: 0; line-height: 1.2;">${user.isGuest ? 'Investor Account' : user.displayName}</h3>
+              <span class="user-tier-tag">${user.isGuest ? 'Sign in with Google' : 'Google Cloud Verified'}</span>
             </div>
           </div>
           <button type="button" class="modal-close-btn" id="btn-close-profile-modal" title="Close Modal">&times;</button>
@@ -111,7 +111,7 @@ export class ProfileModal {
         <div class="profile-tabs-bar">
           <button type="button" class="profile-tab-btn ${this.activeTab === 'profile' ? 'active' : ''}" data-tab="profile">
             ${icons.user}
-            <span>Profile & Login</span>
+            <span>${user.isGuest ? 'Sign In' : 'Account & Logout'}</span>
           </button>
           <button type="button" class="profile-tab-btn ${this.activeTab === 'data' ? 'active' : ''}" data-tab="data">
             ${icons.barChart2}
@@ -142,119 +142,99 @@ export class ProfileModal {
     return this.renderProfileTab(user, initials);
   }
 
-  // 1. Profile & Login Tab
+  // 1. Profile & Login Tab (Google Sign-In as only option & Logout for registered user)
   renderProfileTab(user, initials) {
+    if (user.isGuest) {
+      // Guest / Not Logged In State: ONLY ONE option -> Continue with Google
+      return `
+        <!-- Guest Overview Card -->
+        <div class="user-profile-overview-card" style="margin-bottom: 1.25rem;">
+          <div class="user-overview-avatar-large" style="background: rgba(255, 255, 255, 0.08); color: var(--text-secondary); box-shadow: none;">
+            <svg xmlns="http://www.w3.org/2000/svg" width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
+              <circle cx="12" cy="7" r="4"></circle>
+            </svg>
+          </div>
+          <div class="user-overview-details">
+            <h4 class="user-overview-name">Guest Investor</h4>
+            <div class="user-overview-email">Sign in with Google to sync your portfolio</div>
+            <div class="user-meta-chips">
+              <span class="profile-chip badge-member">Local Session</span>
+              <span class="profile-chip badge-role" style="background: rgba(245, 158, 11, 0.15); color: var(--accent-amber); border-color: rgba(245, 158, 11, 0.3);">
+                Not Signed In
+              </span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Google-Only Authentication Section -->
+        <div class="auth-section-card" style="text-align: center; padding: 2rem 1.5rem;">
+          <div class="auth-section-heading" style="margin-bottom: 1.5rem;">
+            <h5 style="font-size: 1.2rem; font-weight: 800; color: var(--text-primary); margin-bottom: 0.4rem;">
+              Sign In to Apna Share
+            </h5>
+            <p style="font-size: 0.88rem; color: var(--text-secondary); max-width: 420px; margin: 0 auto; line-height: 1.5;">
+              Sign in with your Google account to automatically synchronize your holdings, transactions, and live stock analytics across all your devices.
+            </p>
+          </div>
+
+          <div id="auth-error-alert" class="alert-error-chip" style="display: none; margin-bottom: 1.25rem; text-align: left;"></div>
+
+          <!-- The ONLY sign in button: Continue with Google -->
+          <div style="display: flex; justify-content: center;">
+            <button type="button" class="btn-google-signin" id="btn-login-google" style="max-width: 320px; width: 100%; padding: 0.85rem 1.5rem; font-size: 0.95rem; cursor: pointer;">
+              <svg width="20" height="20" viewBox="0 0 24 24" class="google-svg-icon">
+                <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
+                <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
+                <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z"/>
+                <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z"/>
+              </svg>
+              <span style="font-weight: 700;">Continue with Google</span>
+            </button>
+          </div>
+        </div>
+      `;
+    }
+
+    // Registered User State (Logged in with Google): Shows Profile and prominent Log Out button
     return `
-      <!-- User Overview Banner -->
-      <div class="user-profile-overview-card">
+      <!-- User Overview Banner for Registered Google User -->
+      <div class="user-profile-overview-card" style="margin-bottom: 1.25rem;">
         <div class="user-overview-avatar-large">
           ${user.photoURL ? `<img src="${user.photoURL}" alt="${user.displayName}">` : `<span>${initials}</span>`}
           <span class="online-indicator-dot" title="Account Active"></span>
         </div>
         <div class="user-overview-details">
           <div class="user-overview-name-row">
-            ${this.isEditingName ? `
-              <div class="inline-edit-name-group">
-                <input type="text" id="input-edit-display-name" class="form-control form-control-sm" value="${user.displayName}" />
-                <button type="button" class="btn btn-primary btn-xs" id="btn-save-name">Save</button>
-                <button type="button" class="btn btn-outline btn-xs" id="btn-cancel-name">Cancel</button>
-              </div>
-            ` : `
-              <h4 class="user-overview-name">${user.displayName}</h4>
-              <button type="button" class="btn-icon-subtle" id="btn-trigger-edit-name" title="Edit Display Name">
-                <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"></path><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"></path></svg>
-              </button>
-            `}
+            <h4 class="user-overview-name">${user.displayName}</h4>
           </div>
           <div class="user-overview-email">${user.email}</div>
           <div class="user-meta-chips">
-            <span class="profile-chip badge-role">${icons.shield} ${user.role}</span>
+            <span class="profile-chip badge-role">${icons.shield} Google Investor</span>
+            <span class="profile-chip badge-provider">Google Verified</span>
             <span class="profile-chip badge-member">Member since ${user.joinedDate}</span>
-            <span class="profile-chip badge-provider">${user.isGuest ? 'Local Guest Account' : 'Cloud Authenticated'}</span>
           </div>
         </div>
       </div>
 
-      <!-- Authentication Section -->
+      <!-- Account Management & Logout Section -->
       <div class="auth-section-card">
-        ${!user.isGuest ? `
-          <div class="logged-in-state-box">
-            <div class="auth-status-pill success">
-              <span class="status-dot"></span>
-              <span>Logged In as <strong>${user.email}</strong></span>
-            </div>
-            <p class="auth-desc-subtle">Your portfolio data and transactions are safely synchronized with your personal account.</p>
-            <div style="display: flex; gap: 0.75rem; margin-top: 1rem;">
-              <button type="button" class="btn btn-outline btn-sm" id="btn-auth-logout">
-                ${icons.logOut}
-                <span>Log Out</span>
-              </button>
-              <button type="button" class="btn btn-outline btn-sm" id="btn-switch-to-demo">
-                <span>Switch to Demo Investor</span>
-              </button>
-            </div>
+        <div class="logged-in-state-box">
+          <div class="auth-status-pill success">
+            <span class="status-dot"></span>
+            <span>Signed In as <strong>${user.email}</strong></span>
           </div>
-        ` : `
-          <div class="guest-auth-box">
-            <div class="auth-section-heading">
-              <h5>Login or Create Your Investor Account</h5>
-              <p>Sign in to sync your portfolio across all your mobile and desktop devices with Google or Email.</p>
-            </div>
-
-            <!-- Google One-Tap Sign In -->
-            <button type="button" class="btn-google-signin" id="btn-login-google">
-              <svg width="18" height="18" viewBox="0 0 24 24" class="google-svg-icon">
-                <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
-                <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
-                <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z"/>
-                <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z"/>
-              </svg>
-              <span>Continue with Google</span>
+          <p class="auth-desc-subtle" style="margin-top: 0.65rem; color: var(--text-secondary); font-size: 0.85rem; line-height: 1.5;">
+            Your portfolio holdings, buy/sell transactions, and customized settings are securely linked to your Google account.
+          </p>
+          <div style="display: flex; gap: 0.75rem; margin-top: 1.5rem;">
+            <!-- Prominent Log Out Button for Registered User -->
+            <button type="button" class="btn btn-outline btn-sm btn-danger-soft" id="btn-auth-logout" style="display: inline-flex; align-items: center; gap: 0.55rem; padding: 0.65rem 1.5rem; font-weight: 700; font-size: 0.9rem;">
+              ${icons.logOut}
+              <span>Log Out</span>
             </button>
-
-            <div class="auth-divider">
-              <span>OR USE EMAIL</span>
-            </div>
-
-            <!-- Email & Password Form -->
-            <form id="form-auth-email" class="email-auth-form">
-              <div id="auth-error-alert" class="alert-error-chip" style="display: none;"></div>
-
-              <div class="form-group mb-3">
-                <label class="form-label" for="auth-input-email">Email Address</label>
-                <input type="email" id="auth-input-email" class="form-control" placeholder="your.name@gmail.com" required />
-              </div>
-
-              <div class="form-group mb-3">
-                <label class="form-label" for="auth-input-password">Password</label>
-                <input type="password" id="auth-input-password" class="form-control" placeholder="••••••••" required minlength="6" />
-              </div>
-
-              ${this.authMode === 'signup' ? `
-                <div class="form-group mb-3">
-                  <label class="form-label" for="auth-input-name">Your Full Name</label>
-                  <input type="text" id="auth-input-name" class="form-control" placeholder="e.g. Alok Ranjan" />
-                </div>
-              ` : ''}
-
-              <div style="display: flex; gap: 0.75rem; align-items: center; justify-content: space-between; margin-top: 1rem;">
-                <button type="submit" class="btn btn-primary btn-sm" id="btn-submit-auth">
-                  ${this.authMode === 'login' ? 'Sign In to Account' : 'Create New Account'}
-                </button>
-                <button type="button" class="btn-text-link" id="btn-toggle-auth-mode">
-                  ${this.authMode === 'login' ? "Don't have an account? Sign Up" : "Already registered? Sign In"}
-                </button>
-              </div>
-            </form>
-
-            <div class="quick-guest-switch-bar">
-              <span class="subtle-text">Quick access:</span>
-              <button type="button" class="btn-chip-demo" id="btn-quick-alok">
-                👤 Set Profile as Alok Ranjan
-              </button>
-            </div>
           </div>
-        `}
+        </div>
       </div>
     `;
   }
@@ -509,7 +489,7 @@ export class ProfileModal {
       });
     }
 
-    // Google Sign-In
+    // Google Sign-In (The Only Sign-In Option)
     const btnGoogle = this.container.querySelector('#btn-login-google');
     if (btnGoogle) {
       btnGoogle.addEventListener('click', async () => {
@@ -521,74 +501,28 @@ export class ProfileModal {
           this.render();
         } catch (err) {
           if (errorAlert) {
-            errorAlert.textContent = err.message || 'Google sign-in could not be completed. You can use Guest Investor mode.';
+            errorAlert.textContent = err.message || 'Google sign-in could not be completed.';
             errorAlert.style.display = 'block';
           }
           btnGoogle.disabled = false;
-          btnGoogle.innerHTML = `<span>Continue with Google</span>`;
+          btnGoogle.innerHTML = `
+            <svg width="20" height="20" viewBox="0 0 24 24" class="google-svg-icon">
+              <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
+              <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
+              <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z"/>
+              <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z"/>
+            </svg>
+            <span style="font-weight: 700;">Continue with Google</span>
+          `;
         }
       });
     }
 
-    // Email Form Toggle
-    const btnToggleAuthMode = this.container.querySelector('#btn-toggle-auth-mode');
-    if (btnToggleAuthMode) {
-      btnToggleAuthMode.addEventListener('click', () => {
-        this.authMode = this.authMode === 'login' ? 'signup' : 'login';
-        this.render();
-      });
-    }
-
-    // Email Form Submit
-    const emailForm = this.container.querySelector('#form-auth-email');
-    if (emailForm) {
-      emailForm.addEventListener('submit', async (e) => {
-        e.preventDefault();
-        const email = this.container.querySelector('#auth-input-email').value.trim();
-        const password = this.container.querySelector('#auth-input-password').value;
-        const nameInput = this.container.querySelector('#auth-input-name');
-        const displayName = nameInput ? nameInput.value.trim() : '';
-        const errorAlert = this.container.querySelector('#auth-error-alert');
-
-        try {
-          if (this.authMode === 'login') {
-            await authService.loginWithEmail(email, password);
-          } else {
-            await authService.signupWithEmail(email, password, displayName);
-          }
-          this.render();
-        } catch (err) {
-          if (errorAlert) {
-            errorAlert.textContent = err.message || 'Authentication error. Please check credentials.';
-            errorAlert.style.display = 'block';
-          }
-        }
-      });
-    }
-
-    // Quick Alok Demo Button
-    const btnQuickAlok = this.container.querySelector('#btn-quick-alok');
-    if (btnQuickAlok) {
-      btnQuickAlok.addEventListener('click', () => {
-        authService.loginAsGuest('Alok Ranjan');
-        this.render();
-      });
-    }
-
-    // Logout
+    // Logout for Registered User
     const btnLogout = this.container.querySelector('#btn-auth-logout');
     if (btnLogout) {
       btnLogout.addEventListener('click', async () => {
         await authService.logout();
-        this.render();
-      });
-    }
-
-    // Switch to Demo
-    const btnSwitchDemo = this.container.querySelector('#btn-switch-to-demo');
-    if (btnSwitchDemo) {
-      btnSwitchDemo.addEventListener('click', () => {
-        authService.loginAsGuest('Alok Ranjan');
         this.render();
       });
     }
