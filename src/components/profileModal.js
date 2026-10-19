@@ -62,12 +62,18 @@ export class ProfileModal {
     this.isEditingName = false;
     this.render();
     this.container.style.display = 'flex';
+    requestAnimationFrame(() => {
+      this.container.classList.add('open');
+    });
     document.body.style.overflow = 'hidden'; // prevent background scroll
   }
 
   close() {
-    this.container.style.display = 'none';
-    document.body.style.overflow = '';
+    this.container.classList.remove('open');
+    setTimeout(() => {
+      this.container.style.display = 'none';
+      document.body.style.overflow = '';
+    }, 200);
   }
 
   getInitials(name) {

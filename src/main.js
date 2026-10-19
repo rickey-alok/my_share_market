@@ -165,8 +165,15 @@ class App {
 
     // Mobile Bottom Nav Buttons
     document.querySelectorAll('.mobile-nav-btn').forEach(btn => {
-      btn.addEventListener('click', () => {
+      btn.addEventListener('click', (e) => {
         const target = btn.getAttribute('data-view');
+        if (target === 'profile') {
+          e.preventDefault();
+          if (this.profileModal) {
+            this.profileModal.open('profile');
+          }
+          return;
+        }
         this.navigateTo(target);
       });
     });
@@ -223,18 +230,18 @@ class App {
     const textLabel = document.getElementById('live-feed-text');
 
     const updateLiveUI = (isActive) => {
+      if (!btnToggle) return;
       if (isActive) {
         btnToggle.classList.remove('inactive');
-        textLabel.textContent = 'LIVE';
+        if (textLabel) textLabel.textContent = 'LIVE';
       } else {
         btnToggle.classList.add('inactive');
-        textLabel.textContent = 'PAUSED';
+        if (textLabel) textLabel.textContent = 'PAUSED';
       }
     };
 
-    updateLiveUI(portfolioStore.isLiveFeedActive);
-
     if (btnToggle) {
+      updateLiveUI(portfolioStore.isLiveFeedActive);
       btnToggle.addEventListener('click', () => {
         const active = portfolioStore.toggleLiveFeed();
         updateLiveUI(active);
@@ -442,7 +449,15 @@ class App {
   }
 }
 
-// Initialize Application when DOM is ready
-document.addEventListener('DOMContentLoaded', () => {
-  window.apnaShareApp = new App();
-});
+// Initialize Application robustly when DOM is ready
+const startApp = () => {
+  if (!window.apnaShareApp) {
+    window.apnaShareApp = new App();
+  }
+};
+
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', startApp);
+} else {
+  startApp();
+}
