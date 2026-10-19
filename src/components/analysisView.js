@@ -216,21 +216,6 @@ export class AnalysisView {
       });
     });
 
-    // Delegate Stock Selector Pills
-    const selectorContainer = this.container.querySelector('#holdings-stock-selector');
-    if (selectorContainer) {
-      selectorContainer.addEventListener('click', (e) => {
-        const pill = e.target.closest('.stock-select-pill');
-        if (pill) {
-          const symbol = pill.getAttribute('data-symbol');
-          this.selectedSymbol = symbol;
-          selectorContainer.querySelectorAll('.stock-select-pill').forEach(p => p.classList.remove('active'));
-          pill.classList.add('active');
-          this.renderStockAnalysis();
-        }
-      });
-    }
-
     // Delegate Technical Indicator & Overlay Toggles (Volume, RSI, Benchmark, Industry)
     this.container.addEventListener('click', (e) => {
       const btn = e.target.closest('[data-indicator]');
@@ -567,7 +552,7 @@ export class AnalysisView {
     });
   }
 
-  // 3. Update User Holdings Selector (Automatically lists stocks user holds)
+  // 3. Update User Holdings Selector (Dropdown List for 50+ stocks scalability)
   updateStockSelector() {
     const selectorContainer = this.container.querySelector('#holdings-stock-selector');
     if (!selectorContainer) return;
@@ -588,15 +573,85 @@ export class AnalysisView {
       this.selectedSymbol = holdings[0].symbol;
     }
 
-    selectorContainer.innerHTML = holdings.map(h => {
-      const isSelected = h.symbol === this.selectedSymbol;
-      return `
-        <button type="button" class="stock-select-pill ${isSelected ? 'active' : ''}" data-symbol="${h.symbol}">
-          <span class="pill-sym">${h.symbol}</span>
-          <span class="pill-qty">${h.quantity} sh</span>
-        </button>
-      `;
-    }).join('');
+    const currentIndex = holdings.findIndex(h => h.symbol === this.selectedSymbol);
+
+    selectorContainer.innerHTML = `
+      <div class="stock-dropdown-bar">
+        <div class="dropdown-label-box">
+          <label for="select-holding-stock" class="stock-dropdown-label">
+            <span class="dropdown-label-text">Select Stock to Analyze</span>
+            <span class="dropdown-count-badge">${holdings.length} Holdings</span>
+          </label>
+        </div>
+
+        <div class="dropdown-select-row">
+          <div class="stock-select-custom-wrapper">
+            <select id="select-holding-stock" class="stock-select-dropdown" aria-label="Select holding stock">
+              ${holdings.map((h, idx) => {
+                const isSelected = h.symbol === this.selectedSymbol;
+                return `
+                  <option value="${h.symbol}" ${isSelected ? 'selected' : ''}>
+                    ${idx + 1}. ${h.symbol} — ${h.name} (${h.quantity} shares | CMP: ₹${h.cmp})
+                  </option>
+                `;
+              }).join('')}
+            </select>
+            <div class="dropdown-arrow-icon">
+              <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                <polyline points="6 9 12 15 18 9"></polyline>
+              </svg>
+            </div>
+          </div>
+
+          <!-- Quick Navigation Previous / Next Step Buttons -->
+          <div class="dropdown-step-btns">
+            <button type="button" class="btn-step-stock" id="btn-prev-stock" title="Previous Stock" ${currentIndex <= 0 ? 'disabled' : ''}>
+              <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                <polyline points="15 18 9 12 15 6"></polyline>
+              </svg>
+            </button>
+            <button type="button" class="btn-step-stock" id="btn-next-stock" title="Next Stock" ${currentIndex >= holdings.length - 1 ? 'disabled' : ''}>
+              <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                <polyline points="9 18 15 12 9 6"></polyline>
+              </svg>
+            </button>
+          </div>
+        </div>
+      </div>
+    `;
+
+    // Attach listener to dropdown
+    const selectEl = selectorContainer.querySelector('#select-holding-stock');
+    if (selectEl) {
+      selectEl.addEventListener('change', (e) => {
+        this.selectedSymbol = e.target.value;
+        this.updateStockSelector();
+        this.renderStockAnalysis();
+      });
+    }
+
+    // Attach listeners to Prev / Next buttons
+    const btnPrev = selectorContainer.querySelector('#btn-prev-stock');
+    if (btnPrev) {
+      btnPrev.addEventListener('click', () => {
+        if (currentIndex > 0) {
+          this.selectedSymbol = holdings[currentIndex - 1].symbol;
+          this.updateStockSelector();
+          this.renderStockAnalysis();
+        }
+      });
+    }
+
+    const btnNext = selectorContainer.querySelector('#btn-next-stock');
+    if (btnNext) {
+      btnNext.addEventListener('click', () => {
+        if (currentIndex < holdings.length - 1) {
+          this.selectedSymbol = holdings[currentIndex + 1].symbol;
+          this.updateStockSelector();
+          this.renderStockAnalysis();
+        }
+      });
+    }
   }
 
   // 4. Render Selected Stock Analysis, High/Low Range Pointer, and Trajectory
