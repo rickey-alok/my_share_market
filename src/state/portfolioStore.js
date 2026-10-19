@@ -7,7 +7,7 @@ const STORAGE_KEY_TRANSACTIONS = 'apex_portfolio_txs_v1';
 const STORAGE_KEY_CURRENCY = 'apex_portfolio_currency_v1';
 const STORAGE_KEY_LIVE_FEED = 'apex_portfolio_live_feed_v1';
 
-// Initial realistic seed holdings for an Indian Market investor
+// Initial realistic seed holdings for an Indian Market investor (Current Market Prices)
 const DEFAULT_HOLDINGS = [
   {
     id: 'h_1',
@@ -16,9 +16,9 @@ const DEFAULT_HOLDINGS = [
     exchange: 'NSE',
     sector: 'Energy & Petrochemicals',
     quantity: 45,
-    avgPrice: 2750.00,
-    cmp: 2984.50,
-    prevClose: 2955.20,
+    avgPrice: 1140.00,
+    cmp: 1202.00,
+    prevClose: 1211.20,
     buyDate: '2025-08-14',
     notes: 'Core conglomerate holding for energy transition'
   },
@@ -29,9 +29,9 @@ const DEFAULT_HOLDINGS = [
     exchange: 'NSE',
     sector: 'Banking & Financials',
     quantity: 120,
-    avgPrice: 1540.00,
-    cmp: 1682.30,
-    prevClose: 1664.10,
+    avgPrice: 680.00,
+    cmp: 712.00,
+    prevClose: 728.85,
     buyDate: '2025-09-02',
     notes: 'Private banking titan with merger synergies'
   },
@@ -42,9 +42,9 @@ const DEFAULT_HOLDINGS = [
     exchange: 'NSE',
     sector: 'Information Technology',
     quantity: 25,
-    avgPrice: 4250.00,
-    cmp: 4120.75,
-    prevClose: 4165.00,
+    avgPrice: 2380.00,
+    cmp: 2460.90,
+    prevClose: 2463.00,
     buyDate: '2025-06-20',
     notes: 'Defensive IT cash cow, dividend payer'
   },
@@ -55,11 +55,11 @@ const DEFAULT_HOLDINGS = [
     exchange: 'NSE',
     sector: 'Automobile',
     quantity: 85,
-    avgPrice: 780.00,
-    cmp: 948.60,
-    prevClose: 932.10,
+    avgPrice: 385.00,
+    cmp: 418.60,
+    prevClose: 412.00,
     buyDate: '2025-04-10',
-    notes: 'EV market leadership and JLR turnaround'
+    notes: 'EV market leadership and commercial vehicle turnaround'
   },
   {
     id: 'h_5',
@@ -68,9 +68,9 @@ const DEFAULT_HOLDINGS = [
     exchange: 'NSE',
     sector: 'Consumer Goods (FMCG)',
     quantity: 200,
-    avgPrice: 460.00,
-    cmp: 504.25,
-    prevClose: 508.90,
+    avgPrice: 245.00,
+    cmp: 261.00,
+    prevClose: 263.40,
     buyDate: '2025-03-15',
     notes: 'FMCG scale and hotel business demerger'
   }
@@ -173,9 +173,30 @@ class PortfolioStore {
     // Listen to user-specific private holdings (/users/{userId}/holdings)
     this.firestoreUnsubscribeHoldings = firebaseService.listenToUserHoldings(effectiveUid, (cloudHoldings) => {
       if (Array.isArray(cloudHoldings)) {
-        this.holdings = cloudHoldings;
+        let priceUpdated = false;
+        const calibrated = cloudHoldings.map(h => {
+          const sym = (h.symbol || '').toUpperCase().trim();
+          const ref = POPULAR_STOCKS.find(s => s.symbol.toUpperCase() === sym);
+          if (ref && ref.cmp) {
+            // Calibrate outdated price (e.g. Reliance 2336 -> 1202)
+            if (Math.abs(h.cmp - ref.cmp) > 2) {
+              priceUpdated = true;
+              return { ...h, cmp: ref.cmp, prevClose: ref.prevClose || h.prevClose };
+            }
+          }
+          return h;
+        });
+
+        this.holdings = calibrated;
         this.saveHoldings(this.holdings);
         this.notify({ type: 'CLOUD_SYNC_UPDATED' });
+
+        if (priceUpdated && !this.isInspectingOtherUser) {
+          const u = this.getActiveUser();
+          for (const h of this.holdings) {
+            firebaseService.saveUserHolding(effectiveUid, h, u?.email);
+          }
+        }
       }
     });
 
@@ -252,16 +273,21 @@ class PortfolioStore {
             return [];
           }
           // Sync any outdated prices from POPULAR_STOCKS
+          let pricesCalibrated = false;
           const updated = parsed.map(h => {
             const sym = (h.symbol || '').toUpperCase().trim();
             const ref = POPULAR_STOCKS.find(s => s.symbol.toUpperCase() === sym);
             if (ref && ref.cmp) {
-              if (sym === 'ZOMATO' && h.cmp < 320) {
+              if (Math.abs(h.cmp - ref.cmp) > 2) {
+                pricesCalibrated = true;
                 return { ...h, cmp: ref.cmp, prevClose: ref.prevClose || h.prevClose };
               }
             }
             return h;
           });
+          if (pricesCalibrated) {
+            this.saveHoldings(updated);
+          }
           return updated;
         }
       }
@@ -280,7 +306,7 @@ class PortfolioStore {
       const sym = (h.symbol || '').toUpperCase().trim();
       const ref = POPULAR_STOCKS.find(s => s.symbol.toUpperCase() === sym);
       if (ref && ref.cmp) {
-        if (sym === 'ZOMATO' || Math.abs(h.cmp - ref.cmp) > 2) {
+        if (Math.abs(h.cmp - ref.cmp) > 2) {
           changed = true;
           return {
             ...h,

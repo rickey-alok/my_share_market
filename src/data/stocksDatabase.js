@@ -7,10 +7,10 @@ export const POPULAR_STOCKS = [
     name: 'Reliance Industries Ltd.',
     exchange: 'NSE',
     sector: 'Energy & Petrochemicals',
-    cmp: 2984.50,
-    prevClose: 2955.20,
-    dayChangePercent: 0.99,
-    peRatio: 28.4,
+    cmp: 1202.00,
+    prevClose: 1211.20,
+    dayChangePercent: -0.76,
+    peRatio: 24.2,
     marketCap: 'Large Cap'
   },
   {
@@ -18,10 +18,10 @@ export const POPULAR_STOCKS = [
     name: 'Tata Consultancy Services',
     exchange: 'NSE',
     sector: 'Information Technology',
-    cmp: 4120.75,
-    prevClose: 4165.00,
-    dayChangePercent: -1.06,
-    peRatio: 31.2,
+    cmp: 2460.90,
+    prevClose: 2463.00,
+    dayChangePercent: -0.09,
+    peRatio: 28.5,
     marketCap: 'Large Cap'
   },
   {
@@ -29,10 +29,10 @@ export const POPULAR_STOCKS = [
     name: 'HDFC Bank Ltd.',
     exchange: 'NSE',
     sector: 'Banking & Financials',
-    cmp: 1682.30,
-    prevClose: 1664.10,
-    dayChangePercent: 1.09,
-    peRatio: 19.5,
+    cmp: 712.00,
+    prevClose: 728.85,
+    dayChangePercent: -2.31,
+    peRatio: 18.1,
     marketCap: 'Large Cap'
   },
   {
@@ -40,10 +40,10 @@ export const POPULAR_STOCKS = [
     name: 'Infosys Ltd.',
     exchange: 'NSE',
     sector: 'Information Technology',
-    cmp: 1895.40,
-    prevClose: 1878.00,
+    cmp: 1161.20,
+    prevClose: 1150.50,
     dayChangePercent: 0.93,
-    peRatio: 27.1,
+    peRatio: 24.8,
     marketCap: 'Large Cap'
   },
   {
@@ -51,10 +51,10 @@ export const POPULAR_STOCKS = [
     name: 'Tata Motors Ltd.',
     exchange: 'NSE',
     sector: 'Automobile',
-    cmp: 948.60,
-    prevClose: 932.10,
-    dayChangePercent: 1.77,
-    peRatio: 10.4,
+    cmp: 418.60,
+    prevClose: 412.00,
+    dayChangePercent: 1.60,
+    peRatio: 9.8,
     marketCap: 'Large Cap'
   },
   {
@@ -62,10 +62,10 @@ export const POPULAR_STOCKS = [
     name: 'ICICI Bank Ltd.',
     exchange: 'NSE',
     sector: 'Banking & Financials',
-    cmp: 1245.80,
-    prevClose: 1238.00,
-    dayChangePercent: 0.63,
-    peRatio: 18.2,
+    cmp: 1384.00,
+    prevClose: 1375.00,
+    dayChangePercent: 0.65,
+    peRatio: 17.6,
     marketCap: 'Large Cap'
   },
   {
@@ -73,10 +73,10 @@ export const POPULAR_STOCKS = [
     name: 'ITC Ltd.',
     exchange: 'NSE',
     sector: 'Consumer Goods (FMCG)',
-    cmp: 504.25,
-    prevClose: 508.90,
+    cmp: 261.00,
+    prevClose: 263.40,
     dayChangePercent: -0.91,
-    peRatio: 29.8,
+    peRatio: 26.4,
     marketCap: 'Large Cap'
   },
   {
@@ -84,10 +84,10 @@ export const POPULAR_STOCKS = [
     name: 'Bharti Airtel Ltd.',
     exchange: 'NSE',
     sector: 'Telecommunications',
-    cmp: 1712.00,
-    prevClose: 1695.50,
-    dayChangePercent: 0.97,
-    peRatio: 52.1,
+    cmp: 1890.00,
+    prevClose: 1875.00,
+    dayChangePercent: 0.80,
+    peRatio: 46.5,
     marketCap: 'Large Cap'
   },
   {
@@ -95,10 +95,10 @@ export const POPULAR_STOCKS = [
     name: 'Larsen & Toubro Ltd.',
     exchange: 'NSE',
     sector: 'Infrastructure & Capital Goods',
-    cmp: 3620.10,
-    prevClose: 3590.00,
-    dayChangePercent: 0.84,
-    peRatio: 33.6,
+    cmp: 3661.90,
+    prevClose: 3627.10,
+    dayChangePercent: 0.96,
+    peRatio: 30.1,
     marketCap: 'Large Cap'
   },
   {
@@ -106,10 +106,10 @@ export const POPULAR_STOCKS = [
     name: 'Sun Pharmaceutical Industries',
     exchange: 'NSE',
     sector: 'Healthcare & Pharmaceuticals',
-    cmp: 1890.20,
-    prevClose: 1872.50,
-    dayChangePercent: 0.95,
-    peRatio: 38.2,
+    cmp: 1739.10,
+    prevClose: 1725.00,
+    dayChangePercent: 0.82,
+    peRatio: 36.2,
     marketCap: 'Large Cap'
   },
   {
@@ -117,10 +117,21 @@ export const POPULAR_STOCKS = [
     name: 'Bajaj Finance Ltd.',
     exchange: 'NSE',
     sector: 'Banking & Financials',
-    cmp: 7150.00,
-    prevClose: 7210.00,
-    dayChangePercent: -0.83,
-    peRatio: 30.1,
+    cmp: 976.20,
+    prevClose: 985.00,
+    dayChangePercent: -0.89,
+    peRatio: 28.4,
+    marketCap: 'Large Cap'
+  },
+  {
+    symbol: 'ZOMATO',
+    name: 'Zomato Ltd. (Eternal)',
+    exchange: 'NSE',
+    sector: 'New Age / Consumer Tech',
+    cmp: 334.00,
+    prevClose: 328.50,
+    dayChangePercent: 1.67,
+    peRatio: 95.4,
     marketCap: 'Large Cap'
   },
   {
@@ -139,10 +150,10 @@ export const POPULAR_STOCKS = [
     name: 'State Bank of India',
     exchange: 'NSE',
     sector: 'Banking & Financials',
-    cmp: 792.40,
-    prevClose: 785.10,
-    dayChangePercent: 0.93,
-    peRatio: 11.2,
+    cmp: 973.70,
+    prevClose: 965.00,
+    dayChangePercent: 0.90,
+    peRatio: 10.8,
     marketCap: 'Large Cap'
   },
   {
@@ -150,10 +161,10 @@ export const POPULAR_STOCKS = [
     name: 'Kotak Mahindra Bank Ltd.',
     exchange: 'NSE',
     sector: 'Banking & Financials',
-    cmp: 1785.60,
-    prevClose: 1772.00,
-    dayChangePercent: 0.77,
-    peRatio: 19.8,
+    cmp: 444.50,
+    prevClose: 440.00,
+    dayChangePercent: 1.02,
+    peRatio: 19.2,
     marketCap: 'Large Cap'
   },
   {
@@ -161,10 +172,10 @@ export const POPULAR_STOCKS = [
     name: 'Maruti Suzuki India Ltd.',
     exchange: 'NSE',
     sector: 'Automobile',
-    cmp: 11840.00,
-    prevClose: 11720.00,
-    dayChangePercent: 1.02,
-    peRatio: 26.4,
+    cmp: 11483.00,
+    prevClose: 11390.00,
+    dayChangePercent: 0.82,
+    peRatio: 25.6,
     marketCap: 'Large Cap'
   }
 ];
