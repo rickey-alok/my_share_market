@@ -2046,6 +2046,465 @@ body::after {
   gap: 0.4rem;
 }
 
+/* ========================================================
+   Market & Holdings Analysis Page (Page 4)
+   ======================================================== */
+.analysis-card {
+  background: var(--bg-surface);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-xl);
+  padding: 1.75rem 2rem;
+  box-shadow: var(--shadow-card);
+  position: relative;
+  overflow: hidden;
+  transition: transform var(--transition-fast), border-color var(--transition-fast);
+}
+
+.card-header-with-actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  flex-wrap: wrap;
+  margin-bottom: 1.5rem;
+}
+
+.badge-sentiment {
+  font-family: var(--font-heading);
+  font-size: 0.75rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  padding: 0.25rem 0.65rem;
+  border-radius: var(--radius-full);
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+.badge-sentiment.bull {
+  background: var(--bull-green-subtle);
+  color: var(--bull-green);
+  border: 1px solid rgba(16, 185, 129, 0.3);
+}
+
+.badge-sentiment.bear {
+  background: var(--bear-red-subtle);
+  color: var(--bear-red);
+  border: 1px solid rgba(244, 63, 94, 0.3);
+}
+
+/* Timeframe Filter Pills (1W, 1M, 1Y) */
+.filter-pills-group {
+  display: inline-flex;
+  background: var(--bg-surface-elevated);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-full);
+  padding: 0.22rem;
+  gap: 0.25rem;
+}
+
+.filter-pill {
+  background: transparent;
+  border: none;
+  color: var(--text-secondary);
+  font-family: var(--font-heading);
+  font-size: 0.8rem;
+  font-weight: 600;
+  padding: 0.35rem 0.85rem;
+  border-radius: var(--radius-full);
+  cursor: pointer;
+  transition: all var(--transition-fast);
+}
+
+.filter-pill:hover {
+  color: var(--text-primary);
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.filter-pill.active {
+  background: var(--brand-indigo);
+  color: #ffffff;
+  box-shadow: 0 2px 8px rgba(99, 102, 241, 0.4);
+}
+
+/* FII & DII KPI Grid */
+.fii-dii-kpi-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 1.25rem;
+  margin-bottom: 1.5rem;
+}
+
+.analysis-kpi-card {
+  background: var(--bg-surface-elevated);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-lg);
+  padding: 1.25rem 1.4rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.65rem;
+  position: relative;
+  transition: all var(--transition-fast);
+}
+
+.analysis-kpi-card:hover {
+  border-color: var(--border-active);
+  transform: translateY(-2px);
+}
+
+.analysis-kpi-card.bull {
+  border-left: 3px solid var(--bull-green);
+}
+
+.analysis-kpi-card.bear {
+  border-left: 3px solid var(--bear-red);
+}
+
+.analysis-kpi-card .kpi-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+}
+
+.analysis-kpi-card .kpi-title {
+  font-size: 0.84rem;
+  font-weight: 600;
+  color: var(--text-secondary);
+}
+
+.analysis-kpi-card .kpi-title-sub {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+}
+
+.fii-tag, .dii-tag {
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+  font-weight: 700;
+  padding: 0.15rem 0.45rem;
+  border-radius: var(--radius-sm);
+  letter-spacing: 0.02em;
+}
+
+.fii-tag {
+  background: rgba(6, 182, 212, 0.15);
+  color: #06b6d4;
+  border: 1px solid rgba(6, 182, 212, 0.3);
+}
+
+.dii-tag {
+  background: rgba(99, 102, 241, 0.15);
+  color: #818cf8;
+  border: 1px solid rgba(99, 102, 241, 0.3);
+}
+
+.kpi-breakdown-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 0.76rem;
+  color: var(--text-muted);
+  font-family: var(--font-mono);
+  padding-top: 0.35rem;
+  border-top: 1px solid var(--border-subtle);
+}
+
+.analysis-kpi-card .kpi-footer {
+  font-size: 0.78rem;
+  padding-top: 0.35rem;
+  border-top: 1px solid var(--border-subtle);
+}
+
+.chart-wrapper-analysis {
+  position: relative;
+  height: 290px;
+  width: 100%;
+  margin-top: 0.5rem;
+}
+
+/* Index Meta Section */
+.index-summary-box {
+  margin-bottom: 1.5rem;
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+}
+
+.index-meta-row {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 1rem;
+  flex-wrap: wrap;
+}
+
+.index-current-name {
+  font-size: 0.88rem;
+  font-weight: 600;
+  color: var(--text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.index-current-val {
+  font-size: 1.85rem;
+  font-weight: 800;
+  color: var(--text-primary);
+  line-height: 1.15;
+  margin-top: 0.2rem;
+}
+
+/* Feature 4: High-Low Horizontal Range Gauge with Pointer */
+.range-gauge-container {
+  background: var(--bg-surface-elevated);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-lg);
+  padding: 1.25rem 1.5rem 1.65rem 1.5rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.95rem;
+}
+
+.range-gauge-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  font-size: 0.82rem;
+}
+
+.range-bound {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+}
+
+.range-bound.low {
+  text-align: left;
+}
+
+.range-bound.high {
+  text-align: right;
+}
+
+.range-bound strong {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.range-bound .mono {
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+.range-indicator-badge {
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: var(--brand-indigo-light);
+  background: rgba(99, 102, 241, 0.1);
+  border: 1px solid rgba(99, 102, 241, 0.25);
+  padding: 0.25rem 0.75rem;
+  border-radius: var(--radius-full);
+  text-align: center;
+}
+
+.range-gauge-track {
+  position: relative;
+  height: 10px;
+  background: rgba(255, 255, 255, 0.08);
+  border-radius: var(--radius-full);
+  margin: 1.85rem 0 1.25rem 0;
+  box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.3);
+}
+
+[data-theme="light"] .range-gauge-track {
+  background: rgba(0, 0, 0, 0.08);
+}
+
+.range-gauge-fill {
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  background: linear-gradient(90deg, #f43f5e, #f59e0b 45%, #10b981 100%);
+  border-radius: var(--radius-full);
+  opacity: 0.7;
+}
+
+/* Range Pointer Needle and Bubble */
+.range-pointer {
+  position: absolute;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  z-index: 10;
+  pointer-events: none;
+}
+
+.pointer-needle {
+  width: 16px;
+  height: 16px;
+  background: #ffffff;
+  border: 3px solid #10b981;
+  border-radius: 50%;
+  box-shadow: 0 0 12px rgba(16, 185, 129, 0.8), 0 2px 6px rgba(0, 0, 0, 0.4);
+  transition: transform var(--transition-fast);
+}
+
+.pointer-needle.cmp-needle {
+  border-color: #6366f1;
+  box-shadow: 0 0 12px rgba(99, 102, 241, 0.8), 0 2px 6px rgba(0, 0, 0, 0.4);
+}
+
+.pointer-diamond {
+  width: 14px;
+  height: 14px;
+  background: #06b6d4;
+  border: 2px solid #ffffff;
+  transform: rotate(45deg);
+  box-shadow: 0 0 10px rgba(6, 182, 212, 0.8), 0 2px 6px rgba(0, 0, 0, 0.4);
+}
+
+.pointer-bubble {
+  position: absolute;
+  bottom: calc(100% + 7px);
+  white-space: nowrap;
+  background: var(--bg-surface-hover);
+  color: var(--text-primary);
+  font-size: 0.72rem;
+  font-weight: 700;
+  padding: 0.25rem 0.55rem;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border-active);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.35);
+}
+
+.pointer-bubble.avg-bubble {
+  bottom: auto;
+  top: calc(100% + 7px);
+  color: #06b6d4;
+  border-color: rgba(6, 182, 212, 0.4);
+}
+
+.pointer-bubble.cmp-bubble {
+  color: #818cf8;
+  border-color: rgba(99, 102, 241, 0.4);
+}
+
+.gauge-legend-row {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 1.5rem;
+  font-size: 0.76rem;
+  color: var(--text-secondary);
+  margin-top: 0.5rem;
+}
+
+.legend-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  font-weight: 600;
+}
+
+.legend-chip .dot {
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  background: #6366f1;
+  display: inline-block;
+  box-shadow: 0 0 6px rgba(99, 102, 241, 0.8);
+}
+
+.legend-chip .diamond {
+  width: 8px;
+  height: 8px;
+  background: #06b6d4;
+  transform: rotate(45deg);
+  display: inline-block;
+  box-shadow: 0 0 6px rgba(6, 182, 212, 0.8);
+}
+
+/* User Holdings Stock Selector Pills (Feature 3) */
+.holdings-stock-selector {
+  display: flex;
+  gap: 0.65rem;
+  overflow-x: auto;
+  padding: 0.25rem 0.15rem 1rem 0.15rem;
+  margin-bottom: 1.25rem;
+  scrollbar-width: thin;
+}
+
+.stock-select-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.6rem;
+  background: var(--bg-surface-elevated);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-full);
+  padding: 0.45rem 1rem;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: all var(--transition-fast);
+}
+
+.stock-select-pill:hover {
+  background: var(--bg-surface-hover);
+  border-color: var(--border-active);
+  transform: translateY(-1px);
+}
+
+.stock-select-pill.active {
+  background: rgba(99, 102, 241, 0.16);
+  border-color: var(--brand-indigo);
+  box-shadow: 0 0 14px rgba(99, 102, 241, 0.3);
+}
+
+.stock-select-pill .pill-sym {
+  font-family: var(--font-mono);
+  font-weight: 700;
+  font-size: 0.86rem;
+  color: var(--text-primary);
+}
+
+.stock-select-pill.active .pill-sym {
+  color: var(--brand-indigo-light);
+}
+
+.stock-select-pill .pill-qty {
+  font-size: 0.74rem;
+  color: var(--text-muted);
+  font-family: var(--font-mono);
+}
+
+.stock-analysis-banner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  flex-wrap: wrap;
+  padding: 1.15rem 1.4rem;
+  background: var(--bg-surface-elevated);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-lg);
+}
+
+.rotating {
+  animation: spin 0.8s linear infinite;
+}
+
+@keyframes spin {
+  100% { transform: rotate(360deg); }
+}
+
 /* Responsive Media Queries */
 @media (max-width: 1024px) {
   .kpi-grid {
@@ -2157,4 +2616,22 @@ body::after {
   .mobile-tx-list {
     display: block;
   }
+  .fii-dii-kpi-grid {
+    grid-template-columns: 1fr;
+    gap: 0.85rem;
+  }
+  .chart-wrapper-analysis {
+    height: 250px;
+  }
+  .analysis-card {
+    padding: 1.25rem;
+  }
+  .range-gauge-container {
+    padding: 1rem 1rem 1.4rem 1rem;
+  }
+  .gauge-legend-row {
+    flex-direction: column;
+    gap: 0.45rem;
+  }
 }
+

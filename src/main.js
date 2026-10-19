@@ -5,6 +5,7 @@ import { firebaseService } from './services/firebase.js';
 import { DashboardView } from './components/dashboardView.js';
 import { AddHoldingView } from './components/addHoldingView.js';
 import { StockDetailView } from './components/stockDetailView.js';
+import { AnalysisView } from './components/analysisView.js';
 
 class App {
   constructor() {
@@ -12,6 +13,7 @@ class App {
     this.dashboardView = null;
     this.addHoldingView = null;
     this.stockDetailView = null;
+    this.analysisView = null;
 
     this.init();
   }
@@ -20,6 +22,7 @@ class App {
     const dashboardContainer = document.getElementById('view-dashboard');
     const addHoldingContainer = document.getElementById('view-add-holding');
     const stockDetailContainer = document.getElementById('view-stock-detail');
+    const analysisContainer = document.getElementById('view-analysis');
 
     // Instantiate Views
     this.dashboardView = new DashboardView(
@@ -40,6 +43,13 @@ class App {
       (prefillData) => this.navigateTo('add-holding', prefillData)
     );
 
+    if (analysisContainer) {
+      this.analysisView = new AnalysisView(
+        analysisContainer,
+        (symbol) => this.navigateTo('stock', { symbol })
+      );
+    }
+
     this.setupNavigation();
     this.setupThemeSelector();
     this.setupLiveFeedControl();
@@ -59,6 +69,8 @@ class App {
       if (data && this.addHoldingView) {
         this.addHoldingView.setPrefill(data);
       }
+    } else if (viewName === 'analysis') {
+      window.location.hash = `#/analysis`;
     } else {
       window.location.hash = `#/dashboard`;
     }
@@ -71,6 +83,8 @@ class App {
       this.switchView('stock-detail', symbol);
     } else if (hash === 'add-holding') {
       this.switchView('add-holding');
+    } else if (hash === 'analysis') {
+      this.switchView('analysis');
     } else {
       this.switchView('dashboard');
     }
@@ -83,28 +97,34 @@ class App {
     const dashboardContainer = document.getElementById('view-dashboard');
     const addHoldingContainer = document.getElementById('view-add-holding');
     const stockDetailContainer = document.getElementById('view-stock-detail');
+    const analysisContainer = document.getElementById('view-analysis');
+
+    if (dashboardContainer) dashboardContainer.classList.remove('active');
+    if (addHoldingContainer) addHoldingContainer.classList.remove('active');
+    if (stockDetailContainer) stockDetailContainer.classList.remove('active');
+    if (analysisContainer) analysisContainer.classList.remove('active');
 
     if (viewName === 'dashboard') {
-      dashboardContainer.classList.add('active');
-      addHoldingContainer.classList.remove('active');
-      if (stockDetailContainer) stockDetailContainer.classList.remove('active');
-      window.scrollTo({ top: 0, behavior: 'smooth' });
+      if (dashboardContainer) dashboardContainer.classList.add('active');
     } else if (viewName === 'stock-detail') {
-      dashboardContainer.classList.remove('active');
-      addHoldingContainer.classList.remove('active');
       if (stockDetailContainer) {
         stockDetailContainer.classList.add('active');
         if (param && this.stockDetailView) {
           this.stockDetailView.setStock(param);
         }
       }
-      window.scrollTo({ top: 0, behavior: 'smooth' });
+    } else if (viewName === 'analysis') {
+      if (analysisContainer) {
+        analysisContainer.classList.add('active');
+        if (this.analysisView) {
+          this.analysisView.updateAll();
+        }
+      }
     } else {
-      dashboardContainer.classList.remove('active');
-      if (stockDetailContainer) stockDetailContainer.classList.remove('active');
-      addHoldingContainer.classList.add('active');
-      window.scrollTo({ top: 0, behavior: 'smooth' });
+      if (addHoldingContainer) addHoldingContainer.classList.add('active');
     }
+
+    window.scrollTo({ top: 0, behavior: 'smooth' });
 
     // Update Desktop Nav Tabs
     document.querySelectorAll('.nav-tab-btn').forEach(btn => {
@@ -174,6 +194,9 @@ class App {
 
       if (this.dashboardView && typeof this.dashboardView.updateTheme === 'function') {
         this.dashboardView.updateTheme();
+      }
+      if (this.analysisView && typeof this.analysisView.updateTheme === 'function') {
+        this.analysisView.updateTheme();
       }
     };
 

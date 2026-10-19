@@ -56,6 +56,14 @@
             <span>Dashboard</span>
           </button>
 
+          <button id="nav-btn-analysis" class="nav-tab-btn" data-view="analysis">
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M3 3v18h18"></path>
+              <path d="m19 9-5 5-4-4-3 3"></path>
+            </svg>
+            <span>Analysis</span>
+          </button>
+
           <button id="nav-btn-add" class="nav-tab-btn" data-view="add-holding">
             <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
               <line x1="12" y1="5" x2="12" y2="19"></line>
@@ -148,6 +156,11 @@
       <section id="view-stock-detail" class="view-container" role="region" aria-label="Stock Details and Transactions">
         <!-- Rendered by StockDetailView -->
       </section>
+
+      <!-- View 4: Market & Holdings Analysis -->
+      <section id="view-analysis" class="view-container" role="region" aria-label="Market and Portfolio Analysis">
+        <!-- Rendered by AnalysisView -->
+      </section>
     </main>
 
     <!-- Mobile Bottom Navigation Bar -->
@@ -160,6 +173,14 @@
           <rect x="3" y="16" width="7" height="5"></rect>
         </svg>
         <span>Dashboard</span>
+      </button>
+
+      <button class="mobile-nav-btn" data-view="analysis" id="mob-nav-analysis">
+        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M3 3v18h18"></path>
+          <path d="m19 9-5 5-4-4-3 3"></path>
+        </svg>
+        <span>Analysis</span>
       </button>
 
       <button class="mobile-nav-btn" data-view="add-holding" id="mob-nav-add">
