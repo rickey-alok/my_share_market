@@ -19,6 +19,7 @@ export class StockDetailView {
     this.onNavigateToAddHolding = onNavigateToAddHolding;
     this.currentSymbol = null;
     this.renderedSymbol = null;
+    this.tradeMode = 'BUY'; // 'BUY' or 'SELL'
 
     // Listen to store updates with surgical targeted DOM updates
     this.unsubscribe = portfolioStore.subscribe((event) => {
@@ -26,8 +27,8 @@ export class StockDetailView {
 
       if (event.type === 'PRICE_TICK') {
         this.handlePriceTick(event.tick);
-      } else if (event.type === 'HOLDING_DELETED') {
-        if (event.holding && event.holding.symbol === this.currentSymbol) {
+      } else if (event.type === 'HOLDING_DELETED' || (event.type === 'HOLDING_SOLD' && event.isFullExit)) {
+        if ((event.holding && event.holding.symbol === this.currentSymbol) || (event.soldHolding && event.soldHolding.symbol === this.currentSymbol) || event.symbol === this.currentSymbol) {
           this.renderNotFound();
         }
       } else {
@@ -86,6 +87,9 @@ export class StockDetailView {
           <div class="detail-top-actions">
             <button type="button" class="btn btn-primary btn-sm" id="btn-quick-average">
               ${icons.plus} Buy / Average
+            </button>
+            <button type="button" class="btn btn-outline btn-sm" id="btn-quick-sell" style="color: var(--bear-red); border-color: rgba(244, 63, 94, 0.4);">
+              ${icons.trendingDown} Sell Shares
             </button>
             <button type="button" class="btn btn-danger btn-sm" id="btn-exit-position" title="Exit / Delete this holding">
               ${icons.trash} Exit Position
@@ -203,62 +207,63 @@ export class StockDetailView {
             </div>
           </div>
 
-          <!-- Right: Instant Averaging Calculator for this stock -->
+          <!-- Right: Instant Trade & Averaging Calculator for this stock -->
           <div class="detail-card averaging-tool-card">
             <div class="detail-card-header">
               <div class="detail-card-title">
                 ${icons.calculator}
-                <h3>Average Down Calculator</h3>
+                <h3 id="calc-card-title">Average Down / Buy Calculator</h3>
               </div>
             </div>
-            <p class="averaging-tool-desc">
+
+            <!-- Segmented Trade Mode Toggle: BUY vs SELL -->
+            <div class="trade-mode-toggle" id="trade-mode-toggle">
+              <button type="button" class="trade-mode-btn buy ${this.tradeMode === 'BUY' ? 'active' : ''}" data-mode="BUY">
+                ${icons.plus} Buy / Average
+              </button>
+              <button type="button" class="trade-mode-btn sell ${this.tradeMode === 'SELL' ? 'active' : ''}" data-mode="SELL">
+                ${icons.trendingDown} Sell / Book Profit
+              </button>
+            </div>
+
+            <p class="averaging-tool-desc" id="calc-tool-desc">
               Calculate how buying more shares of <strong>${enrichedHolding.symbol}</strong> adjusts your weighted average price:
             </p>
 
             <form id="form-quick-average" class="quick-avg-form">
               <div class="form-group">
-                <label class="form-label" for="detail-add-qty">Additional Shares to Buy</label>
-                <div class="quick-pills" id="detail-qty-pills" style="margin-bottom: 0.5rem;">
-                  <button type="button" class="quick-pill" data-qty="5">+5</button>
-                  <button type="button" class="quick-pill active" data-qty="10">+10</button>
-                  <button type="button" class="quick-pill" data-qty="25">+25</button>
-                  <button type="button" class="quick-pill" data-qty="50">+50</button>
-                  <button type="button" class="quick-pill" data-qty="100">+100</button>
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.35rem;">
+                  <label class="form-label" for="detail-add-qty" id="label-trade-qty" style="margin-bottom: 0;">Additional Shares to Buy</label>
+                  <span id="avail-shares-hint" style="font-size: 0.76rem; color: var(--text-muted); font-family: var(--font-mono); display: none;">
+                    Available: <strong style="color: var(--text-primary);">${enrichedHolding.quantity}</strong> shares
+                  </span>
                 </div>
+
+                <div class="quick-pills" id="detail-qty-pills" style="margin-bottom: 0.5rem;">
+                  <!-- Dynamically populated -->
+                </div>
+
                 <input type="number" id="detail-add-qty" class="form-control mono" min="1" step="1" value="10" required />
+                <div id="calc-qty-warning" class="calc-warning-banner" style="display: none;"></div>
               </div>
 
               <div class="form-group">
-                <label class="form-label" for="detail-add-price">Expected Purchase Price (₹)</label>
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.35rem;">
+                  <label class="form-label" for="detail-add-price" id="label-trade-price" style="margin-bottom: 0;">Expected Purchase Price (₹)</label>
+                  <button type="button" class="helper-link" id="btn-calc-use-cmp" style="background: none; border: none; padding: 0; cursor: pointer;">
+                    Use CMP (${portfolioStore.formatMoney(enrichedHolding.cmp)})
+                  </button>
+                </div>
                 <input type="number" id="detail-add-price" class="form-control mono" min="0.05" step="0.05" value="${(enrichedHolding.cmp || enrichedHolding.avgPrice).toFixed(2)}" required />
               </div>
 
               <!-- Live Projected Result Box (Only these text nodes update on typing!) -->
-              <div class="projected-impact-box">
-                <div class="projected-row">
-                  <span class="projected-label">Current Avg Price:</span>
-                  <span class="projected-val mono" id="proj-current-avg">${portfolioStore.formatMoney(enrichedHolding.avgPrice)}</span>
-                </div>
-                <div class="projected-row highlight">
-                  <span class="projected-label">New Weighted Avg Price:</span>
-                  <span class="projected-val mono" id="proj-new-avg" style="color: var(--brand-indigo-light); font-weight: 700;">₹ 0.00</span>
-                </div>
-                <div class="projected-row">
-                  <span class="projected-label">Impact on Avg Cost:</span>
-                  <span class="projected-val mono" id="proj-impact-diff" style="font-weight: 600;">--</span>
-                </div>
-                <div class="projected-row">
-                  <span class="projected-label">New Total Shares:</span>
-                  <span class="projected-val mono" id="proj-total-shares">0 shares</span>
-                </div>
-                <div class="projected-row">
-                  <span class="projected-label">Capital Required:</span>
-                  <span class="projected-val mono" id="proj-capital-req">₹ 0.00</span>
-                </div>
+              <div class="projected-impact-box" id="calc-projected-box">
+                <!-- Dynamically populated -->
               </div>
 
               <button type="submit" class="btn btn-primary" id="btn-submit-quick-avg" style="width: 100%; justify-content: center; margin-top: 1rem;">
-                ${icons.checkCircle} Execute Trade & Update Average
+                ${icons.checkCircle} <span id="btn-submit-label">Execute Buy & Update Average</span>
               </button>
             </form>
           </div>
@@ -281,15 +286,48 @@ export class StockDetailView {
     if (btnBack) btnBack.addEventListener('click', handleBack);
     if (crumbDashboard) crumbDashboard.addEventListener('click', handleBack);
 
-    // Quick Average / Buy more navigation
+    // Quick Average / Buy more button focuses the dedicated calculator in BUY mode
     const btnQuickAvg = this.container.querySelector('#btn-quick-average');
     if (btnQuickAvg) {
       btnQuickAvg.addEventListener('click', () => {
-        if (this.onNavigateToAddHolding) {
-          this.onNavigateToAddHolding({ symbol: holding.symbol });
+        this.setTradeMode('BUY');
+        const calcCard = this.container.querySelector('.averaging-tool-card');
+        const inputQty = this.container.querySelector('#detail-add-qty');
+        if (calcCard) {
+          calcCard.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        }
+        if (inputQty) {
+          inputQty.focus();
+          inputQty.select();
         }
       });
     }
+
+    // Sell Shares button focuses the dedicated calculator in SELL mode
+    const btnQuickSell = this.container.querySelector('#btn-quick-sell');
+    if (btnQuickSell) {
+      btnQuickSell.addEventListener('click', () => {
+        this.setTradeMode('SELL');
+        const calcCard = this.container.querySelector('.averaging-tool-card');
+        const inputQty = this.container.querySelector('#detail-add-qty');
+        if (calcCard) {
+          calcCard.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        }
+        if (inputQty) {
+          inputQty.focus();
+          inputQty.select();
+        }
+      });
+    }
+
+    // Trade Mode Toggle buttons (BUY vs SELL)
+    const toggleBtns = this.container.querySelectorAll('.trade-mode-btn');
+    toggleBtns.forEach(btn => {
+      btn.addEventListener('click', () => {
+        const mode = btn.getAttribute('data-mode');
+        this.setTradeMode(mode);
+      });
+    });
 
     // Exit Position / Delete
     const btnExit = this.container.querySelector('#btn-exit-position');
@@ -303,29 +341,29 @@ export class StockDetailView {
       });
     }
 
-    // Averaging Calculator inputs - fluid typing WITHOUT full re-renders
-    const inputQty = this.container.querySelector('#detail-add-qty');
-    const inputPrice = this.container.querySelector('#detail-add-price');
-    const pills = this.container.querySelectorAll('#detail-qty-pills .quick-pill');
-    const formAvg = this.container.querySelector('#form-quick-average');
-
-    if (pills) {
-      pills.forEach(pill => {
-        pill.addEventListener('click', () => {
-          pills.forEach(p => p.classList.remove('active'));
-          pill.classList.add('active');
-          const add = parseInt(pill.getAttribute('data-qty'), 10) || 10;
-          if (inputQty) {
-            inputQty.value = add;
-            this.updateProjectedImpact();
-          }
-        });
+    // "Use CMP" helper button
+    const btnUseCmp = this.container.querySelector('#btn-calc-use-cmp');
+    if (btnUseCmp) {
+      btnUseCmp.addEventListener('click', () => {
+        const currentHolding = portfolioStore.getHoldingBySymbol(this.currentSymbol) || holding;
+        const inputPrice = this.container.querySelector('#detail-add-price');
+        if (inputPrice) {
+          inputPrice.value = (currentHolding.cmp || currentHolding.avgPrice).toFixed(2);
+          this.updateProjectedImpact();
+        }
       });
     }
 
+    // Input quantity & price listeners
+    const inputQty = this.container.querySelector('#detail-add-qty');
+    const inputPrice = this.container.querySelector('#detail-add-price');
+    const formAvg = this.container.querySelector('#form-quick-average');
+
+    this.renderPillsForMode(holding);
+
     if (inputQty) {
       inputQty.addEventListener('input', () => {
-        // Clear active pill if custom value typed
+        const pills = this.container.querySelectorAll('#detail-qty-pills .quick-pill');
         pills.forEach(p => {
           if (parseInt(p.getAttribute('data-qty'), 10) === parseInt(inputQty.value, 10)) {
             p.classList.add('active');
@@ -343,7 +381,7 @@ export class StockDetailView {
       });
     }
 
-    // Form submit: Execute trade
+    // Form submit: Execute trade (BUY or SELL)
     if (formAvg) {
       formAvg.addEventListener('submit', (e) => {
         e.preventDefault();
@@ -356,24 +394,169 @@ export class StockDetailView {
           return;
         }
 
-        portfolioStore.addOrUpdateHolding({
-          symbol: currentHolding.symbol,
-          name: currentHolding.name,
-          exchange: currentHolding.exchange,
-          sector: currentHolding.sector,
-          quantity: qty,
-          buyPrice: price,
-          cmp: currentHolding.cmp,
-          buyDate: new Date().toISOString().split('T')[0],
-          notes: `Averaged down: +${qty} shares @ ₹${price}`
-        });
+        if (this.tradeMode === 'BUY') {
+          portfolioStore.addOrUpdateHolding({
+            symbol: currentHolding.symbol,
+            name: currentHolding.name,
+            exchange: currentHolding.exchange,
+            sector: currentHolding.sector,
+            quantity: qty,
+            buyPrice: price,
+            cmp: currentHolding.cmp,
+            buyDate: new Date().toISOString().split('T')[0],
+            notes: `Averaged down: +${qty} shares @ ₹${price}`
+          });
 
-        alert(`🎉 Trade executed! Added ${qty} shares of ${currentHolding.symbol} @ ₹${price}. Your average price has been updated.`);
-        this.updateFinancialMetrics();
-        this.updateTransactionTable();
-        this.updateProjectedImpact();
+          alert(`🎉 Buy order executed! Added ${qty} shares of ${currentHolding.symbol} @ ₹${price}. Your average price has been updated.`);
+          this.updateFinancialMetrics();
+          this.updateTransactionTable();
+          this.renderPillsForMode(portfolioStore.getHoldingBySymbol(this.currentSymbol));
+          this.updateProjectedImpact();
+        } else {
+          // SELL Mode
+          if (qty > currentHolding.quantity) {
+            alert(`Cannot sell ${qty} shares. You currently own ${currentHolding.quantity} shares.`);
+            return;
+          }
+
+          try {
+            const result = portfolioStore.sellHolding({
+              symbol: currentHolding.symbol,
+              quantity: qty,
+              sellPrice: price,
+              sellDate: new Date().toISOString().split('T')[0],
+              notes: qty === currentHolding.quantity 
+                ? `Full position exit: Sold all ${qty} shares @ ₹${price}` 
+                : `Sold ${qty} shares @ ₹${price}`
+            });
+
+            const pnlFormatted = portfolioStore.formatMoney(result.realizedPnL);
+            const pnlSign = result.realizedPnL >= 0 ? '+' : '';
+            const pnlPctSign = result.realizedPnLPercent >= 0 ? '+' : '';
+
+            if (result.isFullExit) {
+              alert(`🎉 Position closed! Sold all ${qty} shares of ${currentHolding.symbol} @ ₹${price}.\nRealized P&L: ${pnlSign}${pnlFormatted} (${pnlPctSign}${result.realizedPnLPercent.toFixed(2)}%). Returning to Dashboard.`);
+              if (this.onNavigateBack) this.onNavigateBack();
+            } else {
+              alert(`🎉 Sell order executed! Sold ${qty} shares of ${currentHolding.symbol} @ ₹${price}.\nRealized P&L: ${pnlSign}${pnlFormatted} (${pnlPctSign}${result.realizedPnLPercent.toFixed(2)}%).\nRemaining position: ${result.remainingQty} shares.`);
+              this.updateFinancialMetrics();
+              this.updateTransactionTable();
+              this.setTradeMode('SELL');
+            }
+          } catch (err) {
+            alert(`Error executing sell order: ${err.message}`);
+          }
+        }
       });
     }
+  }
+
+  renderPillsForMode(holding) {
+    const pillsContainer = this.container.querySelector('#detail-qty-pills');
+    const inputQty = this.container.querySelector('#detail-add-qty');
+    if (!pillsContainer || !inputQty || !holding) return;
+
+    if (this.tradeMode === 'BUY') {
+      const buyAmounts = [5, 10, 25, 50, 100];
+      const curVal = parseInt(inputQty.value, 10);
+      pillsContainer.innerHTML = buyAmounts.map(amt => `
+        <button type="button" class="quick-pill ${curVal === amt ? 'active' : ''}" data-qty="${amt}">+${amt}</button>
+      `).join('');
+    } else {
+      // Sell Mode: percentage of current position
+      const qty = holding.quantity;
+      const q25 = Math.max(1, Math.round(qty * 0.25));
+      const q50 = Math.max(1, Math.round(qty * 0.50));
+      const q75 = Math.max(1, Math.round(qty * 0.75));
+      const q100 = qty;
+
+      const curVal = parseInt(inputQty.value, 10);
+      pillsContainer.innerHTML = `
+        <button type="button" class="quick-pill sell ${curVal === q25 ? 'active' : ''}" data-qty="${q25}" title="Sell 25% (${q25} shares)">25%</button>
+        <button type="button" class="quick-pill sell ${curVal === q50 ? 'active' : ''}" data-qty="${q50}" title="Sell 50% (${q50} shares)">50%</button>
+        <button type="button" class="quick-pill sell ${curVal === q75 ? 'active' : ''}" data-qty="${q75}" title="Sell 75% (${q75} shares)">75%</button>
+        <button type="button" class="quick-pill sell ${curVal === q100 ? 'active' : ''}" data-qty="${q100}" title="Sell 100% (All ${q100} shares)">100% (All)</button>
+      `;
+    }
+
+    // Attach pill click events
+    const pills = pillsContainer.querySelectorAll('.quick-pill');
+    pills.forEach(pill => {
+      pill.addEventListener('click', () => {
+        pills.forEach(p => p.classList.remove('active'));
+        pill.classList.add('active');
+        const add = parseInt(pill.getAttribute('data-qty'), 10) || 1;
+        inputQty.value = add;
+        this.updateProjectedImpact();
+      });
+    });
+  }
+
+  setTradeMode(mode) {
+    this.tradeMode = mode;
+    const holding = portfolioStore.getHoldingBySymbol(this.currentSymbol);
+    if (!holding) return;
+
+    // Update toggle active styling
+    const toggleBtns = this.container.querySelectorAll('.trade-mode-btn');
+    toggleBtns.forEach(btn => {
+      if (btn.getAttribute('data-mode') === mode) {
+        btn.classList.add('active');
+      } else {
+        btn.classList.remove('active');
+      }
+    });
+
+    const cardTitle = this.container.querySelector('#calc-card-title');
+    const toolDesc = this.container.querySelector('#calc-tool-desc');
+    const labelQty = this.container.querySelector('#label-trade-qty');
+    const availHint = this.container.querySelector('#avail-shares-hint');
+    const labelPrice = this.container.querySelector('#label-trade-price');
+    const submitBtn = this.container.querySelector('#btn-submit-quick-avg');
+    const submitLabel = this.container.querySelector('#btn-submit-label');
+    const inputQty = this.container.querySelector('#detail-add-qty');
+    const inputPrice = this.container.querySelector('#detail-add-price');
+
+    if (mode === 'BUY') {
+      if (cardTitle) cardTitle.textContent = 'Average Down / Buy Calculator';
+      if (toolDesc) toolDesc.innerHTML = `Calculate how buying more shares of <strong>${holding.symbol}</strong> adjusts your weighted average price:`;
+      if (labelQty) labelQty.textContent = 'Additional Shares to Buy';
+      if (availHint) availHint.style.display = 'none';
+      if (labelPrice) labelPrice.textContent = 'Expected Purchase Price (₹)';
+      if (submitBtn) {
+        submitBtn.className = 'btn btn-primary';
+        submitBtn.style.marginTop = '1rem';
+      }
+      if (submitLabel) submitLabel.textContent = 'Execute Buy & Update Average';
+      if (inputQty && (parseInt(inputQty.value, 10) <= 0 || parseInt(inputQty.value, 10) > holding.quantity)) {
+        inputQty.value = 10;
+      }
+    } else {
+      if (cardTitle) cardTitle.textContent = 'Profit Booking / Sell Calculator';
+      if (toolDesc) toolDesc.innerHTML = `Calculate your realized profit/loss and capital released by selling shares of <strong>${holding.symbol}</strong>:`;
+      if (labelQty) labelQty.textContent = 'Shares to Sell';
+      if (availHint) {
+        availHint.style.display = 'inline-block';
+        availHint.innerHTML = `Available: <strong style="color: var(--text-primary);">${holding.quantity}</strong> shares`;
+      }
+      if (labelPrice) labelPrice.textContent = 'Expected Selling Price (₹)';
+      if (submitBtn) {
+        submitBtn.className = 'btn btn-danger btn-sell-action';
+        submitBtn.style.marginTop = '1rem';
+      }
+      if (submitLabel) submitLabel.textContent = 'Execute Sell & Book P&L';
+      if (inputQty) {
+        const defaultSellQty = Math.max(1, Math.round(holding.quantity * 0.5));
+        inputQty.value = defaultSellQty;
+      }
+    }
+
+    if (inputPrice) {
+      inputPrice.value = (holding.cmp || holding.avgPrice).toFixed(2);
+    }
+
+    this.renderPillsForMode(holding);
+    this.updateProjectedImpact();
   }
 
   // Smoothly recalculates only the live preview numbers
@@ -383,50 +566,117 @@ export class StockDetailView {
 
     const inputQty = this.container.querySelector('#detail-add-qty');
     const inputPrice = this.container.querySelector('#detail-add-price');
-    if (!inputQty || !inputPrice) return;
+    const projectedBox = this.container.querySelector('#calc-projected-box');
+    const warningBanner = this.container.querySelector('#calc-qty-warning');
+    const submitBtn = this.container.querySelector('#btn-submit-quick-avg');
+    if (!inputQty || !inputPrice || !projectedBox) return;
 
-    const additionalQty = Math.max(0, parseFloat(inputQty.value) || 0);
-    const addPrice = Math.max(0, parseFloat(inputPrice.value) || 0);
-
+    const tradeQty = Math.max(0, parseFloat(inputQty.value) || 0);
+    const tradePrice = Math.max(0, parseFloat(inputPrice.value) || 0);
     const currentQty = holding.quantity;
     const currentAvgPrice = holding.avgPrice;
-    const newTotalQty = currentQty + additionalQty;
 
-    let newAvgPrice = currentAvgPrice;
-    if (newTotalQty > 0) {
-      const newTotalCost = (currentQty * currentAvgPrice) + (additionalQty * addPrice);
-      newAvgPrice = newTotalCost / newTotalQty;
-    }
+    if (this.tradeMode === 'BUY') {
+      if (warningBanner) warningBanner.style.display = 'none';
+      if (submitBtn) submitBtn.disabled = false;
 
-    const priceDiff = newAvgPrice - currentAvgPrice;
-    const capitalReq = additionalQty * addPrice;
-
-    // Surgical DOM text updates
-    const elCurrentAvg = this.container.querySelector('#proj-current-avg');
-    const elNewAvg = this.container.querySelector('#proj-new-avg');
-    const elImpactDiff = this.container.querySelector('#proj-impact-diff');
-    const elTotalShares = this.container.querySelector('#proj-total-shares');
-    const elCapitalReq = this.container.querySelector('#proj-capital-req');
-
-    if (elCurrentAvg) elCurrentAvg.textContent = portfolioStore.formatMoney(currentAvgPrice);
-    if (elNewAvg) elNewAvg.textContent = portfolioStore.formatMoney(newAvgPrice);
-    if (elTotalShares) elTotalShares.textContent = `${newTotalQty.toLocaleString()} shares`;
-    if (elCapitalReq) elCapitalReq.textContent = portfolioStore.formatMoney(capitalReq);
-
-    if (elImpactDiff) {
-      if (additionalQty === 0) {
-        elImpactDiff.textContent = 'No change';
-        elImpactDiff.style.color = 'var(--text-secondary)';
-      } else if (priceDiff < 0) {
-        elImpactDiff.textContent = `▼ Decreases by ${portfolioStore.formatMoney(Math.abs(priceDiff))}`;
-        elImpactDiff.style.color = 'var(--bull-green)';
-      } else if (priceDiff > 0) {
-        elImpactDiff.textContent = `▲ Increases by ${portfolioStore.formatMoney(priceDiff)}`;
-        elImpactDiff.style.color = 'var(--bear-red)';
-      } else {
-        elImpactDiff.textContent = 'Unchanged';
-        elImpactDiff.style.color = 'var(--text-secondary)';
+      const newTotalQty = currentQty + tradeQty;
+      let newAvgPrice = currentAvgPrice;
+      if (newTotalQty > 0) {
+        const newTotalCost = (currentQty * currentAvgPrice) + (tradeQty * tradePrice);
+        newAvgPrice = newTotalCost / newTotalQty;
       }
+      const priceDiff = newAvgPrice - currentAvgPrice;
+      const capitalReq = tradeQty * tradePrice;
+
+      let impactText = 'Unchanged';
+      let impactColor = 'var(--text-secondary)';
+      if (tradeQty === 0) {
+        impactText = 'No change';
+      } else if (priceDiff < 0) {
+        impactText = `▼ Decreases by ${portfolioStore.formatMoney(Math.abs(priceDiff))}`;
+        impactColor = 'var(--bull-green)';
+      } else if (priceDiff > 0) {
+        impactText = `▲ Increases by ${portfolioStore.formatMoney(priceDiff)}`;
+        impactColor = 'var(--bear-red)';
+      }
+
+      projectedBox.innerHTML = `
+        <div class="projected-row">
+          <span class="projected-label">Current Avg Price:</span>
+          <span class="projected-val mono">${portfolioStore.formatMoney(currentAvgPrice)}</span>
+        </div>
+        <div class="projected-row highlight">
+          <span class="projected-label">New Weighted Avg Price:</span>
+          <span class="projected-val mono" style="color: var(--brand-indigo-light); font-weight: 700;">${portfolioStore.formatMoney(newAvgPrice)}</span>
+        </div>
+        <div class="projected-row">
+          <span class="projected-label">Impact on Avg Cost:</span>
+          <span class="projected-val mono" style="font-weight: 600; color: ${impactColor};">${impactText}</span>
+        </div>
+        <div class="projected-row">
+          <span class="projected-label">New Total Shares:</span>
+          <span class="projected-val mono">${newTotalQty.toLocaleString()} shares</span>
+        </div>
+        <div class="projected-row">
+          <span class="projected-label">Capital Required:</span>
+          <span class="projected-val mono">${portfolioStore.formatMoney(capitalReq)}</span>
+        </div>
+      `;
+    } else {
+      // SELL Mode Calculations
+      const isExceeding = tradeQty > currentQty;
+      const isFullExit = tradeQty === currentQty;
+
+      if (isExceeding) {
+        if (warningBanner) {
+          warningBanner.style.display = 'flex';
+          warningBanner.innerHTML = `⚠️ Cannot sell ${tradeQty} shares. You currently only hold ${currentQty} shares.`;
+        }
+        if (submitBtn) submitBtn.disabled = true;
+      } else if (isFullExit && tradeQty > 0) {
+        if (warningBanner) {
+          warningBanner.style.display = 'flex';
+          warningBanner.innerHTML = `⚠️ Full Position Exit: Selling all ${currentQty} shares will close this holding.`;
+        }
+        if (submitBtn) submitBtn.disabled = false;
+      } else {
+        if (warningBanner) warningBanner.style.display = 'none';
+        if (submitBtn) submitBtn.disabled = false;
+      }
+
+      const costBasis = tradeQty * currentAvgPrice;
+      const proceeds = tradeQty * tradePrice;
+      const realizedPnL = proceeds - costBasis;
+      const realizedPnLPercent = costBasis > 0 ? (realizedPnL / costBasis) * 100 : 0;
+      const isProfit = realizedPnL >= 0;
+      const remainingShares = Math.max(0, currentQty - tradeQty);
+      const remainingValue = remainingShares * (holding.cmp || tradePrice);
+
+      projectedBox.innerHTML = `
+        <div class="projected-row">
+          <span class="projected-label">Cost Basis (Avg Price):</span>
+          <span class="projected-val mono">${portfolioStore.formatMoney(currentAvgPrice)}</span>
+        </div>
+        <div class="projected-row highlight sell">
+          <span class="projected-label">Realized Profit / Loss:</span>
+          <span class="projected-val mono" style="color: ${isProfit ? 'var(--bull-green)' : 'var(--bear-red)'}; font-weight: 700;">
+            ${isProfit ? '+' : ''}${portfolioStore.formatMoney(realizedPnL)} (${isProfit ? '+' : ''}${realizedPnLPercent.toFixed(2)}%)
+          </span>
+        </div>
+        <div class="projected-row">
+          <span class="projected-label">Capital Released (Proceeds):</span>
+          <span class="projected-val mono" style="color: var(--text-primary); font-weight: 600;">${portfolioStore.formatMoney(proceeds)}</span>
+        </div>
+        <div class="projected-row">
+          <span class="projected-label">Remaining Shares:</span>
+          <span class="projected-val mono">${remainingShares.toLocaleString()} shares (${portfolioStore.formatMoney(remainingValue)})</span>
+        </div>
+        <div class="projected-row">
+          <span class="projected-label">Remaining Avg Price:</span>
+          <span class="projected-val mono" style="color: var(--text-secondary);">${portfolioStore.formatMoney(currentAvgPrice)} (Unchanged)</span>
+        </div>
+      `;
     }
   }
 
@@ -551,8 +801,8 @@ export class StockDetailView {
                     </span>
                   </td>
                   <td style="text-align: right;">
-                    <span class="mono" style="font-weight: 600; color: var(--text-primary);">
-                      +${Number(tx.quantity).toLocaleString()}
+                    <span class="mono" style="font-weight: 600; color: ${isBuy ? 'var(--text-primary)' : 'var(--bear-red)'};">
+                      ${isBuy ? '+' : '-'}${Number(tx.quantity).toLocaleString()}
                     </span>
                   </td>
                   <td style="text-align: right;">
@@ -567,6 +817,11 @@ export class StockDetailView {
                     <span style="font-size: 0.8rem; color: var(--text-secondary);">
                       ${tx.notes || 'Portfolio trade'}
                     </span>
+                    ${tx.realizedPnL !== undefined ? `
+                      <div style="font-size: 0.75rem; font-family: var(--font-mono); color: ${tx.realizedPnL >= 0 ? 'var(--bull-green)' : 'var(--bear-red)'}; margin-top: 0.15rem;">
+                        Realized: ${tx.realizedPnL >= 0 ? '+' : ''}${portfolioStore.formatMoney(tx.realizedPnL)} (${tx.realizedPnLPercent >= 0 ? '+' : ''}${Number(tx.realizedPnLPercent).toFixed(2)}%)
+                      </div>
+                    ` : ''}
                   </td>
                 </tr>
               `;
@@ -577,27 +832,37 @@ export class StockDetailView {
 
       <!-- Mobile Transaction Cards -->
       <div class="mobile-tx-list">
-        ${transactions.map(tx => `
-          <div class="mobile-tx-card">
-            <div class="mobile-tx-header">
-              <span class="trade-type-pill buy">${tx.type || 'BUY'}</span>
-              <span class="mono" style="font-size: 0.8rem; color: var(--text-muted);">${tx.date || 'Today'}</span>
-            </div>
-            <div class="mobile-tx-body">
-              <div>
-                <div class="num-cell" style="font-size: 1rem; font-weight: 700;">+${Number(tx.quantity).toLocaleString()} shares</div>
-                <div class="num-cell sub">@ ${portfolioStore.formatMoney(tx.price)}</div>
+        ${transactions.map(tx => {
+          const isBuy = (tx.type || 'BUY').toUpperCase() === 'BUY';
+          return `
+            <div class="mobile-tx-card">
+              <div class="mobile-tx-header">
+                <span class="trade-type-pill ${isBuy ? 'buy' : 'sell'}">${tx.type || 'BUY'}</span>
+                <span class="mono" style="font-size: 0.8rem; color: var(--text-muted);">${tx.date || 'Today'}</span>
               </div>
-              <div style="text-align: right;">
-                <div class="num-cell" style="font-size: 1rem; font-weight: 700; color: var(--text-primary);">
-                  ${portfolioStore.formatMoney(tx.totalAmount || (tx.quantity * tx.price))}
+              <div class="mobile-tx-body">
+                <div>
+                  <div class="num-cell" style="font-size: 1rem; font-weight: 700; color: ${isBuy ? 'var(--text-primary)' : 'var(--bear-red)'};">
+                    ${isBuy ? '+' : '-'}${Number(tx.quantity).toLocaleString()} shares
+                  </div>
+                  <div class="num-cell sub">@ ${portfolioStore.formatMoney(tx.price)}</div>
                 </div>
-                <div class="num-cell sub">Total Amount</div>
+                <div style="text-align: right;">
+                  <div class="num-cell" style="font-size: 1rem; font-weight: 700; color: var(--text-primary);">
+                    ${portfolioStore.formatMoney(tx.totalAmount || (tx.quantity * tx.price))}
+                  </div>
+                  <div class="num-cell sub">Total Amount</div>
+                </div>
               </div>
+              ${tx.notes ? `<div class="mobile-tx-notes">${tx.notes}</div>` : ''}
+              ${tx.realizedPnL !== undefined ? `
+                <div style="font-size: 0.75rem; font-family: var(--font-mono); color: ${tx.realizedPnL >= 0 ? 'var(--bull-green)' : 'var(--bear-red)'}; margin-top: 0.25rem;">
+                  Realized P&L: ${tx.realizedPnL >= 0 ? '+' : ''}${portfolioStore.formatMoney(tx.realizedPnL)} (${tx.realizedPnLPercent >= 0 ? '+' : ''}${Number(tx.realizedPnLPercent).toFixed(2)}%)
+                </div>
+              ` : ''}
             </div>
-            ${tx.notes ? `<div class="mobile-tx-notes">${tx.notes}</div>` : ''}
-          </div>
-        `).join('')}
+          `;
+        }).join('')}
       </div>
     `;
   }

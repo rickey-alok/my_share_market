@@ -320,6 +320,125 @@ class PortfolioStore {
     };
   }
 
+  /**
+   * Records a sell order for an existing holding, updates quantity or removes on full exit, and tracks realized P&L
+   * @param {Object} param - { symbol, quantity, sellPrice, sellDate, notes }
+   */
+  sellHolding({ symbol, quantity, sellPrice, sellDate, notes }) {
+    const sym = symbol.toUpperCase().trim();
+    const qtyToSell = parseFloat(quantity);
+    const price = parseFloat(sellPrice);
+    const holdingIndex = this.holdings.findIndex(h => h.symbol.toUpperCase() === sym);
+
+    if (holdingIndex === -1) {
+      throw new Error(`Stock ${sym} not found in active portfolio`);
+    }
+
+    const holding = this.holdings[holdingIndex];
+    if (isNaN(qtyToSell) || qtyToSell <= 0) {
+      throw new Error('Sell quantity must be greater than 0');
+    }
+
+    if (qtyToSell > holding.quantity) {
+      throw new Error(`Cannot sell ${qtyToSell} shares. You currently own ${holding.quantity} shares.`);
+    }
+
+    if (isNaN(price) || price <= 0) {
+      throw new Error('Sell price must be greater than 0');
+    }
+
+    const costBasisPerShare = holding.avgPrice;
+    const realizedPnL = (price - costBasisPerShare) * qtyToSell;
+    const realizedPnLPercent = costBasisPerShare > 0 ? ((price - costBasisPerShare) / costBasisPerShare) * 100 : 0;
+    const totalAmount = qtyToSell * price;
+    const isFullExit = qtyToSell === holding.quantity;
+
+    // Record Transaction
+    const newTx = {
+      id: 'tx_' + Date.now(),
+      holdingId: holding.id,
+      symbol: sym,
+      type: 'SELL',
+      quantity: qtyToSell,
+      price: price,
+      costBasis: costBasisPerShare,
+      realizedPnL: parseFloat(realizedPnL.toFixed(2)),
+      realizedPnLPercent: parseFloat(realizedPnLPercent.toFixed(2)),
+      date: sellDate || new Date().toISOString().split('T')[0],
+      totalAmount: totalAmount,
+      notes: notes || (isFullExit ? 'Full position exit' : `Sold ${qtyToSell} shares @ ₹${price}`),
+      timestamp: Date.now()
+    };
+
+    this.transactions.unshift(newTx);
+    this.saveTransactions(this.transactions);
+
+    if (isFullExit) {
+      // Remove holding from portfolio
+      const removedHolding = this.holdings.splice(holdingIndex, 1)[0];
+      this.saveHoldings(this.holdings);
+
+      if (firebaseService.isConfigured) {
+        firebaseService.removeHolding(holding.id);
+        firebaseService.recordTransaction(newTx);
+      }
+
+      this.notify({
+        type: 'HOLDING_SOLD',
+        symbol: sym,
+        isFullExit: true,
+        soldHolding: removedHolding,
+        realizedPnL,
+        realizedPnLPercent,
+        transaction: newTx
+      });
+
+      return {
+        isFullExit: true,
+        remainingQty: 0,
+        realizedPnL,
+        realizedPnLPercent,
+        totalAmount,
+        transaction: newTx
+      };
+    } else {
+      // Partial sell: Average buy price of remaining shares remains unchanged in weighted average accounting
+      const remainingQty = holding.quantity - qtyToSell;
+      this.holdings[holdingIndex] = {
+        ...holding,
+        quantity: remainingQty
+      };
+      this.saveHoldings(this.holdings);
+
+      if (firebaseService.isConfigured) {
+        firebaseService.saveHolding(this.holdings[holdingIndex]);
+        firebaseService.recordTransaction(newTx);
+      }
+
+      this.notify({
+        type: 'HOLDING_SOLD',
+        symbol: sym,
+        isFullExit: false,
+        holding: this.holdings[holdingIndex],
+        remainingQty,
+        realizedPnL,
+        realizedPnLPercent,
+        totalAmount,
+        transaction: newTx
+      });
+
+      return {
+        isFullExit: false,
+        remainingQty,
+        avgPrice: holding.avgPrice,
+        realizedPnL,
+        realizedPnLPercent,
+        totalAmount,
+        transaction: newTx
+      };
+    }
+  }
+
   deleteHolding(id) {
     const idx = this.holdings.findIndex(h => h.id === id);
     if (idx !== -1) {
@@ -459,6 +578,13 @@ class PortfolioStore {
       ? sortedByPnL[sortedByPnL.length - 1] 
       : null;
 
+    let totalRealizedPnL = 0;
+    this.transactions.forEach(t => {
+      if ((t.type || '').toUpperCase() === 'SELL' && t.realizedPnL !== undefined) {
+        totalRealizedPnL += Number(t.realizedPnL) || 0;
+      }
+    });
+
     return {
       totalHoldingsCount: finalHoldings.length,
       totalSharesCount: finalHoldings.reduce((sum, h) => sum + h.quantity, 0),
@@ -466,6 +592,7 @@ class PortfolioStore {
       totalCurrentValue,
       totalPnL,
       totalPnLPercent,
+      totalRealizedPnL,
       totalDayPnL,
       totalDayPnLPercent,
       holdings: finalHoldings,

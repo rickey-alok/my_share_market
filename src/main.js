@@ -30,7 +30,8 @@ class App {
 
     this.addHoldingView = new AddHoldingView(
       addHoldingContainer,
-      () => this.navigateTo('dashboard')
+      () => this.navigateTo('dashboard'),
+      (symbol) => this.navigateTo('stock', { symbol })
     );
 
     this.stockDetailView = new StockDetailView(

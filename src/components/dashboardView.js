@@ -191,12 +191,12 @@ export class DashboardView {
         return;
       }
 
-      // Buy more of this stock
+      // Buy more / Average Price Calculator for this stock
       const buyMoreBtn = e.target.closest('[data-action="buy-more"]');
       if (buyMoreBtn) {
         const symbol = buyMoreBtn.getAttribute('data-symbol');
-        if (this.onNavigateToAddHolding) {
-          this.onNavigateToAddHolding({ symbol });
+        if (symbol && this.onNavigateToStockDetail) {
+          this.onNavigateToStockDetail(symbol);
         }
         return;
       }
@@ -562,7 +562,7 @@ export class DashboardView {
           </td>
           <td style="text-align: center;">
             <div class="table-actions" style="justify-content: center;">
-              <button class="icon-action-btn" data-action="buy-more" data-symbol="${h.symbol}" title="Buy More / Average Holding">
+              <button class="icon-action-btn" data-action="buy-more" data-symbol="${h.symbol}" title="Open Average Price Calculator (${h.symbol})">
                 ${icons.plus}
               </button>
               <button class="icon-action-btn delete-btn" data-action="delete-holding" data-id="${h.id}" data-symbol="${h.symbol}" title="Remove Holding">
@@ -628,8 +628,8 @@ export class DashboardView {
               P&L: ${isProfit ? '+' : ''}${portfolioStore.formatMoney(h.pnl)} (${isProfit ? '+' : ''}${h.pnlPercent.toFixed(2)}%)
             </div>
             <div class="table-actions">
-              <button class="btn btn-outline btn-sm" data-action="buy-more" data-symbol="${h.symbol}">
-                ${icons.plus} Buy More
+              <button class="btn btn-outline btn-sm" data-action="buy-more" data-symbol="${h.symbol}" title="Open Average Price Calculator (${h.symbol})">
+                ${icons.plus} Average Calculator
               </button>
               <button class="icon-action-btn delete-btn" data-action="delete-holding" data-id="${h.id}" data-symbol="${h.symbol}">
                 ${icons.trash2}

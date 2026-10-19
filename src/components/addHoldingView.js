@@ -4,9 +4,10 @@ import { POPULAR_STOCKS, SECTORS, EXCHANGES } from '../data/stocksDatabase.js';
 import { icons } from '../utils/icons.js';
 
 export class AddHoldingView {
-  constructor(containerElement, onNavigateToDashboard) {
+  constructor(containerElement, onNavigateToDashboard, onNavigateToStockDetail) {
     this.container = containerElement;
     this.onNavigateToDashboard = onNavigateToDashboard;
+    this.onNavigateToStockDetail = onNavigateToStockDetail;
     this.preselectedSymbol = null;
 
     this.init();
@@ -42,8 +43,8 @@ export class AddHoldingView {
       <!-- Page Title -->
       <div class="page-title-row">
         <div>
-          <h1 class="page-title">Add / Average Holding</h1>
-          <p class="page-subtitle">Add new stocks or average down existing holdings in your portfolio</p>
+          <h1 class="page-title">Add New Holding</h1>
+          <p class="page-subtitle">Add a new stock position to your portfolio</p>
         </div>
         <div class="page-header-actions">
           <button id="btn-back-dashboard" class="btn btn-outline btn-sm">
@@ -56,8 +57,8 @@ export class AddHoldingView {
       <div class="add-holding-layout">
         <!-- Main Form Column -->
         <div class="form-card">
-          <h2 class="form-section-title">Holding Transaction Details</h2>
-          <p class="form-section-desc">Enter purchase parameters. Existing holdings will automatically recalculate weighted average cost.</p>
+          <h2 class="form-section-title">New Holding Details</h2>
+          <p class="form-section-desc">Enter purchase parameters to add a new stock to your portfolio.</p>
 
           <!-- Popular Quick Picks -->
           <span class="quick-picks-label">Quick Pick Popular Stocks</span>
@@ -191,33 +192,21 @@ export class AddHoldingView {
               <div class="impact-amount" id="impact-total-outlay">${portfolioStore.formatMoney(0)}</div>
             </div>
 
-            <!-- Averaging Down / Up Box (Visible when stock already in portfolio) -->
-            <div class="averaging-alert is-hidden" id="averaging-alert-box">
-              <div class="averaging-alert-title">
+            <!-- Existing Holding Alert & Redirect Notice -->
+            <div class="existing-holding-notice is-hidden" id="existing-holding-notice">
+              <div class="existing-notice-title">
                 ${icons.info}
-                <span id="averaging-alert-heading">Existing Holding Detected</span>
+                <span>Stock Already In Portfolio</span>
               </div>
-              <p style="font-size: 0.78rem; color: var(--text-secondary); line-height: 1.4;">
-                This stock exists in your portfolio. Your acquisition cost will automatically re-calculate using the volume-weighted average price.
+              <p class="existing-notice-text">
+                <strong id="existing-notice-symbol">--</strong> is already in your portfolio (<span id="existing-notice-qty">0</span> shares).
               </p>
-              <div class="averaging-stats-grid">
-                <div class="avg-stat-box">
-                  <div class="avg-stat-label">Current Shares</div>
-                  <div class="avg-stat-val" id="stat-current-qty">0</div>
-                </div>
-                <div class="avg-stat-box">
-                  <div class="avg-stat-label">Current Avg Price</div>
-                  <div class="avg-stat-val" id="stat-current-avg">${portfolioStore.formatMoney(0)}</div>
-                </div>
-                <div class="avg-stat-box">
-                  <div class="avg-stat-label">New Total Shares</div>
-                  <div class="avg-stat-val" id="stat-new-qty" style="color: var(--accent-cyan);">0</div>
-                </div>
-                <div class="avg-stat-box">
-                  <div class="avg-stat-label">New Weighted Avg</div>
-                  <div class="avg-stat-val" id="stat-new-avg" style="color: var(--accent-cyan);">${portfolioStore.formatMoney(0)}</div>
-                </div>
-              </div>
+              <p class="existing-notice-subtext">
+                To average down or calculate your new weighted cost per share, please use the dedicated Average Price Calculator.
+              </p>
+              <button type="button" class="btn btn-primary btn-sm" id="btn-goto-stock-calc" style="width: 100%; justify-content: center; margin-top: 0.75rem;">
+                ${icons.calculator} Open Average Price Calculator
+              </button>
             </div>
 
             <!-- Summary Breakdown Rows -->
@@ -330,6 +319,20 @@ export class AddHoldingView {
         this.handleSubmit();
       });
     }
+
+    // Redirect to dedicated Average Price Calculator if user clicks button on existing stock notice
+    const btnGotoCalc = this.container.querySelector('#btn-goto-stock-calc');
+    if (btnGotoCalc) {
+      btnGotoCalc.addEventListener('click', () => {
+        const symbolInput = this.container.querySelector('#input-symbol');
+        const symbol = symbolInput ? symbolInput.value.toUpperCase().trim() : '';
+        if (symbol && this.onNavigateToStockDetail) {
+          this.onNavigateToStockDetail(symbol);
+        } else if (symbol) {
+          window.location.hash = `#/stock/${symbol}`;
+        }
+      });
+    }
   }
 
   handleSymbolSelected(symbolText) {
@@ -405,45 +408,20 @@ export class AddHoldingView {
       cmpEl.textContent = cmp ? portfolioStore.formatMoney(cmp) : '--';
     }
 
+    const existingNotice = this.container.querySelector('#existing-holding-notice');
+    const existingSym = this.container.querySelector('#existing-notice-symbol');
+    const existingQty = this.container.querySelector('#existing-notice-qty');
+
     if (existingHolding && symbol) {
-      statusBadge.textContent = 'Averaging Position';
+      statusBadge.textContent = 'Already In Portfolio';
       statusBadge.style.color = 'var(--accent-cyan)';
       statusBadge.style.background = 'rgba(6, 182, 212, 0.15)';
       statusBadge.style.borderColor = 'rgba(6, 182, 212, 0.35)';
 
-      if (submitBtnLabel) {
-        submitBtnLabel.textContent = `Average ${existingHolding.symbol} Position`;
-      }
-
-      // Show Averaging Math
-      if (avgAlertBox) {
-        avgAlertBox.classList.remove('is-hidden');
-        const currentQty = existingHolding.quantity;
-        const currentAvg = existingHolding.avgPrice;
-        const newTotalQty = currentQty + quantity;
-
-        let newWeightedAvg = currentAvg;
-        if (newTotalQty > 0 && quantity > 0) {
-          newWeightedAvg = ((currentQty * currentAvg) + (quantity * price)) / newTotalQty;
-        }
-
-        const isAveragingDown = price < currentAvg;
-        const alertHeading = this.container.querySelector('#averaging-alert-heading');
-        if (alertHeading) {
-          alertHeading.textContent = isAveragingDown 
-            ? `Averaging Down on ${existingHolding.symbol} (Cost-effective)` 
-            : `Adding to ${existingHolding.symbol} Position`;
-        }
-
-        const statCurQty = this.container.querySelector('#stat-current-qty');
-        const statCurAvg = this.container.querySelector('#stat-current-avg');
-        const statNewQty = this.container.querySelector('#stat-new-qty');
-        const statNewAvg = this.container.querySelector('#stat-new-avg');
-
-        if (statCurQty) statCurQty.textContent = currentQty.toLocaleString();
-        if (statCurAvg) statCurAvg.textContent = portfolioStore.formatMoney(currentAvg);
-        if (statNewQty) statNewQty.textContent = newTotalQty.toLocaleString();
-        if (statNewAvg) statNewAvg.textContent = portfolioStore.formatMoney(newWeightedAvg);
+      if (existingNotice) {
+        existingNotice.classList.remove('is-hidden');
+        if (existingSym) existingSym.textContent = existingHolding.symbol;
+        if (existingQty) existingQty.textContent = existingHolding.quantity.toLocaleString();
       }
     } else {
       statusBadge.textContent = 'New Holding';
@@ -451,13 +429,13 @@ export class AddHoldingView {
       statusBadge.style.background = 'rgba(99, 102, 241, 0.15)';
       statusBadge.style.borderColor = 'rgba(99, 102, 241, 0.3)';
 
-      if (submitBtnLabel) {
-        submitBtnLabel.textContent = 'Confirm & Add to Portfolio';
+      if (existingNotice) {
+        existingNotice.classList.add('is-hidden');
       }
+    }
 
-      if (avgAlertBox) {
-        avgAlertBox.classList.add('is-hidden');
-      }
+    if (submitBtnLabel) {
+      submitBtnLabel.textContent = 'Confirm & Add to Portfolio';
     }
 
     // Portfolio change estimation
