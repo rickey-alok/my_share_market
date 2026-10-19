@@ -124,7 +124,7 @@ export const POPULAR_STOCKS = [
     marketCap: 'Large Cap'
   },
   {
-    symbol: 'ZOMATO',
+    symbol: 'ETERNAL',
     name: 'Zomato Ltd. (Eternal)',
     exchange: 'NSE',
     sector: 'New Age / Consumer Tech',

@@ -357,9 +357,9 @@ export class StockDetailView {
     // Exit Position / Delete
     const btnExit = this.container.querySelector('#btn-exit-position');
     if (btnExit) {
-      btnExit.addEventListener('click', () => {
+      btnExit.addEventListener('click', async () => {
         if (confirm(`Are you sure you want to completely exit your position in ${holding.symbol} (${holding.name})?`)) {
-          portfolioStore.deleteHolding(holding.id);
+          await portfolioStore.deleteHolding(holding.id, holding.symbol);
           alert(`Successfully removed ${holding.symbol} from portfolio.`);
           if (this.onNavigateBack) this.onNavigateBack();
         }

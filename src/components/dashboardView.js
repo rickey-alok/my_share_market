@@ -88,7 +88,7 @@ export class DashboardView {
               ${SECTORS.map(s => `<option value="${s}">${s}</option>`).join('')}
             </select>
           </div>
-          <div class="toolbar-right">
+          <div class="toolbar-right" style="display: flex; gap: 0.5rem; align-items: center;">
             <select id="sort-filter" class="filter-select">
               <option value="value-desc">Sort by: Highest Value</option>
               <option value="value-asc">Sort by: Lowest Value</option>
@@ -97,6 +97,10 @@ export class DashboardView {
               <option value="day-desc">Sort by: Top Day Gainers</option>
               <option value="symbol-asc">Sort by: Symbol A-Z</option>
             </select>
+            <button id="btn-clear-all" class="btn btn-outline btn-sm" style="color: var(--bear-red); border-color: rgba(239, 68, 68, 0.35); font-size: 0.8rem; padding: 0.35rem 0.65rem;" title="Delete all shares from portfolio and database">
+              ${icons.trash2}
+              <span>Clear All</span>
+            </button>
           </div>
         </div>
 
@@ -178,15 +182,32 @@ export class DashboardView {
       });
     }
 
+    // Clear All Holdings Button
+    const btnClearAll = this.container.querySelector('#btn-clear-all');
+    if (btnClearAll) {
+      btnClearAll.addEventListener('click', async () => {
+        if (!portfolioStore.holdings || portfolioStore.holdings.length === 0) {
+          alert('Your portfolio is already empty.');
+          return;
+        }
+        if (confirm('Are you sure you want to delete ALL shares from your portfolio and database? This action cannot be undone.')) {
+          btnClearAll.disabled = true;
+          await portfolioStore.clearAllData();
+          btnClearAll.disabled = false;
+        }
+      });
+    }
+
     // Delegate Table & Card Action Clicks
-    this.container.addEventListener('click', (e) => {
+    this.container.addEventListener('click', async (e) => {
       // Delete holding
       const deleteBtn = e.target.closest('[data-action="delete-holding"]');
       if (deleteBtn) {
         const id = deleteBtn.getAttribute('data-id');
         const symbol = deleteBtn.getAttribute('data-symbol');
         if (confirm(`Are you sure you want to remove ${symbol} from your portfolio?`)) {
-          portfolioStore.deleteHolding(id);
+          deleteBtn.disabled = true;
+          await portfolioStore.deleteHolding(id, symbol);
         }
         return;
       }

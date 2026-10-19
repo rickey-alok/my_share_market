@@ -137,6 +137,25 @@ class AuthService {
   }
 
   getUser() {
+    if (this.auth && this.auth.currentUser) {
+      const fbUser = this.auth.currentUser;
+      if (!this.currentUser || this.currentUser.isGuest || this.currentUser.uid !== fbUser.uid) {
+        const email = (fbUser.email || '').toLowerCase().trim();
+        const isAdminUser = ADMIN_EMAILS.includes(email);
+        this.currentUser = {
+          uid: fbUser.uid,
+          displayName: fbUser.displayName || (fbUser.email ? fbUser.email.split('@')[0] : 'Investor'),
+          email: fbUser.email || '',
+          photoURL: fbUser.photoURL || null,
+          role: isAdminUser ? 'Master Administrator' : 'Verified Google Investor',
+          accountTier: isAdminUser ? 'Platform Admin' : 'Google Cloud Verified',
+          isAdmin: isAdminUser,
+          joinedDate: new Date(fbUser.metadata?.creationTime || Date.now()).toLocaleDateString('en-IN', { month: 'short', year: 'numeric' }),
+          isGuest: false,
+          provider: 'google.com'
+        };
+      }
+    }
     return this.currentUser || DEFAULT_GUEST_USER;
   }
 

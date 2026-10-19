@@ -88,6 +88,7 @@ class PortfolioStore {
     this.isCloudSyncing = false;
     this.isInspectingOtherUser = false;
     this.inspectedUser = null;
+    this.activeSyncedUserId = null;
     this.firestoreUnsubscribeHoldings = null;
     this.firestoreUnsubscribeTransactions = null;
 
@@ -110,6 +111,7 @@ class PortfolioStore {
           this.initFirestoreSync(u.uid);
         }
       } else if (event.type === 'LOGOUT') {
+        this.activeSyncedUserId = null;
         this.cleanupFirestoreSync();
         this.holdings = this.loadHoldings();
         this.transactions = this.loadTransactions();
@@ -127,8 +129,17 @@ class PortfolioStore {
   }
 
   getActiveUserId() {
+    if (this.activeSyncedUserId && this.activeSyncedUserId !== 'usr_local_guest') {
+      return this.activeSyncedUserId;
+    }
     const user = this.getActiveUser();
-    return (user && !user.isGuest) ? user.uid : 'usr_local_guest';
+    if (user && !user.isGuest && user.uid) {
+      return user.uid;
+    }
+    if (authService.auth && authService.auth.currentUser && authService.auth.currentUser.uid) {
+      return authService.auth.currentUser.uid;
+    }
+    return null;
   }
 
   cleanupFirestoreSync() {
@@ -148,31 +159,29 @@ class PortfolioStore {
 
     const activeUser = this.getActiveUser();
     const isRegistered = activeUser && !activeUser.isGuest;
-    const effectiveUid = targetUserId || (isRegistered ? activeUser.uid : null);
+    const effectiveUid = targetUserId || (isRegistered ? activeUser.uid : null) || (authService.auth?.currentUser?.uid);
 
     this.cleanupFirestoreSync();
 
     if (!effectiveUid) {
+      this.activeSyncedUserId = null;
       return;
     }
 
+    this.activeSyncedUserId = effectiveUid;
+
     // Listen to user-specific private holdings (/users/{userId}/holdings)
     this.firestoreUnsubscribeHoldings = firebaseService.listenToUserHoldings(effectiveUid, (cloudHoldings) => {
-      if (cloudHoldings && cloudHoldings.length > 0) {
+      if (Array.isArray(cloudHoldings)) {
         this.holdings = cloudHoldings;
         this.saveHoldings(this.holdings);
         this.notify({ type: 'CLOUD_SYNC_UPDATED' });
-      } else if (this.holdings.length > 0 && !this.isInspectingOtherUser) {
-        // Seed initial holdings to this user's private collection
-        for (const h of this.holdings) {
-          firebaseService.saveUserHolding(effectiveUid, h, activeUser?.email);
-        }
       }
     });
 
     // Listen to user-specific private transactions (/users/{userId}/transactions)
     this.firestoreUnsubscribeTransactions = firebaseService.listenToUserTransactions(effectiveUid, (cloudTxs) => {
-      if (cloudTxs && cloudTxs.length > 0) {
+      if (Array.isArray(cloudTxs)) {
         this.transactions = cloudTxs;
         this.saveTransactions(this.transactions);
         this.notify({ type: 'CLOUD_TX_UPDATED' });
@@ -235,9 +244,13 @@ class PortfolioStore {
   loadHoldings() {
     try {
       const data = localStorage.getItem(STORAGE_KEY_HOLDINGS);
-      if (data) {
+      if (data !== null) {
         const parsed = JSON.parse(data);
-        if (Array.isArray(parsed) && parsed.length > 0) {
+        if (Array.isArray(parsed)) {
+          // If the user cleared or deleted all holdings, preserve empty array!
+          if (parsed.length === 0) {
+            return [];
+          }
           // Sync any outdated prices from POPULAR_STOCKS
           const updated = parsed.map(h => {
             const sym = (h.symbol || '').toUpperCase().trim();
@@ -255,7 +268,7 @@ class PortfolioStore {
     } catch (e) {
       console.error('Failed to load holdings from localStorage', e);
     }
-    // Return default seed holdings
+    // Return default seed holdings ONLY on the very first visit (data === null)
     this.saveHoldings(DEFAULT_HOLDINGS);
     return DEFAULT_HOLDINGS;
   }
@@ -284,8 +297,10 @@ class PortfolioStore {
       if (firebaseService.isConfigured && !this.isInspectingOtherUser) {
         const u = this.getActiveUser();
         const uid = this.getActiveUserId();
-        for (const h of this.holdings) {
-          firebaseService.saveUserHolding(uid, h, u?.email);
+        if (uid && uid !== 'usr_local_guest') {
+          for (const h of this.holdings) {
+            firebaseService.saveUserHolding(uid, h, u?.email);
+          }
         }
       }
       this.notify({ type: 'MARKET_PRICES_SYNCED' });
@@ -616,22 +631,36 @@ class PortfolioStore {
     }
   }
 
-  deleteHolding(id) {
-    const idx = this.holdings.findIndex(h => h.id === id);
+  async deleteHolding(id, symbol = null) {
+    const symMatch = symbol ? symbol.toUpperCase().trim() : null;
+    const idx = this.holdings.findIndex(h => 
+      String(h.id) === String(id) || 
+      (symMatch && h.symbol && h.symbol.toUpperCase().trim() === symMatch)
+    );
+
+    let deleted = null;
     if (idx !== -1) {
-      const deleted = this.holdings.splice(idx, 1)[0];
-      this.saveHoldings(this.holdings);
-
-      // Sync delete to user's private Firestore collection
-      if (firebaseService.isConfigured && !this.isInspectingOtherUser) {
-        const uid = this.getActiveUserId();
-        firebaseService.removeUserHolding(uid, id);
-      }
-
-      this.notify({ type: 'HOLDING_DELETED', holding: deleted });
-      return true;
+      deleted = this.holdings.splice(idx, 1)[0];
+    } else {
+      deleted = { id, symbol: symMatch };
     }
-    return false;
+
+    this.saveHoldings(this.holdings);
+
+    // Immediately sync delete to user's private Firestore collection
+    if (firebaseService.isConfigured && !this.isInspectingOtherUser) {
+      const uid = this.getActiveUserId();
+      if (uid && uid !== 'usr_local_guest') {
+        try {
+          await firebaseService.removeUserHolding(uid, deleted.id || id, deleted.symbol || symMatch);
+        } catch (err) {
+          console.error('Failed to delete holding from Firestore:', err);
+        }
+      }
+    }
+
+    this.notify({ type: 'HOLDING_DELETED', holding: deleted });
+    return true;
   }
 
   updateHolding(id, updates) {
@@ -888,11 +917,23 @@ class PortfolioStore {
     return true;
   }
 
-  clearAllData() {
+  async clearAllData() {
     this.holdings = [];
     this.transactions = [];
     this.saveHoldings(this.holdings);
     this.saveTransactions(this.transactions);
+
+    if (firebaseService.isConfigured && !this.isInspectingOtherUser) {
+      const uid = this.getActiveUserId();
+      if (uid && uid !== 'usr_local_guest') {
+        try {
+          await firebaseService.clearAllUserHoldings(uid);
+        } catch (err) {
+          console.error('Failed to clear user holdings from Firestore:', err);
+        }
+      }
+    }
+
     this.notify({ type: 'DATA_CLEARED' });
   }
 }

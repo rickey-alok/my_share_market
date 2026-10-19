@@ -20,13 +20,13 @@ const STORAGE_KEY_FIREBASE_CONFIG = 'apna_share_firebase_config_v1';
 
 // Default / Placeholder config
 export const DEFAULT_FIREBASE_CONFIG = {
-  apiKey: import.meta.env.VITE_FIREBASE_API_KEY || "AIzaSyBP8CVfnDNR1njk2DtvBveZMRSidwN2tTc",
-  authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN || "apna-share-calculator.firebaseapp.com",
-  projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID || "apna-share-calculator",
-  storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET || "apna-share-calculator.firebasestorage.app",
-  messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID || "700356064450",
-  appId: import.meta.env.VITE_FIREBASE_APP_ID || "1:700356064450:web:7bd4e21669a7d7dc55375b",
-  measurementId: import.meta.env.VITE_FIREBASE_MEASUREMENT_ID || "G-BMFYQEPT3E"
+  apiKey: import.meta.env?.VITE_FIREBASE_API_KEY || "AIzaSyBP8CVfnDNR1njk2DtvBveZMRSidwN2tTc",
+  authDomain: import.meta.env?.VITE_FIREBASE_AUTH_DOMAIN || "apna-share-calculator.firebaseapp.com",
+  projectId: import.meta.env?.VITE_FIREBASE_PROJECT_ID || "apna-share-calculator",
+  storageBucket: import.meta.env?.VITE_FIREBASE_STORAGE_BUCKET || "apna-share-calculator.firebasestorage.app",
+  messagingSenderId: import.meta.env?.VITE_FIREBASE_MESSAGING_SENDER_ID || "700356064450",
+  appId: import.meta.env?.VITE_FIREBASE_APP_ID || "1:700356064450:web:7bd4e21669a7d7dc55375b",
+  measurementId: import.meta.env?.VITE_FIREBASE_MEASUREMENT_ID || "G-BMFYQEPT3E"
 };
 
 class FirebaseService {
@@ -174,20 +174,81 @@ class FirebaseService {
     }
   }
 
-  async removeUserHolding(userId, holdingId) {
+  async removeUserHolding(userId, holdingId, symbol = '') {
     if (!this.isConfigured || !this.db || !userId) return false;
     try {
-      const userDocRef = doc(this.db, 'users', userId, 'holdings', holdingId);
-      await deleteDoc(userDocRef);
+      const delPromises = [];
 
+      // 1. Direct document delete by holding ID
+      if (holdingId) {
+        const hIdStr = String(holdingId);
+        const userDocRef = doc(this.db, 'users', userId, 'holdings', hIdStr);
+        delPromises.push(deleteDoc(userDocRef).catch(() => {}));
+
+        const topDocRef = doc(this.db, 'holdings', `${userId}_${hIdStr}`);
+        delPromises.push(deleteDoc(topDocRef).catch(() => {}));
+
+        const legacyDocRef = doc(this.db, 'holdings', hIdStr);
+        delPromises.push(deleteDoc(legacyDocRef).catch(() => {}));
+      }
+
+      // 2. Direct document delete by symbol
+      if (symbol) {
+        const symClean = String(symbol).toUpperCase().trim();
+        const userSymDocRef = doc(this.db, 'users', userId, 'holdings', symClean);
+        delPromises.push(deleteDoc(userSymDocRef).catch(() => {}));
+
+        const topSymDocRef = doc(this.db, 'holdings', `${userId}_${symClean}`);
+        delPromises.push(deleteDoc(topSymDocRef).catch(() => {}));
+
+        const legacySymDocRef = doc(this.db, 'holdings', symClean);
+        delPromises.push(deleteDoc(legacySymDocRef).catch(() => {}));
+      }
+
+      // 3. Scan user's subcollection to purge any documents matching id or symbol
       try {
-        const topDocRef = doc(this.db, 'holdings', `${userId}_${holdingId}`);
-        await deleteDoc(topDocRef);
-      } catch (e) {}
+        const userHoldingsRef = collection(this.db, 'users', userId, 'holdings');
+        const snap = await getDocs(userHoldingsRef);
+        snap.forEach(d => {
+          const data = d.data();
+          const matchId = holdingId && (d.id === String(holdingId) || data.id === String(holdingId));
+          const matchSym = symbol && (
+            (data.symbol && data.symbol.toUpperCase().trim() === String(symbol).toUpperCase().trim()) ||
+            d.id.toUpperCase().trim() === String(symbol).toUpperCase().trim()
+          );
+          if (matchId || matchSym) {
+            delPromises.push(deleteDoc(d.ref).catch(() => {}));
+            delPromises.push(deleteDoc(doc(this.db, 'holdings', `${userId}_${d.id}`)).catch(() => {}));
+            delPromises.push(deleteDoc(doc(this.db, 'holdings', d.id)).catch(() => {}));
+          }
+        });
+      } catch (scanErr) {
+        console.warn('Scan for matching user holdings note:', scanErr);
+      }
 
+      await Promise.all(delPromises);
       return true;
     } catch (e) {
       console.error('Error removing user holding from Firestore:', e);
+      return false;
+    }
+  }
+
+  async clearAllUserHoldings(userId) {
+    if (!this.isConfigured || !this.db || !userId) return false;
+    try {
+      const userHoldingsRef = collection(this.db, 'users', userId, 'holdings');
+      const snap = await getDocs(userHoldingsRef);
+      const delPromises = [];
+      snap.forEach(d => {
+        delPromises.push(deleteDoc(d.ref).catch(() => {}));
+        delPromises.push(deleteDoc(doc(this.db, 'holdings', `${userId}_${d.id}`)).catch(() => {}));
+        delPromises.push(deleteDoc(doc(this.db, 'holdings', d.id)).catch(() => {}));
+      });
+      await Promise.all(delPromises);
+      return true;
+    } catch (e) {
+      console.error('Error clearing all user holdings from Firestore:', e);
       return false;
     }
   }
