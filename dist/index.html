@@ -1,0 +1,168 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <title>Apna Share Calculator | Portfolio & Average Price Tracker</title>
+  <meta name="description" content="Apna Share Calculator - Indian Share Market Portfolio & Holdings Tracker. Calculate weighted average price, real-time returns, and sector allocation." />
+  
+  <!-- Preconnect Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  
+  <!-- Favicon SVG -->
+  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%236366f1'><polyline points='23 6 13.5 15.5 8.5 10.5 1 18'></polyline><polyline points='17 6 23 6 23 12'></polyline></svg>" />
+
+  <!-- Instant Theme Initializer (Prevents FOUC) -->
+  <script>
+    (function() {
+      try {
+        var savedTheme = localStorage.getItem('apna_share_theme') || 'dark';
+        document.documentElement.setAttribute('data-theme', savedTheme);
+      } catch (e) {}
+    })();
+  </script>
+  <script type="module" crossorigin src="/assets/index-B63ByBx8.js"></script>
+  <link rel="stylesheet" crossorigin href="/assets/index-BejiX97j.css">
+</head>
+<body>
+  <div id="app">
+    <!-- Top Sticky Header -->
+    <header class="app-header">
+      <div class="header-container">
+        <!-- Logo / Brand Section -->
+        <a class="brand-section" id="brand-link" href="#/dashboard">
+          <div class="brand-logo-icon">
+            <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+              <polyline points="23 6 13.5 15.5 8.5 10.5 1 18"></polyline>
+              <polyline points="17 6 23 6 23 12"></polyline>
+            </svg>
+          </div>
+          <div>
+            <div class="brand-title">
+              Apna Share
+              <span class="brand-badge">Calculator</span>
+            </div>
+          </div>
+        </a>
+
+        <!-- Desktop Navigation Tabs -->
+        <nav class="nav-tabs" aria-label="Main Navigation">
+          <button id="nav-btn-dashboard" class="nav-tab-btn active" data-view="dashboard">
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <rect x="3" y="3" width="7" height="9"></rect>
+              <rect x="14" y="3" width="7" height="5"></rect>
+              <rect x="14" y="12" width="7" height="9"></rect>
+              <rect x="3" y="16" width="7" height="5"></rect>
+            </svg>
+            <span>Dashboard</span>
+          </button>
+
+          <button id="nav-btn-add" class="nav-tab-btn" data-view="add-holding">
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <line x1="12" y1="5" x2="12" y2="19"></line>
+              <line x1="5" y1="12" x2="19" y2="12"></line>
+            </svg>
+            <span>Add Holdings</span>
+          </button>
+        </nav>
+
+        <!-- Header Actions: Theme Selector & Live Feed -->
+        <div class="header-actions">
+          <!-- Theme Selector (Dark / Light) -->
+          <div class="theme-switch-box" title="Select Theme (Dark / Light)">
+            <button type="button" id="theme-btn-dark" class="theme-pill-btn active" data-theme="dark" title="Dark Mode" aria-label="Dark Mode">
+              <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path></svg>
+            </button>
+            <button type="button" id="theme-btn-light" class="theme-pill-btn" data-theme="light" title="Light Mode" aria-label="Light Mode">
+              <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="5"></circle><line x1="12" y1="1" x2="12" y2="3"></line><line x1="12" y1="21" x2="12" y2="23"></line><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line><line x1="1" y1="12" x2="3" y2="12"></line><line x1="21" y1="12" x2="23" y2="12"></line><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line></svg>
+            </button>
+          </div>
+
+          <button id="btn-toggle-live" class="live-indicator" title="Toggle Simulated Real-Time Price Updates">
+            <span class="pulse-dot"></span>
+            <span id="live-feed-text">LIVE</span>
+          </button>
+        </div>
+      </div>
+    </header>
+
+    <!-- Indian Market Indices Ticker Tape -->
+    <div class="market-ticker-bar" aria-label="Live Indian Market Indices">
+      <div class="ticker-track" id="global-ticker-track">
+        <div class="ticker-item">
+          <span class="ticker-name">NIFTY 50</span>
+          <span class="ticker-val">25,124.60</span>
+          <span class="ticker-chg pos">▲ +0.48%</span>
+        </div>
+        <div class="ticker-item">
+          <span class="ticker-name">SENSEX</span>
+          <span class="ticker-val">82,045.10</span>
+          <span class="ticker-chg pos">▲ +0.42%</span>
+        </div>
+        <div class="ticker-item">
+          <span class="ticker-name">BANK NIFTY</span>
+          <span class="ticker-val">51,840.30</span>
+          <span class="ticker-chg pos">▲ +0.65%</span>
+        </div>
+        <div class="ticker-item">
+          <span class="ticker-name">NIFTY IT</span>
+          <span class="ticker-val">42,180.40</span>
+          <span class="ticker-chg neg">▼ -0.32%</span>
+        </div>
+        <div class="ticker-item">
+          <span class="ticker-name">NIFTY AUTO</span>
+          <span class="ticker-val">26,340.15</span>
+          <span class="ticker-chg pos">▲ +1.15%</span>
+        </div>
+        <div class="ticker-item">
+          <span class="ticker-name">GOLD (10g)</span>
+          <span class="ticker-val">₹78,450</span>
+          <span class="ticker-chg pos">▲ +0.31%</span>
+        </div>
+        <div class="ticker-item">
+          <span class="ticker-name">SILVER (1kg)</span>
+          <span class="ticker-val">₹92,300</span>
+          <span class="ticker-chg pos">▲ +0.54%</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Main Views Container -->
+    <main class="main-content">
+      <!-- View 1: Dashboard -->
+      <section id="view-dashboard" class="view-container active" role="region" aria-label="Portfolio Dashboard">
+        <!-- Rendered by DashboardView -->
+      </section>
+
+      <!-- View 2: Add Holdings -->
+      <section id="view-add-holding" class="view-container" role="region" aria-label="Add Holdings Form">
+        <!-- Rendered by AddHoldingView -->
+      </section>
+    </main>
+
+    <!-- Mobile Bottom Navigation Bar -->
+    <nav class="mobile-bottom-nav" aria-label="Mobile Navigation">
+      <button class="mobile-nav-btn active" data-view="dashboard" id="mob-nav-dashboard">
+        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <rect x="3" y="3" width="7" height="9"></rect>
+          <rect x="14" y="3" width="7" height="5"></rect>
+          <rect x="14" y="12" width="7" height="9"></rect>
+          <rect x="3" y="16" width="7" height="5"></rect>
+        </svg>
+        <span>Dashboard</span>
+      </button>
+
+      <button class="mobile-nav-btn" data-view="add-holding" id="mob-nav-add">
+        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="12" cy="12" r="10"></circle>
+          <line x1="12" y1="8" x2="12" y2="16"></line>
+          <line x1="8" y1="12" x2="16" y2="12"></line>
+        </svg>
+        <span>Add Stock</span>
+      </button>
+    </nav>
+  </div>
+
+</body>
+</html>

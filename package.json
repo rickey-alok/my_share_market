@@ -1,0 +1,21 @@
+{
+  "name": "apna-share-calculator",
+  "version": "1.0.0",
+  "description": "",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview"
+  },
+  "bugs": {
+    "url": "https://github.com/rickey-alok/my_share_market/issues"
+  },
+  "homepage": "https://github.com/rickey-alok/my_share_market#readme",
+  "devDependencies": {
+    "vite": "^8.3.4"
+  },
+  "dependencies": {
+    "chart.js": "^4.5.1"
+  }
+}
