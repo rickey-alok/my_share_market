@@ -35,6 +35,8 @@ const DEFAULT_PREFERENCES = {
   riskProfile: 'Balanced Wealth Creation'
 };
 
+const ADMIN_EMAILS = ['rickey.alok@gmail.com'];
+
 class AuthService {
   constructor() {
     this.auth = null;
@@ -45,24 +47,35 @@ class AuthService {
     this.initFirebaseAuth();
   }
 
+  isAdmin() {
+    const user = this.getUser();
+    if (!user || user.isGuest) return false;
+    const email = (user.email || '').toLowerCase().trim();
+    return ADMIN_EMAILS.includes(email) || user.isAdmin === true || user.role === 'Admin' || user.role === 'Master Administrator';
+  }
+
   initFirebaseAuth() {
     try {
       if (firebaseService.app) {
         this.auth = getAuth(firebaseService.app);
         onAuthStateChanged(this.auth, (firebaseUser) => {
           if (firebaseUser) {
+            const email = (firebaseUser.email || '').toLowerCase().trim();
+            const isAdminUser = ADMIN_EMAILS.includes(email);
             this.currentUser = {
               uid: firebaseUser.uid,
               displayName: firebaseUser.displayName || firebaseUser.email.split('@')[0],
               email: firebaseUser.email,
               photoURL: firebaseUser.photoURL || null,
-              role: 'Verified Google Investor',
-              accountTier: 'Google Cloud Verified',
+              role: isAdminUser ? 'Master Administrator' : 'Verified Google Investor',
+              accountTier: isAdminUser ? 'Platform Admin' : 'Google Cloud Verified',
+              isAdmin: isAdminUser,
               joinedDate: new Date(firebaseUser.metadata?.creationTime || Date.now()).toLocaleDateString('en-IN', { month: 'short', year: 'numeric' }),
               isGuest: false,
               provider: 'google.com'
             };
             this.saveUser(this.currentUser);
+            firebaseService.saveUserProfile(this.currentUser);
             this.notify({ type: 'AUTH_STATE_CHANGED', user: this.currentUser });
           } else {
             this.currentUser = { ...DEFAULT_GUEST_USER };
@@ -156,18 +169,22 @@ class AuthService {
       provider.setCustomParameters({ prompt: 'select_account' });
       const result = await signInWithPopup(this.auth, provider);
       const user = result.user;
+      const email = (user.email || '').toLowerCase().trim();
+      const isAdminUser = ADMIN_EMAILS.includes(email);
       this.currentUser = {
         uid: user.uid,
         displayName: user.displayName || 'Google Investor',
         email: user.email,
         photoURL: user.photoURL || null,
-        role: 'Verified Google Investor',
-        accountTier: 'Google Cloud Verified',
+        role: isAdminUser ? 'Master Administrator' : 'Verified Google Investor',
+        accountTier: isAdminUser ? 'Platform Admin' : 'Google Cloud Verified',
+        isAdmin: isAdminUser,
         joinedDate: new Date().toLocaleDateString('en-IN', { month: 'short', year: 'numeric' }),
         isGuest: false,
         provider: 'google.com'
       };
       this.saveUser(this.currentUser);
+      firebaseService.saveUserProfile(this.currentUser);
       this.notify({ type: 'LOGIN_SUCCESS', user: this.currentUser });
       return this.currentUser;
     } catch (error) {

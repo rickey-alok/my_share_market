@@ -1,5 +1,6 @@
 import { POPULAR_STOCKS } from '../data/stocksDatabase.js';
 import { firebaseService } from '../services/firebase.js';
+import { authService } from '../services/authService.js';
 
 const STORAGE_KEY_HOLDINGS = 'apex_portfolio_holdings_v1';
 const STORAGE_KEY_TRANSACTIONS = 'apex_portfolio_txs_v1';
@@ -85,6 +86,8 @@ class PortfolioStore {
     this.timer = null;
     this.lastTickSymbol = null;
     this.isCloudSyncing = false;
+    this.isInspectingOtherUser = false;
+    this.inspectedUser = null;
     this.firestoreUnsubscribeHoldings = null;
     this.firestoreUnsubscribeTransactions = null;
 
@@ -95,29 +98,77 @@ class PortfolioStore {
     if (firebaseService.isConfigured) {
       this.initFirestoreSync();
     }
+
+    // React automatically to login/logout events to switch user-scoped data
+    authService.subscribe((event) => {
+      if (event.type === 'LOGIN_SUCCESS' || event.type === 'AUTH_STATE_CHANGED') {
+        const u = authService.getUser();
+        if (u && !u.isGuest) {
+          this.initFirestoreSync(u.uid);
+        }
+      } else if (event.type === 'LOGOUT') {
+        this.cleanupFirestoreSync();
+        this.holdings = this.loadHoldings();
+        this.transactions = this.loadTransactions();
+        this.notify({ type: 'PORTFOLIO_RESET' });
+      }
+    });
   }
 
-  initFirestoreSync() {
+  getActiveUser() {
+    try {
+      return authService.getUser();
+    } catch (e) {
+      return null;
+    }
+  }
+
+  getActiveUserId() {
+    const user = this.getActiveUser();
+    return (user && !user.isGuest) ? user.uid : 'usr_local_guest';
+  }
+
+  cleanupFirestoreSync() {
+    if (this.firestoreUnsubscribeHoldings) {
+      this.firestoreUnsubscribeHoldings();
+      this.firestoreUnsubscribeHoldings = null;
+    }
+    if (this.firestoreUnsubscribeTransactions) {
+      this.firestoreUnsubscribeTransactions();
+      this.firestoreUnsubscribeTransactions = null;
+    }
+    this.isCloudSyncing = false;
+  }
+
+  initFirestoreSync(targetUserId = null) {
     if (!firebaseService.isConfigured) return;
 
-    // Listen to Holdings collection in real time
-    if (this.firestoreUnsubscribeHoldings) this.firestoreUnsubscribeHoldings();
-    this.firestoreUnsubscribeHoldings = firebaseService.listenToHoldings((cloudHoldings) => {
+    const activeUser = this.getActiveUser();
+    const isRegistered = activeUser && !activeUser.isGuest;
+    const effectiveUid = targetUserId || (isRegistered ? activeUser.uid : null);
+
+    this.cleanupFirestoreSync();
+
+    if (!effectiveUid) {
+      return;
+    }
+
+    // Listen to user-specific private holdings (/users/{userId}/holdings)
+    this.firestoreUnsubscribeHoldings = firebaseService.listenToUserHoldings(effectiveUid, (cloudHoldings) => {
       if (cloudHoldings && cloudHoldings.length > 0) {
         this.holdings = cloudHoldings;
         this.saveHoldings(this.holdings);
         this.notify({ type: 'CLOUD_SYNC_UPDATED' });
-      } else if (this.holdings.length > 0) {
-        // Seed initial holdings to Firestore if cloud collection is currently empty
+      } else if (this.holdings.length > 0 && !this.isInspectingOtherUser) {
+        // Seed initial holdings to this user's private collection
         for (const h of this.holdings) {
-          firebaseService.saveHolding(h);
+          firebaseService.saveUserHolding(effectiveUid, h, activeUser?.email);
         }
       }
     });
 
-    // Listen to Transactions collection in real time
-    if (this.firestoreUnsubscribeTransactions) this.firestoreUnsubscribeTransactions();
-    this.firestoreUnsubscribeTransactions = firebaseService.listenToTransactions((cloudTxs) => {
+    // Listen to user-specific private transactions (/users/{userId}/transactions)
+    this.firestoreUnsubscribeTransactions = firebaseService.listenToUserTransactions(effectiveUid, (cloudTxs) => {
       if (cloudTxs && cloudTxs.length > 0) {
         this.transactions = cloudTxs;
         this.saveTransactions(this.transactions);
@@ -127,6 +178,47 @@ class PortfolioStore {
 
     this.isCloudSyncing = true;
     this.notify({ type: 'FIREBASE_CONNECTED' });
+  }
+
+  // Admin Feature: Inspect any user's portfolio data
+  async inspectUserPortfolio(targetUserId, targetUserName, targetUserEmail) {
+    if (!authService.isAdmin()) {
+      throw new Error('Unauthorized: Only administrators can inspect other user data.');
+    }
+
+    this.isInspectingOtherUser = true;
+    this.inspectedUser = {
+      id: targetUserId,
+      name: targetUserName,
+      email: targetUserEmail
+    };
+
+    this.cleanupFirestoreSync();
+
+    const [userHoldings, userTxs] = await Promise.all([
+      firebaseService.getUserHoldingsOnce(targetUserId),
+      firebaseService.getUserTransactionsOnce(targetUserId)
+    ]);
+
+    this.holdings = userHoldings || [];
+    this.transactions = userTxs || [];
+
+    this.notify({ type: 'ADMIN_INSPECT_USER', user: this.inspectedUser });
+    return { holdings: this.holdings, transactions: this.transactions };
+  }
+
+  // Admin Feature: Return to admin's own portfolio
+  exitInspectionMode() {
+    this.isInspectingOtherUser = false;
+    this.inspectedUser = null;
+    const activeUser = this.getActiveUser();
+    if (activeUser && !activeUser.isGuest) {
+      this.initFirestoreSync(activeUser.uid);
+    } else {
+      this.holdings = this.loadHoldings();
+      this.transactions = this.loadTransactions();
+    }
+    this.notify({ type: 'ADMIN_EXIT_INSPECT' });
   }
 
   async connectFirebase(config) {
@@ -300,9 +392,11 @@ class PortfolioStore {
     this.saveTransactions(this.transactions);
 
     // Sync to Firestore if configured
-    if (firebaseService.isConfigured) {
-      firebaseService.saveHolding(this.getHoldingById(holdingId));
-      firebaseService.recordTransaction(newTx);
+    if (firebaseService.isConfigured && !this.isInspectingOtherUser) {
+      const u = this.getActiveUser();
+      const uid = this.getActiveUserId();
+      firebaseService.saveUserHolding(uid, this.getHoldingById(holdingId), u?.email);
+      firebaseService.recordUserTransaction(uid, newTx, u?.email);
     }
 
     this.notify({
@@ -378,9 +472,11 @@ class PortfolioStore {
       const removedHolding = this.holdings.splice(holdingIndex, 1)[0];
       this.saveHoldings(this.holdings);
 
-      if (firebaseService.isConfigured) {
-        firebaseService.removeHolding(holding.id);
-        firebaseService.recordTransaction(newTx);
+      if (firebaseService.isConfigured && !this.isInspectingOtherUser) {
+        const u = this.getActiveUser();
+        const uid = this.getActiveUserId();
+        firebaseService.removeUserHolding(uid, holding.id);
+        firebaseService.recordUserTransaction(uid, newTx, u?.email);
       }
 
       this.notify({
@@ -410,9 +506,11 @@ class PortfolioStore {
       };
       this.saveHoldings(this.holdings);
 
-      if (firebaseService.isConfigured) {
-        firebaseService.saveHolding(this.holdings[holdingIndex]);
-        firebaseService.recordTransaction(newTx);
+      if (firebaseService.isConfigured && !this.isInspectingOtherUser) {
+        const u = this.getActiveUser();
+        const uid = this.getActiveUserId();
+        firebaseService.saveUserHolding(uid, this.holdings[holdingIndex], u?.email);
+        firebaseService.recordUserTransaction(uid, newTx, u?.email);
       }
 
       this.notify({
@@ -445,9 +543,10 @@ class PortfolioStore {
       const deleted = this.holdings.splice(idx, 1)[0];
       this.saveHoldings(this.holdings);
 
-      // Sync delete to Firestore
-      if (firebaseService.isConfigured) {
-        firebaseService.removeHolding(id);
+      // Sync delete to user's private Firestore collection
+      if (firebaseService.isConfigured && !this.isInspectingOtherUser) {
+        const uid = this.getActiveUserId();
+        firebaseService.removeUserHolding(uid, id);
       }
 
       this.notify({ type: 'HOLDING_DELETED', holding: deleted });

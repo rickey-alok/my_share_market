@@ -11,6 +11,7 @@ import { authService } from './services/authService.js';
 
 if (typeof window !== 'undefined') {
   window.authService = authService;
+  window.portfolioStore = portfolioStore;
 }
 
 class App {
@@ -414,7 +415,19 @@ class App {
     const updateHeaderUser = (user) => {
       if (!user) user = authService.getUser();
       if (nameEl) nameEl.textContent = user.displayName || 'Investor';
-      if (badgeEl) badgeEl.textContent = user.isGuest ? 'Demo' : 'Pro';
+      if (badgeEl) {
+        if (user.isAdmin) {
+          badgeEl.textContent = 'Admin';
+          badgeEl.style.background = 'rgba(245, 158, 11, 0.2)';
+          badgeEl.style.color = 'var(--accent-amber)';
+          badgeEl.style.borderColor = 'rgba(245, 158, 11, 0.4)';
+        } else {
+          badgeEl.textContent = user.isGuest ? 'Demo' : 'Pro';
+          badgeEl.style.background = '';
+          badgeEl.style.color = '';
+          badgeEl.style.borderColor = '';
+        }
+      }
       if (avatarEl) {
         if (user.photoURL) {
           avatarEl.innerHTML = `<img src="${user.photoURL}" alt="${user.displayName}" class="user-avatar-mini-img">`;
@@ -436,6 +449,32 @@ class App {
         updateHeaderUser();
       }
     });
+
+    // Admin Inspection Banner logic
+    const adminBanner = document.getElementById('admin-inspect-banner');
+    const adminUserName = document.getElementById('admin-inspect-user-name');
+    const adminUserEmail = document.getElementById('admin-inspect-user-email');
+    const btnExitInspect = document.getElementById('btn-admin-exit-inspect');
+
+    portfolioStore.subscribe((event) => {
+      if (event.type === 'ADMIN_INSPECT_USER') {
+        if (adminBanner) {
+          if (adminUserName) adminUserName.textContent = event.user.name || 'Investor';
+          if (adminUserEmail) adminUserEmail.textContent = event.user.email || '';
+          adminBanner.style.display = 'block';
+        }
+      } else if (event.type === 'ADMIN_EXIT_INSPECT' || event.type === 'PORTFOLIO_RESET') {
+        if (adminBanner) {
+          adminBanner.style.display = 'none';
+        }
+      }
+    });
+
+    if (btnExitInspect) {
+      btnExitInspect.addEventListener('click', () => {
+        portfolioStore.exitInspectionMode();
+      });
+    }
 
     const openProfile = () => {
       if (this.profileModal) {

@@ -3797,3 +3797,60 @@ body::after {
   }
 }
 
+/* Admin Inspection Banner */
+.admin-inspect-banner {
+  background: linear-gradient(90deg, #312e81, #1e1b4b);
+  border-bottom: 1px solid rgba(129, 140, 248, 0.4);
+  padding: 0.55rem 1.5rem;
+  color: #ffffff;
+  position: sticky;
+  top: 70px;
+  z-index: 95;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+}
+
+.admin-inspect-content {
+  max-width: 1400px;
+  margin: 0 auto;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  flex-wrap: wrap;
+}
+
+.admin-inspect-text {
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+  font-size: 0.88rem;
+}
+
+.admin-inspect-tag {
+  background: #f59e0b;
+  color: #000000;
+  font-size: 0.68rem;
+  font-weight: 800;
+  padding: 0.15rem 0.5rem;
+  border-radius: var(--radius-full);
+  letter-spacing: 0.05em;
+}
+
+.btn-admin-exit {
+  background: #ffffff;
+  color: #1e1b4b;
+  border: none;
+  border-radius: var(--radius-full);
+  padding: 0.35rem 0.9rem;
+  font-family: var(--font-heading);
+  font-size: 0.8rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all var(--transition-fast);
+}
+
+.btn-admin-exit:hover {
+  background: #e0e7ff;
+  transform: translateY(-1px);
+}
+

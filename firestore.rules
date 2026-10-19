@@ -1,10 +1,130 @@
 rules_version = '2';
 
+// ===============================================================
+// Apna Share Calculator - Security Rules
+// ===============================================================
+// Core Access Policy:
+// 1. Regular Users can ONLY read, create, update, and delete their OWN data.
+// 2. Administrators can read and inspect ANY user's data across all collections.
+// 3. Unauthenticated requests are denied access to user portfolio records.
+// ===============================================================
+
 service cloud.firestore {
   match /databases/{database}/documents {
-    // Allow read and write access to all documents for development
+
+    // ===============================================================
+    // Helper Functions
+    // ===============================================================
+
+    // Check if the user is authenticated with Firebase
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    // Check if user owns the resource (by UID match)
+    function isOwner(userId) {
+      return isAuthenticated() && request.auth.uid == userId;
+    }
+
+    // Check if the authenticated user is an administrator
+    function isAdmin() {
+      return isAuthenticated() && (
+        // Designated Project Admin Email
+        request.auth.token.email.lower() == 'rickey.alok@gmail.com' ||
+        // Firebase Custom Claim (admin: true)
+        request.auth.token.admin == true ||
+        // Dynamic Admin Document in 'admins' collection by UID or Email
+        exists(/databases/$(database)/documents/admins/$(request.auth.uid)) ||
+        exists(/databases/$(database)/documents/admins/$(request.auth.token.email.lower()))
+      );
+    }
+
+    // ===============================================================
+    // 1. User Profiles & User Subcollections (Primary Data Structure)
+    // Path: /users/{userId}
+    // Subcollections:
+    //   - /users/{userId}/holdings/{holdingId}
+    //   - /users/{userId}/transactions/{txId}
+    //   - /users/{userId}/settings/{settingId}
+    // ===============================================================
+
+    match /users/{userId} {
+      // User can view and manage their own profile, or Admin can view/manage any profile
+      allow read, write: if isOwner(userId) || isAdmin();
+
+      // All subcollections under a user's document are strictly restricted to that user and admins
+      match /{allSubcollections=**} {
+        allow read, write: if isOwner(userId) || isAdmin();
+      }
+    }
+
+    // ===============================================================
+    // 2. Administrators Registry
+    // Path: /admins/{adminId}
+    // ===============================================================
+    match /admins/{adminId} {
+      // Only administrators can view or assign administrative privileges
+      allow read, write: if isAdmin();
+    }
+
+    // ===============================================================
+    // 3. Top-Level Collections (Holdings & Transactions with userId field)
+    // Allows backward compatibility and collection-level indexing
+    // ===============================================================
+
+    match /holdings/{holdingId} {
+      // Admin can read all holdings; User can only read their own holdings
+      allow read: if isAdmin() || (isAuthenticated() && resource.data.userId == request.auth.uid);
+
+      // User can create holding only with their own userId
+      allow create: if isAdmin() || (
+        isAuthenticated() && 
+        request.resource.data.userId == request.auth.uid
+      );
+
+      // User can update only their own holding and cannot transfer ownership (userId is immutable)
+      allow update: if isAdmin() || (
+        isAuthenticated() && 
+        resource.data.userId == request.auth.uid &&
+        request.resource.data.userId == resource.data.userId
+      );
+
+      // User can delete only their own holding
+      allow delete: if isAdmin() || (
+        isAuthenticated() && 
+        resource.data.userId == request.auth.uid
+      );
+    }
+
+    match /transactions/{txId} {
+      // Admin can read all transactions; User can only read their own transactions
+      allow read: if isAdmin() || (isAuthenticated() && resource.data.userId == request.auth.uid);
+
+      // User can record transaction only under their own userId
+      allow create: if isAdmin() || (
+        isAuthenticated() && 
+        request.resource.data.userId == request.auth.uid
+      );
+
+      // User can update only their own transaction and cannot transfer ownership
+      allow update: if isAdmin() || (
+        isAuthenticated() && 
+        resource.data.userId == request.auth.uid &&
+        request.resource.data.userId == resource.data.userId
+      );
+
+      // User can delete only their own transaction
+      allow delete: if isAdmin() || (
+        isAuthenticated() && 
+        resource.data.userId == request.auth.uid
+      );
+    }
+
+    // ===============================================================
+    // 4. Default Deny for Any Other Document Path
+    // ===============================================================
     match /{document=**} {
-      allow read, write: if true;
+      allow read, write: if false;
     }
   }
 }

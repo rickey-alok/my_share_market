@@ -1,6 +1,7 @@
 // User Profile, Authentication, Portfolio Data & Settings Modal
 import { authService } from '../services/authService.js';
 import { portfolioStore } from '../state/portfolioStore.js';
+import { firebaseService } from '../services/firebase.js';
 import { icons } from '../utils/icons.js';
 
 export class ProfileModal {
@@ -210,8 +211,8 @@ export class ProfileModal {
           </div>
           <div class="user-overview-email">${user.email}</div>
           <div class="user-meta-chips">
-            <span class="profile-chip badge-role">${icons.shield} Google Investor</span>
-            <span class="profile-chip badge-provider">Google Verified</span>
+            <span class="profile-chip badge-role">${user.isAdmin ? `${icons.shield} Master Administrator` : `${icons.shield} Google Investor`}</span>
+            <span class="profile-chip badge-provider">${user.isAdmin ? 'Admin Superuser' : 'Google Verified'}</span>
             <span class="profile-chip badge-member">Member since ${user.joinedDate}</span>
           </div>
         </div>
@@ -222,10 +223,12 @@ export class ProfileModal {
         <div class="logged-in-state-box">
           <div class="auth-status-pill success">
             <span class="status-dot"></span>
-            <span>Signed In as <strong>${user.email}</strong></span>
+            <span>Signed In as <strong>${user.email}</strong> ${user.isAdmin ? '<span style="color: var(--accent-amber); font-weight: 800; margin-left: 4px;">(Admin)</span>' : ''}</span>
           </div>
           <p class="auth-desc-subtle" style="margin-top: 0.65rem; color: var(--text-secondary); font-size: 0.85rem; line-height: 1.5;">
-            Your portfolio holdings, buy/sell transactions, and customized settings are securely linked to your Google account.
+            ${user.isAdmin 
+              ? 'You have master administrative access across the platform. You can inspect any user\'s portfolio or manage your own data.' 
+              : 'Your portfolio holdings, buy/sell transactions, and customized settings are securely isolated and linked only to your Google account.'}
           </p>
           <div style="display: flex; gap: 0.75rem; margin-top: 1.5rem;">
             <!-- Prominent Log Out Button for Registered User -->
@@ -236,6 +239,32 @@ export class ProfileModal {
           </div>
         </div>
       </div>
+
+      ${authService.isAdmin() ? `
+        <!-- Administrator Tools: Inspect Platform Users -->
+        <div class="auth-section-card" style="margin-top: 1.25rem; border-color: rgba(99, 102, 241, 0.4); background: linear-gradient(145deg, rgba(99, 102, 241, 0.08), rgba(21, 28, 46, 0.85));">
+          <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 0.85rem; flex-wrap: wrap; gap: 0.5rem;">
+            <div>
+              <div style="display: inline-flex; align-items: center; gap: 0.45rem; font-weight: 800; font-size: 0.95rem; color: var(--brand-indigo-light);">
+                ${icons.shield}
+                <span>Administrator Console: Investor Access</span>
+              </div>
+              <p style="margin: 0.2rem 0 0 0; font-size: 0.8rem; color: var(--text-secondary);">
+                As administrator, you can inspect any registered investor's portfolio and transaction records.
+              </p>
+            </div>
+            <button type="button" class="btn-chip-demo" id="btn-admin-fetch-users" style="padding: 0.45rem 0.9rem; font-size: 0.8rem; font-weight: 700; cursor: pointer;">
+              <span>Refresh Users</span>
+            </button>
+          </div>
+
+          <div id="admin-users-list-container" style="margin-top: 0.75rem;">
+            <div style="padding: 0.85rem; text-align: center; color: var(--text-muted); font-size: 0.82rem; background: rgba(0,0,0,0.25); border-radius: var(--radius-md);">
+              Click "Refresh Users" to view all registered investors from Firestore.
+            </div>
+          </div>
+        </div>
+      ` : ''}
     `;
   }
 
@@ -525,6 +554,64 @@ export class ProfileModal {
         await authService.logout();
         this.render();
       });
+    }
+
+    // Admin: Fetch and inspect users
+    const btnFetchUsers = this.container.querySelector('#btn-admin-fetch-users');
+    const usersListContainer = this.container.querySelector('#admin-users-list-container');
+    if (btnFetchUsers && usersListContainer) {
+      const loadUsers = async () => {
+        btnFetchUsers.disabled = true;
+        btnFetchUsers.innerHTML = '<span>Loading...</span>';
+        usersListContainer.innerHTML = '<div style="padding: 0.85rem; text-align: center; color: var(--text-muted); font-size: 0.82rem;">Fetching registered investors from Firestore...</div>';
+
+        try {
+          const users = await firebaseService.getAllUsers();
+
+          if (!users || users.length === 0) {
+            usersListContainer.innerHTML = '<div style="padding: 0.85rem; text-align: center; color: var(--text-muted); font-size: 0.82rem;">No other investors registered in Firestore yet. As users sign in with Google, they will appear here.</div>';
+          } else {
+            usersListContainer.innerHTML = `
+              <div style="display: flex; flex-direction: column; gap: 0.5rem; max-height: 220px; overflow-y: auto;">
+                ${users.map(u => `
+                  <div style="display: flex; align-items: center; justify-content: space-between; padding: 0.6rem 0.85rem; background: rgba(0,0,0,0.3); border-radius: var(--radius-md); border: 1px solid var(--border-subtle); gap: 0.5rem;">
+                    <div style="min-width: 0; flex: 1;">
+                      <div style="font-weight: 700; font-size: 0.85rem; color: var(--text-primary); text-overflow: ellipsis; overflow: hidden; white-space: nowrap;">
+                        ${u.displayName || 'Investor'} ${u.role === 'Admin' ? '<span style="font-size: 0.65rem; background: rgba(99,102,241,0.25); color: var(--brand-indigo-light); padding: 2px 6px; border-radius: 4px; margin-left: 4px; font-weight: 800;">Admin</span>' : ''}
+                      </div>
+                      <div style="font-size: 0.75rem; color: var(--text-muted); text-overflow: ellipsis; overflow: hidden; white-space: nowrap;">
+                        ${u.email || u.uid}
+                      </div>
+                    </div>
+                    <button type="button" class="btn-inspect-user" data-uid="${u.uid}" data-name="${u.displayName || 'Investor'}" data-email="${u.email || ''}" style="padding: 0.35rem 0.75rem; font-size: 0.78rem; font-weight: 700; background: rgba(99,102,241,0.18); border: 1px solid rgba(99,102,241,0.35); color: var(--brand-indigo-light); border-radius: 6px; cursor: pointer; white-space: nowrap;">
+                      Inspect
+                    </button>
+                  </div>
+                `).join('')}
+              </div>
+            `;
+
+            usersListContainer.querySelectorAll('.btn-inspect-user').forEach(b => {
+              b.addEventListener('click', async () => {
+                const uid = b.getAttribute('data-uid');
+                const name = b.getAttribute('data-name');
+                const email = b.getAttribute('data-email');
+                b.disabled = true;
+                b.textContent = 'Opening...';
+                await portfolioStore.inspectUserPortfolio(uid, name, email);
+                this.close();
+              });
+            });
+          }
+        } catch (err) {
+          usersListContainer.innerHTML = `<div style="padding: 0.85rem; color: var(--bear-red); font-size: 0.82rem;">Could not load investors: ${err.message}</div>`;
+        } finally {
+          btnFetchUsers.disabled = false;
+          btnFetchUsers.innerHTML = '<span>Refresh Users</span>';
+        }
+      };
+
+      btnFetchUsers.addEventListener('click', loadUsers);
     }
 
     // Export JSON
