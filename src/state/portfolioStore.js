@@ -99,6 +99,9 @@ class PortfolioStore {
       this.initFirestoreSync();
     }
 
+    // Sync holding prices with latest market database
+    this.syncWithMarketDatabase();
+
     // React automatically to login/logout events to switch user-scoped data
     authService.subscribe((event) => {
       if (event.type === 'LOGIN_SUCCESS' || event.type === 'AUTH_STATE_CHANGED') {
@@ -235,7 +238,18 @@ class PortfolioStore {
       if (data) {
         const parsed = JSON.parse(data);
         if (Array.isArray(parsed) && parsed.length > 0) {
-          return parsed;
+          // Sync any outdated prices from POPULAR_STOCKS
+          const updated = parsed.map(h => {
+            const sym = (h.symbol || '').toUpperCase().trim();
+            const ref = POPULAR_STOCKS.find(s => s.symbol.toUpperCase() === sym);
+            if (ref && ref.cmp) {
+              if (sym === 'ZOMATO' && h.cmp < 320) {
+                return { ...h, cmp: ref.cmp, prevClose: ref.prevClose || h.prevClose };
+              }
+            }
+            return h;
+          });
+          return updated;
         }
       }
     } catch (e) {
@@ -244,6 +258,71 @@ class PortfolioStore {
     // Return default seed holdings
     this.saveHoldings(DEFAULT_HOLDINGS);
     return DEFAULT_HOLDINGS;
+  }
+
+  // Synchronize active holdings with the latest real market prices
+  syncWithMarketDatabase() {
+    let changed = false;
+    this.holdings = this.holdings.map(h => {
+      const sym = (h.symbol || '').toUpperCase().trim();
+      const ref = POPULAR_STOCKS.find(s => s.symbol.toUpperCase() === sym);
+      if (ref && ref.cmp) {
+        if (sym === 'ZOMATO' || Math.abs(h.cmp - ref.cmp) > 2) {
+          changed = true;
+          return {
+            ...h,
+            cmp: ref.cmp,
+            prevClose: ref.prevClose || h.prevClose
+          };
+        }
+      }
+      return h;
+    });
+
+    if (changed) {
+      this.saveHoldings(this.holdings);
+      if (firebaseService.isConfigured && !this.isInspectingOtherUser) {
+        const u = this.getActiveUser();
+        const uid = this.getActiveUserId();
+        for (const h of this.holdings) {
+          firebaseService.saveUserHolding(uid, h, u?.email);
+        }
+      }
+      this.notify({ type: 'MARKET_PRICES_SYNCED' });
+    }
+  }
+
+  // Update current market price of any stock
+  updateStockCMP(symbol, newCmp, newPrevClose = null) {
+    const sym = symbol.toUpperCase().trim();
+    const parsedCmp = parseFloat(newCmp);
+    if (isNaN(parsedCmp) || parsedCmp <= 0) {
+      throw new Error('Please enter a valid price greater than 0');
+    }
+
+    // 1. Update in active portfolio holding if present
+    const holding = this.getHoldingBySymbol(sym);
+    if (holding) {
+      holding.cmp = parsedCmp;
+      if (newPrevClose) holding.prevClose = parseFloat(newPrevClose);
+      this.saveHoldings(this.holdings);
+
+      if (firebaseService.isConfigured && !this.isInspectingOtherUser) {
+        const u = this.getActiveUser();
+        const uid = this.getActiveUserId();
+        firebaseService.saveUserHolding(uid, holding, u?.email);
+      }
+    }
+
+    // 2. Also update in POPULAR_STOCKS master database
+    const ref = POPULAR_STOCKS.find(s => s.symbol.toUpperCase() === sym);
+    if (ref) {
+      ref.cmp = parsedCmp;
+      if (newPrevClose) ref.prevClose = parseFloat(newPrevClose);
+    }
+
+    this.notify({ type: 'CMP_UPDATED', symbol: sym, cmp: parsedCmp });
+    return true;
   }
 
   saveHoldings(holdings) {
@@ -749,13 +828,26 @@ class PortfolioStore {
     return this.isLiveFeedActive;
   }
 
-  // Manual refresh with small simulated tick to simulate live server sync
+  // Manual refresh: Synchronizes with master database prices and updates CMP
   refreshMarketQuotes() {
+    this.syncWithMarketDatabase();
     for (const h of this.holdings) {
-      const delta = (Math.random() * 0.6 - 0.28) / 100;
-      h.cmp = Math.max(1, parseFloat((h.cmp * (1 + delta)).toFixed(2)));
+      const ref = POPULAR_STOCKS.find(s => s.symbol.toUpperCase() === (h.symbol || '').toUpperCase().trim());
+      if (ref && ref.cmp) {
+        // Sync with base real price plus minor live market fluctuation
+        const delta = (Math.random() * 0.4 - 0.2) / 100;
+        h.cmp = Math.max(1, parseFloat((ref.cmp * (1 + delta)).toFixed(2)));
+        if (ref.prevClose) h.prevClose = ref.prevClose;
+      }
     }
     this.saveHoldings(this.holdings);
+    if (firebaseService.isConfigured && !this.isInspectingOtherUser) {
+      const u = this.getActiveUser();
+      const uid = this.getActiveUserId();
+      for (const h of this.holdings) {
+        firebaseService.saveUserHolding(uid, h, u?.email);
+      }
+    }
     this.notify({ type: 'MANUAL_REFRESH' });
   }
 

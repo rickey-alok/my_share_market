@@ -118,7 +118,12 @@ export class StockDetailView {
           </div>
 
           <div class="stock-hero-right">
-            <div class="hero-price-label">Current Market Price (CMP)</div>
+            <div class="hero-price-label" style="display: flex; align-items: center; justify-content: flex-end; gap: 0.5rem;">
+              <span>Current Market Price (CMP)</span>
+              <button type="button" id="btn-edit-cmp" class="btn-chip-demo" style="padding: 0.15rem 0.5rem; font-size: 0.72rem; cursor: pointer;" title="Edit or update Current Market Price">
+                ${icons.edit || '✎'} Edit Price
+              </button>
+            </div>
             <div class="hero-cmp-row">
               <span id="hero-cmp-val" class="hero-cmp-val">${portfolioStore.formatMoney(enrichedHolding.cmp)}</span>
             </div>
@@ -285,6 +290,26 @@ export class StockDetailView {
     };
     if (btnBack) btnBack.addEventListener('click', handleBack);
     if (crumbDashboard) crumbDashboard.addEventListener('click', handleBack);
+
+    // Edit CMP Button
+    const btnEditCmp = this.container.querySelector('#btn-edit-cmp');
+    if (btnEditCmp) {
+      btnEditCmp.addEventListener('click', () => {
+        const h = portfolioStore.getHoldingBySymbol(this.currentSymbol);
+        const curr = h ? h.cmp : 334;
+        const input = prompt(`Enter real Current Market Price (CMP) for ${this.currentSymbol} in ₹:`, curr);
+        if (input !== null) {
+          const val = parseFloat(input.trim());
+          if (!isNaN(val) && val > 0) {
+            portfolioStore.updateStockCMP(this.currentSymbol, val);
+            this.updateFinancialMetrics();
+            this.updateProjectedImpact();
+          } else {
+            alert('Please enter a valid price greater than 0');
+          }
+        }
+      });
+    }
 
     // Quick Average / Buy more button focuses the dedicated calculator in BUY mode
     const btnQuickAvg = this.container.querySelector('#btn-quick-average');

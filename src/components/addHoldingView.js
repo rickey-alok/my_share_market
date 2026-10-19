@@ -349,14 +349,13 @@ export class AddHoldingView {
     const matchedStock = POPULAR_STOCKS.find(s => s.symbol.toUpperCase() === cleanSym);
     const existingHolding = portfolioStore.getHoldingBySymbol(cleanSym);
 
-    let cmpVal = null;
+    let cmpVal = (matchedStock && matchedStock.cmp) || (existingHolding && existingHolding.cmp) || null;
+
     if (existingHolding) {
-      cmpVal = existingHolding.cmp;
       if (companyInput && !companyInput.value) companyInput.value = existingHolding.name;
       if (sectorSelect) sectorSelect.value = existingHolding.sector || 'Others';
       if (exchangeSelect) exchangeSelect.value = existingHolding.exchange || 'NSE';
     } else if (matchedStock) {
-      cmpVal = matchedStock.cmp;
       if (companyInput) companyInput.value = matchedStock.name;
       if (sectorSelect) sectorSelect.value = matchedStock.sector;
       if (exchangeSelect) exchangeSelect.value = matchedStock.exchange;

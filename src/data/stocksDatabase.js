@@ -125,14 +125,14 @@ export const POPULAR_STOCKS = [
   },
   {
     symbol: 'ZOMATO',
-    name: 'Zomato Ltd.',
+    name: 'Zomato Ltd. (Eternal)',
     exchange: 'NSE',
     sector: 'New Age / Consumer Tech',
-    cmp: 268.40,
-    prevClose: 259.10,
-    dayChangePercent: 3.59,
-    peRatio: 110.4,
-    marketCap: 'Mid Cap'
+    cmp: 334.00,
+    prevClose: 328.50,
+    dayChangePercent: 1.67,
+    peRatio: 95.4,
+    marketCap: 'Large Cap'
   },
   {
     symbol: 'SBIN',
