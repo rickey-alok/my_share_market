@@ -2505,6 +2505,198 @@ body::after {
   100% { transform: rotate(360deg); }
 }
 
+/* Technical Indicators & Chart Overlays Panel */
+.chart-indicators-panel {
+  background: var(--bg-surface-elevated);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-lg);
+  padding: 0.9rem 1.25rem;
+  margin-top: 1.25rem;
+  margin-bottom: 1.25rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.65rem;
+}
+
+.indicators-header-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+}
+
+.indicators-panel-title {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  font-size: 0.82rem;
+  font-weight: 700;
+  color: var(--text-primary);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.indicators-panel-hint {
+  font-size: 0.74rem;
+  color: var(--text-muted);
+}
+
+.indicator-chips-group {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  flex-wrap: wrap;
+}
+
+.indicator-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  background: var(--bg-surface);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-full);
+  padding: 0.38rem 0.85rem;
+  color: var(--text-secondary);
+  font-family: var(--font-heading);
+  font-size: 0.78rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all var(--transition-fast);
+}
+
+.indicator-chip:hover {
+  background: var(--bg-surface-hover);
+  color: var(--text-primary);
+  border-color: var(--border-active);
+  transform: translateY(-1px);
+}
+
+.indicator-chip.active {
+  background: rgba(99, 102, 241, 0.14);
+  border-color: var(--brand-indigo);
+  color: var(--text-primary);
+  box-shadow: 0 0 10px rgba(99, 102, 241, 0.25);
+}
+
+.indicator-chip.active[data-indicator="volume"] {
+  background: rgba(16, 185, 129, 0.14);
+  border-color: var(--bull-green);
+  color: var(--bull-green);
+  box-shadow: 0 0 10px rgba(16, 185, 129, 0.25);
+}
+
+.indicator-chip.active[data-indicator="rsi"] {
+  background: rgba(139, 92, 246, 0.14);
+  border-color: #8b5cf6;
+  color: #a78bfa;
+  box-shadow: 0 0 10px rgba(139, 92, 246, 0.25);
+}
+
+.indicator-chip.active[data-indicator="benchmark"] {
+  background: rgba(245, 158, 11, 0.14);
+  border-color: #f59e0b;
+  color: #fbbf24;
+  box-shadow: 0 0 10px rgba(245, 158, 11, 0.25);
+}
+
+.indicator-chip.active[data-indicator="industry"] {
+  background: rgba(236, 72, 153, 0.14);
+  border-color: #ec4899;
+  color: #f472b6;
+  box-shadow: 0 0 10px rgba(236, 72, 153, 0.25);
+}
+
+.indicator-chip-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  display: inline-block;
+}
+
+.indicator-chip-dot.volume { background: var(--bull-green); }
+.indicator-chip-dot.rsi { background: #8b5cf6; }
+.indicator-chip-dot.benchmark { background: #f59e0b; }
+.indicator-chip-dot.industry { background: #ec4899; }
+
+.chip-status-check {
+  font-size: 0.72rem;
+  font-weight: 800;
+  margin-left: 0.15rem;
+}
+
+/* Sub-Chart Panels (Volume and RSI) */
+.sub-chart-card {
+  background: var(--bg-surface-elevated);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-lg);
+  padding: 1rem 1.25rem;
+  margin-top: 1.25rem;
+  animation: fadeIn 0.25s ease-out;
+}
+
+.sub-chart-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  margin-bottom: 0.75rem;
+  flex-wrap: wrap;
+}
+
+.sub-chart-title {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: var(--text-secondary);
+}
+
+.sub-chart-indicator-tag {
+  font-size: 0.7rem;
+  font-weight: 700;
+  padding: 0.12rem 0.45rem;
+  border-radius: var(--radius-sm);
+  text-transform: uppercase;
+}
+
+.sub-chart-indicator-tag.volume {
+  background: rgba(16, 185, 129, 0.16);
+  color: var(--bull-green);
+  border: 1px solid rgba(16, 185, 129, 0.35);
+}
+
+.sub-chart-indicator-tag.rsi {
+  background: rgba(139, 92, 246, 0.16);
+  color: #a78bfa;
+  border: 1px solid rgba(139, 92, 246, 0.35);
+}
+
+.sub-chart-stat {
+  font-size: 0.8rem;
+  color: var(--text-primary);
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.rsi-sentiment-chip {
+  font-size: 0.72rem;
+  font-weight: 700;
+  padding: 0.12rem 0.5rem;
+  border-radius: var(--radius-full);
+  background: rgba(99, 102, 241, 0.15);
+  color: var(--brand-indigo-light);
+  border: 1px solid rgba(99, 102, 241, 0.3);
+}
+
+.sub-chart-canvas-box {
+  position: relative;
+  height: 135px;
+  width: 100%;
+}
+
 /* Responsive Media Queries */
 @media (max-width: 1024px) {
   .kpi-grid {

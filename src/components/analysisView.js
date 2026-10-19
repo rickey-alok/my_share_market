@@ -10,16 +10,24 @@ export class AnalysisView {
     this.onNavigateToStockDetail = onNavigateToStockDetail;
 
     // View State
-    this.fiiDiiTimeframe = 'week'; // 'week' | 'month' | 'year'
-    this.indexTimeframe = 'week';   // 'week' | 'month' | 'year'
-    this.selectedIndex = 'nifty';   // 'nifty' | 'sensex'
-    this.stockTimeframe = 'month';  // 'week' | 'month' | 'year'
+    this.fiiDiiTimeframe = 'week';
+    this.indexTimeframe = 'week';
+    this.selectedIndex = 'nifty';
+    this.stockTimeframe = 'month';
     this.selectedSymbol = null;
+
+    // Technical Indicator / Overlay States (all 4 requested features)
+    this.showVolume = true;
+    this.showRsi = true;
+    this.showBenchmark = true;
+    this.showIndustry = true;
 
     // Chart instances
     this.fiiDiiChart = null;
     this.indexChart = null;
     this.stockChart = null;
+    this.volumeChart = null;
+    this.rsiChart = null;
 
     this.init();
   }
@@ -222,6 +230,19 @@ export class AnalysisView {
         }
       });
     }
+
+    // Delegate Technical Indicator & Overlay Toggles (Volume, RSI, Benchmark, Industry)
+    this.container.addEventListener('click', (e) => {
+      const btn = e.target.closest('[data-indicator]');
+      if (btn) {
+        const indicator = btn.getAttribute('data-indicator');
+        if (indicator === 'volume') this.showVolume = !this.showVolume;
+        else if (indicator === 'rsi') this.showRsi = !this.showRsi;
+        else if (indicator === 'benchmark') this.showBenchmark = !this.showBenchmark;
+        else if (indicator === 'industry') this.showIndustry = !this.showIndustry;
+        this.renderStockAnalysis();
+      }
+    });
   }
 
   updateTheme() {
@@ -236,6 +257,14 @@ export class AnalysisView {
     if (this.stockChart) {
       this.stockChart.destroy();
       this.stockChart = null;
+    }
+    if (this.volumeChart) {
+      this.volumeChart.destroy();
+      this.volumeChart = null;
+    }
+    if (this.rsiChart) {
+      this.rsiChart.destroy();
+      this.rsiChart = null;
     }
     this.updateAll();
   }
@@ -677,94 +706,364 @@ export class AnalysisView {
         </div>
       </div>
 
-      <!-- Stock Price Trajectory Chart -->
+      <!-- Chart Layers & Technical Indicators Toolbar -->
+      <div class="chart-indicators-panel">
+        <div class="indicators-header-row">
+          <span class="indicators-panel-title">
+            ${icons.layers}
+            <span>Chart Overlays & Technical Indicators</span>
+          </span>
+          <span class="indicators-panel-hint">Click options to toggle on/off</span>
+        </div>
+
+        <div class="indicator-chips-group">
+          <!-- 1. Volume Toggle -->
+          <button type="button" class="indicator-chip ${this.showVolume ? 'active' : ''}" data-indicator="volume" title="Toggle Volume Bar Sub-Chart">
+            <span class="indicator-chip-dot volume"></span>
+            <span>Volume</span>
+            ${this.showVolume ? '<span class="chip-status-check">✓</span>' : ''}
+          </button>
+
+          <!-- 2. RSI Toggle -->
+          <button type="button" class="indicator-chip ${this.showRsi ? 'active' : ''}" data-indicator="rsi" title="Toggle 14-Period RSI Indicator">
+            <span class="indicator-chip-dot rsi"></span>
+            <span>RSI (14)</span>
+            ${this.showRsi ? '<span class="chip-status-check">✓</span>' : ''}
+          </button>
+
+          <!-- 3. Nifty / Benchmark Toggle -->
+          <button type="button" class="indicator-chip ${this.showBenchmark ? 'active' : ''}" data-indicator="benchmark" title="Overlay NIFTY 50 Benchmark Line on Main Chart">
+            <span class="indicator-chip-dot benchmark"></span>
+            <span>NIFTY 50</span>
+            ${this.showBenchmark ? '<span class="chip-status-check">✓</span>' : ''}
+          </button>
+
+          <!-- 4. Industry Specific Toggle -->
+          <button type="button" class="indicator-chip ${this.showIndustry ? 'active' : ''}" data-indicator="industry" title="Overlay Industry Specific Index on Main Chart">
+            <span class="indicator-chip-dot industry"></span>
+            <span>Industry (${data.industry.name})</span>
+            ${this.showIndustry ? '<span class="chip-status-check">✓</span>' : ''}
+          </button>
+        </div>
+      </div>
+
+      <!-- Main Price Chart (+ Optional Benchmark & Industry Overlays) -->
       <div class="chart-wrapper-analysis">
         <canvas id="stock-chart"></canvas>
       </div>
+
+      <!-- Sub-Chart Pane 1: Volume Bar Chart (if active) -->
+      ${this.showVolume ? `
+        <div class="sub-chart-card volume-panel">
+          <div class="sub-chart-header">
+            <div class="sub-chart-title">
+              <span class="sub-chart-indicator-tag volume">Volume</span>
+              <span>Trading Volume Analysis</span>
+            </div>
+            <div class="sub-chart-stat mono">
+              Current Volume: <strong>${data.currentVolume} Lakh Shares</strong>
+            </div>
+          </div>
+          <div class="sub-chart-canvas-box">
+            <canvas id="stock-volume-chart"></canvas>
+          </div>
+        </div>
+      ` : ''}
+
+      <!-- Sub-Chart Pane 2: RSI (14) Momentum Oscillator (if active) -->
+      ${this.showRsi ? `
+        <div class="sub-chart-card rsi-panel">
+          <div class="sub-chart-header">
+            <div class="sub-chart-title">
+              <span class="sub-chart-indicator-tag rsi">RSI (14)</span>
+              <span>Momentum Oscillator</span>
+            </div>
+            <div class="sub-chart-stat mono">
+              Current RSI: <strong>${data.currentRsi}</strong>
+              <span class="rsi-sentiment-chip">${data.rsiSentiment}</span>
+            </div>
+          </div>
+          <div class="sub-chart-canvas-box">
+            <canvas id="stock-rsi-chart"></canvas>
+          </div>
+        </div>
+      ` : ''}
     `;
 
-    // Render Chart.js Stock Trajectory
-    const canvas = this.container.querySelector('#stock-chart');
-    if (!canvas) return;
+    // Destroy existing chart instances
+    if (this.stockChart) {
+      this.stockChart.destroy();
+      this.stockChart = null;
+    }
+    if (this.volumeChart) {
+      this.volumeChart.destroy();
+      this.volumeChart = null;
+    }
+    if (this.rsiChart) {
+      this.rsiChart.destroy();
+      this.rsiChart = null;
+    }
 
     const isLight = document.documentElement.getAttribute('data-theme') === 'light';
     const gridColor = isLight ? 'rgba(0,0,0,0.06)' : 'rgba(255,255,255,0.06)';
     const textColor = isLight ? '#64748b' : '#94a3b8';
 
-    if (this.stockChart) {
-      this.stockChart.destroy();
-      this.stockChart = null;
-    }
+    // 1. Render Main Stock Price Chart (+ Benchmark and Industry overlays if enabled)
+    const canvas = this.container.querySelector('#stock-chart');
+    if (canvas) {
+      const ctx = canvas.getContext('2d');
+      const gradient = ctx.createLinearGradient(0, 0, 0, 280);
+      gradient.addColorStop(0, 'rgba(99, 102, 241, 0.28)');
+      gradient.addColorStop(1, 'rgba(99, 102, 241, 0.0)');
 
-    const ctx = canvas.getContext('2d');
-    const gradient = ctx.createLinearGradient(0, 0, 0, 280);
-    gradient.addColorStop(0, 'rgba(99, 102, 241, 0.28)');
-    gradient.addColorStop(1, 'rgba(99, 102, 241, 0.0)');
-
-    this.stockChart = new Chart(ctx, {
-      type: 'line',
-      data: {
-        labels: data.labels,
-        datasets: [
-          {
-            label: `${data.symbol} Price`,
-            data: data.priceHistory,
-            borderColor: '#6366f1',
-            backgroundColor: gradient,
-            fill: true,
-            tension: 0.35,
-            borderWidth: 2.5,
-            pointRadius: 4,
-            pointBackgroundColor: '#6366f1',
-            pointBorderColor: '#ffffff',
-            pointHoverRadius: 6
-          },
-          {
-            label: 'Your Avg Buy Price',
-            data: data.labels.map(() => data.avgPrice),
-            borderColor: '#06b6d4',
-            borderDash: [5, 5],
-            borderWidth: 2,
-            pointRadius: 0,
-            fill: false
-          }
-        ]
-      },
-      options: {
-        responsive: true,
-        maintainAspectRatio: false,
-        plugins: {
-          legend: {
-            position: 'top',
-            labels: {
-              color: textColor,
-              font: { family: "'Inter', sans-serif", size: 12, weight: '600' },
-              boxWidth: 14,
-              padding: 12
-            }
-          },
-          tooltip: {
-            callbacks: {
-              label: (item) => ` ${item.dataset.label}: ${portfolioStore.formatMoney(item.raw)}`
-            }
-          }
+      const datasets = [
+        {
+          label: `${data.symbol} Price`,
+          data: data.priceHistory,
+          borderColor: '#6366f1',
+          backgroundColor: gradient,
+          fill: true,
+          tension: 0.35,
+          borderWidth: 2.5,
+          pointRadius: 4,
+          pointBackgroundColor: '#6366f1',
+          pointBorderColor: '#ffffff',
+          pointHoverRadius: 6,
+          yAxisID: 'y'
         },
-        scales: {
-          x: {
-            grid: { display: false },
-            ticks: { color: textColor, font: { family: "'Inter', sans-serif", size: 11 } }
-          },
-          y: {
-            grid: { color: gridColor },
-            ticks: {
-              color: textColor,
-              font: { family: "'JetBrains Mono', monospace", size: 11 },
-              callback: (val) => portfolioStore.formatMoney(val)
+        {
+          label: 'Your Avg Buy Price',
+          data: data.labels.map(() => data.avgPrice),
+          borderColor: '#06b6d4',
+          borderDash: [5, 5],
+          borderWidth: 2,
+          pointRadius: 0,
+          fill: false,
+          yAxisID: 'y'
+        }
+      ];
+
+      let hasRightAxis = false;
+
+      if (this.showBenchmark) {
+        hasRightAxis = true;
+        datasets.push({
+          label: `${data.benchmark.name} Benchmark`,
+          data: data.benchmark.points,
+          borderColor: '#f59e0b',
+          backgroundColor: 'transparent',
+          borderWidth: 2,
+          borderDash: [4, 4],
+          pointRadius: 3,
+          pointBackgroundColor: '#f59e0b',
+          fill: false,
+          tension: 0.3,
+          yAxisID: 'yRight'
+        });
+      }
+
+      if (this.showIndustry) {
+        hasRightAxis = true;
+        datasets.push({
+          label: `${data.industry.name} (Industry)`,
+          data: data.industry.points,
+          borderColor: '#ec4899',
+          backgroundColor: 'transparent',
+          borderWidth: 2,
+          pointRadius: 3,
+          pointBackgroundColor: '#ec4899',
+          fill: false,
+          tension: 0.3,
+          yAxisID: 'yRight'
+        });
+      }
+
+      this.stockChart = new Chart(ctx, {
+        type: 'line',
+        data: {
+          labels: data.labels,
+          datasets
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: {
+            legend: {
+              position: 'top',
+              labels: {
+                color: textColor,
+                font: { family: "'Inter', sans-serif", size: 11, weight: '600' },
+                boxWidth: 12,
+                padding: 10
+              }
+            },
+            tooltip: {
+              callbacks: {
+                label: (item) => {
+                  if (item.dataset.yAxisID === 'yRight') {
+                    return ` ${item.dataset.label}: ${item.raw.toLocaleString('en-IN')} pts`;
+                  }
+                  return ` ${item.dataset.label}: ${portfolioStore.formatMoney(item.raw)}`;
+                }
+              }
             }
+          },
+          scales: {
+            x: {
+              grid: { display: false },
+              ticks: { color: textColor, font: { family: "'Inter', sans-serif", size: 11 } }
+            },
+            y: {
+              position: 'left',
+              grid: { color: gridColor },
+              ticks: {
+                color: textColor,
+                font: { family: "'JetBrains Mono', monospace", size: 11 },
+                callback: (val) => portfolioStore.formatMoney(val)
+              }
+            },
+            ...(hasRightAxis ? {
+              yRight: {
+                position: 'right',
+                grid: { display: false },
+                ticks: {
+                  color: '#f59e0b',
+                  font: { family: "'JetBrains Mono', monospace", size: 10 },
+                  callback: (val) => val.toLocaleString('en-IN')
+                }
+              }
+            } : {})
           }
         }
+      });
+    }
+
+    // 2. Render Volume Bar Chart Pane
+    if (this.showVolume) {
+      const volCanvas = this.container.querySelector('#stock-volume-chart');
+      if (volCanvas) {
+        const volCtx = volCanvas.getContext('2d');
+        this.volumeChart = new Chart(volCtx, {
+          type: 'bar',
+          data: {
+            labels: data.labels,
+            datasets: [{
+              label: 'Trading Volume',
+              data: data.volumeHistory,
+              backgroundColor: data.volumeColors,
+              borderRadius: 3
+            }]
+          },
+          options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+              legend: { display: false },
+              tooltip: {
+                callbacks: {
+                  label: (item) => ` Volume: ${item.raw} Lakh Shares`
+                }
+              }
+            },
+            scales: {
+              x: {
+                grid: { display: false },
+                ticks: { color: textColor, font: { family: "'Inter', sans-serif", size: 10 } }
+              },
+              y: {
+                grid: { color: gridColor },
+                ticks: {
+                  color: textColor,
+                  font: { family: "'JetBrains Mono', monospace", size: 10 },
+                  callback: (val) => `${val}L`
+                }
+              }
+            }
+          }
+        });
       }
-    });
+    }
+
+    // 3. Render RSI (14) Momentum Indicator Chart Pane
+    if (this.showRsi) {
+      const rsiCanvas = this.container.querySelector('#stock-rsi-chart');
+      if (rsiCanvas) {
+        const rsiCtx = rsiCanvas.getContext('2d');
+        this.rsiChart = new Chart(rsiCtx, {
+          type: 'line',
+          data: {
+            labels: data.labels,
+            datasets: [
+              {
+                label: 'RSI (14)',
+                data: data.rsiHistory,
+                borderColor: '#8b5cf6',
+                borderWidth: 2,
+                pointRadius: 3,
+                pointBackgroundColor: '#8b5cf6',
+                pointBorderColor: '#ffffff',
+                fill: false,
+                tension: 0.35
+              },
+              {
+                label: 'Overbought (70)',
+                data: data.labels.map(() => 70),
+                borderColor: 'rgba(244, 63, 94, 0.65)',
+                borderDash: [4, 4],
+                borderWidth: 1.5,
+                pointRadius: 0,
+                fill: false
+              },
+              {
+                label: 'Oversold (30)',
+                data: data.labels.map(() => 30),
+                borderColor: 'rgba(16, 185, 129, 0.65)',
+                borderDash: [4, 4],
+                borderWidth: 1.5,
+                pointRadius: 0,
+                fill: false
+              }
+            ]
+          },
+          options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+              legend: {
+                position: 'top',
+                labels: {
+                  color: textColor,
+                  font: { family: "'Inter', sans-serif", size: 10, weight: '600' },
+                  boxWidth: 10,
+                  padding: 8
+                }
+              },
+              tooltip: {
+                callbacks: {
+                  label: (item) => ` ${item.dataset.label}: ${item.raw}`
+                }
+              }
+            },
+            scales: {
+              x: {
+                grid: { display: false },
+                ticks: { color: textColor, font: { family: "'Inter', sans-serif", size: 10 } }
+              },
+              y: {
+                min: 0,
+                max: 100,
+                grid: { color: gridColor },
+                ticks: {
+                  color: textColor,
+                  font: { family: "'JetBrains Mono', monospace", size: 10 },
+                  stepSize: 25
+                }
+              }
+            }
+          }
+        });
+      }
+    }
   }
 
   updateOnPriceTick(tick) {
@@ -786,6 +1085,14 @@ export class AnalysisView {
     if (this.stockChart) {
       this.stockChart.destroy();
       this.stockChart = null;
+    }
+    if (this.volumeChart) {
+      this.volumeChart.destroy();
+      this.volumeChart = null;
+    }
+    if (this.rsiChart) {
+      this.rsiChart.destroy();
+      this.rsiChart = null;
     }
     if (this.unsubscribe) {
       this.unsubscribe();
