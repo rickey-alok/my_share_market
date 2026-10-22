@@ -1,6 +1,7 @@
 import { POPULAR_STOCKS } from '../data/stocksDatabase.js';
 import { firebaseService } from '../services/firebase.js';
 import { authService } from '../services/authService.js';
+import { liveMarketService } from '../services/liveMarketService.js';
 
 const STORAGE_KEY_HOLDINGS = 'apex_portfolio_holdings_v1';
 const STORAGE_KEY_TRANSACTIONS = 'apex_portfolio_txs_v1';
@@ -102,6 +103,18 @@ class PortfolioStore {
 
     // Sync holding prices with latest market database
     this.syncWithMarketDatabase();
+
+    // Automatically fetch real-time quotes on startup/refresh (non-blocking)
+    setTimeout(() => {
+      this.refreshMarketQuotes(true);
+    }, 150);
+
+    // Subscribe to live market auto-refresh interval ticks
+    liveMarketService.subscribe((event) => {
+      if (event.type === 'AUTO_REFRESH_TICK') {
+        this.refreshMarketQuotes(true);
+      }
+    });
 
     // React automatically to login/logout events to switch user-scoped data
     authService.subscribe((event) => {
@@ -883,27 +896,56 @@ class PortfolioStore {
     return this.isLiveFeedActive;
   }
 
-  // Manual refresh: Synchronizes with master database prices and updates CMP
-  refreshMarketQuotes() {
-    this.syncWithMarketDatabase();
-    for (const h of this.holdings) {
-      const ref = POPULAR_STOCKS.find(s => s.symbol.toUpperCase() === (h.symbol || '').toUpperCase().trim());
-      if (ref && ref.cmp) {
-        // Sync with base real price plus minor live market fluctuation
-        const delta = (Math.random() * 0.4 - 0.2) / 100;
-        h.cmp = Math.max(1, parseFloat((ref.cmp * (1 + delta)).toFixed(2)));
-        if (ref.prevClose) h.prevClose = ref.prevClose;
-      }
+  // Refresh market quotes: Fetches real-time NSE/BSE prices from liveMarketService
+  async refreshMarketQuotes(isSilent = false) {
+    if (!Array.isArray(this.holdings) || this.holdings.length === 0) {
+      this.notify({ type: 'MANUAL_REFRESH', isSilent, timestamp: Date.now() });
+      return;
     }
-    this.saveHoldings(this.holdings);
-    if (firebaseService.isConfigured && !this.isInspectingOtherUser) {
-      const u = this.getActiveUser();
-      const uid = this.getActiveUserId();
-      for (const h of this.holdings) {
-        firebaseService.saveUserHolding(uid, h, u?.email);
+
+    try {
+      const quotes = await liveMarketService.fetchQuotesForHoldings(this.holdings);
+      let updated = false;
+
+      this.holdings = this.holdings.map(h => {
+        const sym = (h.symbol || '').toUpperCase().trim();
+        const quote = quotes[sym];
+        if (quote && quote.cmp && quote.cmp > 0) {
+          if (Math.abs(h.cmp - quote.cmp) > 0.01) {
+            updated = true;
+          }
+          return {
+            ...h,
+            cmp: quote.cmp,
+            prevClose: quote.prevClose || h.prevClose || quote.cmp
+          };
+        }
+        return h;
+      });
+
+      this.saveHoldings(this.holdings);
+
+      if (firebaseService.isConfigured && !this.isInspectingOtherUser) {
+        const u = this.getActiveUser();
+        const uid = this.getActiveUserId();
+        if (uid && uid !== 'usr_local_guest') {
+          for (const h of this.holdings) {
+            firebaseService.saveUserHolding(uid, h, u?.email).catch(() => {});
+          }
+        }
       }
+
+      this.notify({
+        type: 'MARKET_QUOTES_UPDATED',
+        isSilent,
+        timestamp: Date.now(),
+        quotes
+      });
+    } catch (err) {
+      console.warn('refreshMarketQuotes error:', err);
+      this.syncWithMarketDatabase();
+      this.notify({ type: 'MANUAL_REFRESH', isSilent, timestamp: Date.now() });
     }
-    this.notify({ type: 'MANUAL_REFRESH' });
   }
 
   resetToDemo() {

@@ -2,6 +2,7 @@
 import { authService } from '../services/authService.js';
 import { portfolioStore } from '../state/portfolioStore.js';
 import { firebaseService } from '../services/firebase.js';
+import { liveMarketService } from '../services/liveMarketService.js';
 import { icons } from '../utils/icons.js';
 
 export class ProfileModal {
@@ -463,6 +464,36 @@ export class ProfileModal {
                 </select>
               </div>
             </div>
+          <!-- Live Market Data Proxy (Cloudflare Worker) -->
+          <div class="settings-group-card">
+            <div class="settings-row" style="flex-direction: column; align-items: flex-start; gap: 0.65rem;">
+              <div style="width: 100%;">
+                <div style="display: flex; align-items: center; justify-content: space-between;">
+                  <label class="settings-title">Live Market Proxy URL (Cloudflare Worker)</label>
+                  <span style="font-size: 0.72rem; color: var(--accent-gold); font-weight: 700;">Zero Cost / Free</span>
+                </div>
+                <div class="settings-sub">
+                  Connects to Yahoo Finance via a free Cloudflare Worker for unlimited real-time NSE/BSE stock quotes without CORS limits.
+                </div>
+              </div>
+              <div style="width: 100%; display: flex; gap: 0.5rem; align-items: center;">
+                <input 
+                  type="url" 
+                  id="input-market-proxy-url" 
+                  class="form-control form-control-sm" 
+                  placeholder="https://my-proxy.workers.dev" 
+                  value="${liveMarketService.getCustomProxy()}"
+                  style="font-family: var(--font-mono); font-size: 0.8rem; flex: 1;"
+                >
+                <button type="button" id="btn-test-market-proxy" class="btn btn-outline btn-sm" style="padding: 0.35rem 0.65rem; font-size: 0.78rem; white-space: nowrap;">
+                  Test URL
+                </button>
+              </div>
+              <div id="proxy-test-status" style="font-size: 0.75rem; display: none;"></div>
+              <div style="font-size: 0.72rem; color: var(--text-muted); line-height: 1.4;">
+                💡 Leave empty to use default automatic fallback (local Vite dev proxy + calibrated Indian market database).
+              </div>
+            </div>
           </div>
 
           <div style="display: flex; justify-content: flex-end; gap: 0.75rem; margin-top: 1.5rem;">
@@ -691,8 +722,58 @@ export class ProfileModal {
           riskProfile
         });
 
+        const inputProxy = this.container.querySelector('#input-market-proxy-url');
+        if (inputProxy) {
+          liveMarketService.setCustomProxy(inputProxy.value.trim());
+        }
+
         alert('✅ Settings saved successfully!');
         this.render();
+      });
+    }
+
+    // Market proxy test & save
+    const btnTestProxy = this.container.querySelector('#btn-test-market-proxy');
+    const inputProxy = this.container.querySelector('#input-market-proxy-url');
+    const proxyStatus = this.container.querySelector('#proxy-test-status');
+
+    if (btnTestProxy && inputProxy) {
+      btnTestProxy.addEventListener('click', async () => {
+        const val = inputProxy.value.trim();
+        if (!val) {
+          if (proxyStatus) {
+            proxyStatus.style.display = 'block';
+            proxyStatus.style.color = 'var(--text-muted)';
+            proxyStatus.textContent = 'Cleared proxy. System will use default dev proxy and local catalog.';
+          }
+          liveMarketService.setCustomProxy('');
+          return;
+        }
+
+        btnTestProxy.disabled = true;
+        btnTestProxy.textContent = 'Testing...';
+        if (proxyStatus) {
+          proxyStatus.style.display = 'block';
+          proxyStatus.style.color = 'var(--text-muted)';
+          proxyStatus.textContent = 'Contacting worker endpoint...';
+        }
+
+        try {
+          const res = await liveMarketService.testConnection(val);
+          liveMarketService.setCustomProxy(val);
+          if (proxyStatus) {
+            proxyStatus.style.color = 'var(--bull-green)';
+            proxyStatus.textContent = '✅ ' + res.message;
+          }
+        } catch (err) {
+          if (proxyStatus) {
+            proxyStatus.style.color = 'var(--bear-red)';
+            proxyStatus.textContent = '❌ ' + err.message;
+          }
+        } finally {
+          btnTestProxy.disabled = false;
+          btnTestProxy.textContent = 'Test URL';
+        }
       });
     }
   }

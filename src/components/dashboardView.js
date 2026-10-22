@@ -1,5 +1,6 @@
 // Dashboard View Component (Page 1)
 import { portfolioStore } from '../state/portfolioStore.js';
+import { liveMarketService } from '../services/liveMarketService.js';
 import { icons } from '../utils/icons.js';
 import { SECTORS } from '../data/stocksDatabase.js';
 import Chart from 'chart.js/auto';
@@ -37,9 +38,13 @@ export class DashboardView {
           <p class="page-subtitle">Real-time wealth tracking, asset allocation, and market performance</p>
         </div>
         <div class="page-header-actions">
+          <button id="btn-auto-refresh-toggle" class="btn btn-outline btn-sm ${liveMarketService.isAutoRefreshActive ? 'active-pulse' : ''}" title="Toggle 30s Auto Refresh during market hours" style="gap: 6px;">
+            <span class="live-dot ${liveMarketService.isAutoRefreshActive ? 'pulse-green' : 'dim'}" style="font-size: 0.75rem;">●</span>
+            <span id="auto-refresh-label">Auto-Sync: ${liveMarketService.isAutoRefreshActive ? 'ON' : 'OFF'}</span>
+          </button>
           <button id="btn-refresh-quotes" class="btn btn-outline btn-sm" title="Refresh Live Quotes">
             ${icons.refreshCw}
-            <span>Sync Market</span>
+            <span id="sync-market-label">Sync Market</span>
           </button>
           <button id="btn-quick-add" class="btn btn-primary btn-sm">
             ${icons.plus}
@@ -145,13 +150,42 @@ export class DashboardView {
       });
     }
 
+    // Auto-Refresh Toggle Button
+    const btnAutoRefresh = this.container.querySelector('#btn-auto-refresh-toggle');
+    if (btnAutoRefresh) {
+      btnAutoRefresh.addEventListener('click', () => {
+        const isActive = liveMarketService.toggleAutoRefresh();
+        const label = btnAutoRefresh.querySelector('#auto-refresh-label');
+        const dot = btnAutoRefresh.querySelector('.live-dot');
+        if (isActive) {
+          btnAutoRefresh.classList.add('active-pulse');
+          if (label) label.textContent = 'Auto-Sync: ON';
+          if (dot) { dot.classList.add('pulse-green'); dot.classList.remove('dim'); }
+          portfolioStore.refreshMarketQuotes();
+        } else {
+          btnAutoRefresh.classList.remove('active-pulse');
+          if (label) label.textContent = 'Auto-Sync: OFF';
+          if (dot) { dot.classList.remove('pulse-green'); dot.classList.add('dim'); }
+        }
+      });
+    }
+
     // Refresh Quotes Button
     const btnRefresh = this.container.querySelector('#btn-refresh-quotes');
+    const syncLabel = this.container.querySelector('#sync-market-label');
     if (btnRefresh) {
-      btnRefresh.addEventListener('click', () => {
+      btnRefresh.addEventListener('click', async () => {
         btnRefresh.classList.add('rotating');
-        portfolioStore.refreshMarketQuotes();
-        setTimeout(() => btnRefresh.classList.remove('rotating'), 600);
+        if (syncLabel) syncLabel.textContent = 'Syncing...';
+        await portfolioStore.refreshMarketQuotes();
+        btnRefresh.classList.remove('rotating');
+        const syncTime = liveMarketService.getLastSyncFormatted() || new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+        if (syncLabel) syncLabel.textContent = `Synced (${syncTime})`;
+        setTimeout(() => {
+          if (syncLabel && syncLabel.textContent.startsWith('Synced')) {
+            syncLabel.textContent = 'Sync Market';
+          }
+        }, 4000);
       });
     }
 

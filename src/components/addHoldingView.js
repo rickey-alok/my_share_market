@@ -1,5 +1,6 @@
 // Add Holdings View Component (Page 2)
 import { portfolioStore } from '../state/portfolioStore.js';
+import { liveMarketService } from '../services/liveMarketService.js';
 import { POPULAR_STOCKS, SECTORS, EXCHANGES } from '../data/stocksDatabase.js';
 import { icons } from '../utils/icons.js';
 
@@ -363,15 +364,33 @@ export class AddHoldingView {
 
     if (cmpVal && (!priceInput.value || priceInput.value === '0')) {
       priceInput.value = cmpVal;
+      priceInput.dataset.autoFilled = 'true';
     }
 
     if (cmpBadge && cmpVal) {
-      cmpBadge.textContent = `CMP: ${portfolioStore.formatMoney(cmpVal)}`;
+      cmpBadge.innerHTML = `CMP: ${portfolioStore.formatMoney(cmpVal)}`;
     } else if (cmpBadge) {
       cmpBadge.textContent = '';
     }
 
     this.recalculateImpact();
+
+    // Asynchronously query live quote from market feeds
+    liveMarketService.fetchQuote(cleanSym, exchangeSelect?.value || 'NSE').then(quote => {
+      const symInput = this.container.querySelector('#input-symbol');
+      const curSym = (symInput?.value || '').toUpperCase().trim();
+      if (curSym === cleanSym && quote && quote.cmp) {
+        if (!priceInput.value || priceInput.value === '0' || priceInput.dataset.autoFilled === 'true') {
+          priceInput.value = quote.cmp;
+          priceInput.dataset.autoFilled = 'true';
+        }
+        if (cmpBadge) {
+          const liveTag = quote.source === 'LIVE_EXCHANGE' ? '<span style="color: var(--accent-gold); font-size: 0.72rem; margin-right: 4px;">● LIVE</span>' : '';
+          cmpBadge.innerHTML = `${liveTag}CMP: ${portfolioStore.formatMoney(quote.cmp)}`;
+        }
+        this.recalculateImpact();
+      }
+    }).catch(() => {});
   }
 
   recalculateImpact() {
