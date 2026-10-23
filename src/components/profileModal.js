@@ -4,14 +4,24 @@ import { portfolioStore } from '../state/portfolioStore.js';
 import { firebaseService } from '../services/firebase.js';
 import { liveMarketService } from '../services/liveMarketService.js';
 import { icons } from '../utils/icons.js';
+import {
+  parseImportFile,
+  downloadSampleExcel,
+  downloadSampleCsv,
+  downloadSampleJson
+} from '../utils/fileImporter.js';
 
 export class ProfileModal {
   constructor(modalContainerId = 'modal-user-profile') {
     this.containerId = modalContainerId;
     this.container = null;
-    this.activeTab = 'profile'; // 'profile', 'data', 'settings'
+    this.activeTab = 'profile'; // 'profile', 'data', 'bulk-import', 'settings'
     this.authMode = 'login';    // 'login', 'signup'
     this.isEditingName = false;
+    this.parsedImport = null;
+    this.importMode = 'merge';  // 'merge', 'replace'
+    this.isImporting = false;
+    this.importError = null;
 
     this.init();
   }
@@ -62,6 +72,8 @@ export class ProfileModal {
   open(initialTab = 'profile') {
     this.activeTab = initialTab;
     this.isEditingName = false;
+    this.parsedImport = null;
+    this.importError = null;
     this.render();
     this.container.style.display = 'flex';
     requestAnimationFrame(() => {
@@ -109,7 +121,7 @@ export class ProfileModal {
           <button type="button" class="modal-close-btn" id="btn-close-profile-modal" title="Close Modal">&times;</button>
         </div>
 
-        <!-- Navigation Tabs: Profile / My Data / Settings -->
+        <!-- Navigation Tabs: Profile / Portfolio Data / Bulk Import / Settings -->
         <div class="profile-tabs-bar">
           <button type="button" class="profile-tab-btn ${this.activeTab === 'profile' ? 'active' : ''}" data-tab="profile">
             ${icons.user}
@@ -117,7 +129,11 @@ export class ProfileModal {
           </button>
           <button type="button" class="profile-tab-btn ${this.activeTab === 'data' ? 'active' : ''}" data-tab="data">
             ${icons.barChart2}
-            <span>His Data (${metrics.totalHoldingsCount} Stocks)</span>
+            <span>Portfolio Data (${metrics.totalHoldingsCount})</span>
+          </button>
+          <button type="button" class="profile-tab-btn ${this.activeTab === 'bulk-import' ? 'active' : ''}" data-tab="bulk-import">
+            ${icons.upload}
+            <span>Bulk Import (Excel / JSON)</span>
           </button>
           <button type="button" class="profile-tab-btn ${this.activeTab === 'settings' ? 'active' : ''}" data-tab="settings">
             ${icons.settings}
@@ -138,6 +154,8 @@ export class ProfileModal {
   renderActiveTabContent(user, prefs, metrics, initials) {
     if (this.activeTab === 'data') {
       return this.renderDataTab(metrics);
+    } else if (this.activeTab === 'bulk-import') {
+      return this.renderBulkImportTab();
     } else if (this.activeTab === 'settings') {
       return this.renderSettingsTab(user, prefs);
     }
@@ -353,10 +371,15 @@ export class ProfileModal {
 
         <!-- Data Management & Backup Tools -->
         <div class="data-tools-panel">
-          <h5 class="tools-panel-title">Data Backup & Migration</h5>
-          <p class="tools-panel-desc">Download a backup file of your entire portfolio or restore previous transactions.</p>
+          <h5 class="tools-panel-title">Data Backup & Bulk Import</h5>
+          <p class="tools-panel-desc">Add stocks in bulk from Excel/CSV/JSON, export your portfolio data, or restore previous backups.</p>
 
           <div class="tools-actions-row">
+            <button type="button" class="btn btn-primary btn-sm" id="btn-goto-bulk-import" style="cursor: pointer;">
+              ${icons.upload}
+              <span>Bulk Import (Excel / JSON)</span>
+            </button>
+
             <button type="button" class="btn btn-outline btn-sm" id="btn-export-json">
               ${icons.download}
               <span>Export Portfolio (JSON)</span>
@@ -364,7 +387,7 @@ export class ProfileModal {
 
             <label class="btn btn-outline btn-sm" style="cursor: pointer; margin-bottom: 0;">
               ${icons.upload}
-              <span>Import Portfolio (JSON)</span>
+              <span>Quick Restore (JSON)</span>
               <input type="file" id="input-import-json" accept=".json" style="display: none;" />
             </label>
 
@@ -507,6 +530,172 @@ export class ProfileModal {
         </form>
       </div>
     `;
+  }
+
+  // 4. Bulk Import Tab (Import Excel .xlsx/.xls, CSV, or JSON)
+  renderBulkImportTab() {
+    return `
+      <div class="bulk-import-card">
+        <!-- Header & Template Download Bar -->
+        <div class="bulk-import-header">
+          <div class="bulk-import-title-group">
+            <h4 class="bulk-title">
+              ${icons.upload} Bulk Import Stocks (Excel, CSV & JSON)
+            </h4>
+            <p class="bulk-subtitle">
+              Quickly populate or append multiple stock holdings into your portfolio by importing a spreadsheet (<strong>.xlsx</strong>, <strong>.xls</strong>, <strong>.csv</strong>) or JSON file (<strong>.json</strong>).
+            </p>
+          </div>
+
+          <div class="template-downloads-row">
+            <span class="template-label">Sample Templates:</span>
+            <button type="button" class="btn-template-pill" id="btn-download-sample-excel" title="Download sample Excel template (.xlsx)">
+              📊 Excel (.xlsx)
+            </button>
+            <button type="button" class="btn-template-pill" id="btn-download-sample-csv" title="Download sample CSV template (.csv)">
+              📄 CSV (.csv)
+            </button>
+            <button type="button" class="btn-template-pill" id="btn-download-sample-json" title="Download sample JSON template (.json)">
+              📦 JSON (.json)
+            </button>
+          </div>
+        </div>
+
+        ${this.importError ? `
+          <div class="alert-error-chip" style="margin-bottom: 0.5rem; display: block; background: rgba(244, 63, 94, 0.15); color: #fb7185; padding: 0.75rem 1rem; border-radius: var(--radius-md); border: 1px solid rgba(244, 63, 94, 0.3);">
+            ❌ ${this.importError}
+          </div>
+        ` : ''}
+
+        <!-- Upload Dropzone (hidden if preview is active) -->
+        ${!this.parsedImport ? `
+          <div class="bulk-dropzone" id="bulk-dropzone">
+            <input type="file" id="input-bulk-file" accept=".xlsx,.xls,.csv,.json" style="display: none;" />
+            <div class="dropzone-content">
+              <div class="dropzone-icon-box">
+                ${icons.upload}
+              </div>
+              <h5 class="dropzone-title">Click to upload or drag & drop your file</h5>
+              <p class="dropzone-desc">
+                Supports Excel (.xlsx, .xls), CSV (.csv), or JSON (.json) files from Zerodha Kite, Groww, AngelOne, Upstox, or custom spreadsheet.
+              </p>
+              <button type="button" class="btn btn-primary btn-sm" id="btn-browse-bulk-file">
+                Select File from Device
+              </button>
+            </div>
+          </div>
+        ` : ''}
+
+        <!-- Import Mode Bar -->
+        <div class="import-options-bar">
+          <span class="import-options-label">Import Action:</span>
+          <div class="radio-pill-group">
+            <label class="radio-pill ${this.importMode === 'merge' ? 'active' : ''}">
+              <input type="radio" name="bulk_import_mode" value="merge" ${this.importMode === 'merge' ? 'checked' : ''} />
+              <span>Merge & Average (Recommended)</span>
+            </label>
+            <label class="radio-pill ${this.importMode === 'replace' ? 'active' : ''}">
+              <input type="radio" name="bulk_import_mode" value="replace" ${this.importMode === 'replace' ? 'checked' : ''} />
+              <span>Replace Portfolio</span>
+            </label>
+          </div>
+        </div>
+
+        <!-- Pre-Import Preview Card -->
+        ${this.parsedImport ? `
+          <div class="bulk-preview-card">
+            <div class="preview-header">
+              <div class="preview-file-badge">
+                <span class="file-icon">📊</span>
+                <div>
+                  <div class="preview-filename">
+                    ${this.parsedImport.fileName} 
+                    <span class="profile-chip badge-member" style="margin-left: 0.5rem;">${this.parsedImport.fileType}</span>
+                  </div>
+                  <div class="preview-meta">
+                    ${this.parsedImport.validItems.length} valid stocks found • Total Invested: ${portfolioStore.formatMoney(this.parsedImport.totalInvested)}
+                  </div>
+                </div>
+              </div>
+              <button type="button" class="btn btn-ghost btn-sm" id="btn-cancel-preview">
+                Clear & Choose Another File
+              </button>
+            </div>
+
+            ${this.parsedImport.invalidRows.length > 0 ? `
+              <div style="font-size: 0.78rem; color: var(--accent-amber); background: rgba(245, 158, 11, 0.1); padding: 0.5rem 0.85rem; border-radius: var(--radius-sm); border: 1px solid rgba(245, 158, 11, 0.25);">
+                ⚠️ Skipped ${this.parsedImport.invalidRows.length} invalid or empty row(s) missing required symbol, quantity, or buy price.
+              </div>
+            ` : ''}
+
+            <!-- Table Preview -->
+            <div class="preview-table-box">
+              <table class="preview-table">
+                <thead>
+                  <tr>
+                    <th>Symbol</th>
+                    <th>Company Name</th>
+                    <th>Exch</th>
+                    <th style="text-align: right;">Qty</th>
+                    <th style="text-align: right;">Buy Price</th>
+                    <th style="text-align: right;">Total Amount</th>
+                    <th style="text-align: center;">Action</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  ${this.parsedImport.validItems.slice(0, 25).map(item => {
+                    const isExisting = portfolioStore.holdings.some(h => h.symbol.toUpperCase() === item.symbol);
+                    return `
+                      <tr>
+                        <td class="mono font-bold" style="color: var(--brand-indigo-light);">${item.symbol}</td>
+                        <td style="color: var(--text-primary); max-width: 180px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" title="${item.name}">${item.name}</td>
+                        <td><span class="exchange-tag">${item.exchange}</span></td>
+                        <td class="mono text-right">${item.quantity.toLocaleString()}</td>
+                        <td class="mono text-right">${portfolioStore.formatMoney(item.buyPrice)}</td>
+                        <td class="mono text-right" style="font-weight: 700;">${portfolioStore.formatMoney(item.quantity * item.buyPrice)}</td>
+                        <td style="text-align: center;">
+                          <span class="badge-action ${isExisting && this.importMode === 'merge' ? 'action-average' : 'action-new'}">
+                            ${isExisting && this.importMode === 'merge' ? 'Will Average' : 'New Stock'}
+                          </span>
+                        </td>
+                      </tr>
+                    `;
+                  }).join('')}
+                </tbody>
+              </table>
+              ${this.parsedImport.validItems.length > 25 ? `
+                <div class="preview-more-hint">...and ${this.parsedImport.validItems.length - 25} more stocks will be imported</div>
+              ` : ''}
+            </div>
+
+            <!-- Commit Button -->
+            <div class="preview-commit-bar">
+              <div class="preview-summary-text">
+                Ready to ${this.importMode === 'replace' ? 'replace portfolio with' : 'import and merge'} <strong>${this.parsedImport.validItems.length} stocks</strong>.
+              </div>
+              <button type="button" class="btn btn-primary" id="btn-commit-bulk-import" ${this.isImporting ? 'disabled' : ''}>
+                ${this.isImporting ? 'Importing Stocks...' : `${icons.plus} Confirm & Add All ${this.parsedImport.validItems.length} Stocks`}
+              </button>
+            </div>
+          </div>
+        ` : ''}
+      </div>
+    `;
+  }
+
+  async processBulkFile(file) {
+    this.importError = null;
+    try {
+      const parsed = await parseImportFile(file);
+      if (parsed.validItems.length === 0) {
+        throw new Error('No valid stock rows found in the uploaded file. Please check column headers (Symbol, Quantity, Buy Price).');
+      }
+      this.parsedImport = parsed;
+      this.render();
+    } catch (err) {
+      this.importError = err.message || 'Failed to parse file';
+      this.render();
+    }
   }
 
   attachEvents() {
@@ -800,5 +989,126 @@ export class ProfileModal {
         }
       });
     }
+
+    // --- Bulk Import Tab & Tools Event Handlers ---
+    // Shortcut button from Data Tab
+    const btnGotoBulk = this.container.querySelector('#btn-goto-bulk-import');
+    if (btnGotoBulk) {
+      btnGotoBulk.addEventListener('click', () => {
+        this.activeTab = 'bulk-import';
+        this.render();
+      });
+    }
+
+    // Sample Template Download Buttons
+    const btnSampleXlsx = this.container.querySelector('#btn-download-sample-excel');
+    if (btnSampleXlsx) {
+      btnSampleXlsx.addEventListener('click', () => downloadSampleExcel());
+    }
+    const btnSampleCsv = this.container.querySelector('#btn-download-sample-csv');
+    if (btnSampleCsv) {
+      btnSampleCsv.addEventListener('click', () => downloadSampleCsv());
+    }
+    const btnSampleJson = this.container.querySelector('#btn-download-sample-json');
+    if (btnSampleJson) {
+      btnSampleJson.addEventListener('click', () => downloadSampleJson());
+    }
+
+    // Dropzone & File Input
+    const dropzone = this.container.querySelector('#bulk-dropzone');
+    const inputBulkFile = this.container.querySelector('#input-bulk-file');
+    const btnBrowse = this.container.querySelector('#btn-browse-bulk-file');
+
+    if (btnBrowse && inputBulkFile) {
+      btnBrowse.addEventListener('click', (e) => {
+        e.stopPropagation();
+        inputBulkFile.click();
+      });
+    }
+
+    if (dropzone && inputBulkFile) {
+      dropzone.addEventListener('click', () => {
+        inputBulkFile.click();
+      });
+
+      ['dragenter', 'dragover'].forEach(eventName => {
+        dropzone.addEventListener(eventName, (e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          dropzone.classList.add('dragover');
+        });
+      });
+
+      ['dragleave', 'dragend'].forEach(eventName => {
+        dropzone.addEventListener(eventName, (e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          dropzone.classList.remove('dragover');
+        });
+      });
+
+      dropzone.addEventListener('drop', (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        dropzone.classList.remove('dragover');
+        if (e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files[0]) {
+          this.processBulkFile(e.dataTransfer.files[0]);
+        }
+      });
+
+      inputBulkFile.addEventListener('change', (e) => {
+        if (e.target.files && e.target.files[0]) {
+          this.processBulkFile(e.target.files[0]);
+        }
+      });
+    }
+
+    // Mode Radios (Merge vs Replace)
+    const modeRadios = this.container.querySelectorAll('input[name="bulk_import_mode"]');
+    modeRadios.forEach(radio => {
+      radio.addEventListener('change', () => {
+        this.importMode = radio.value;
+        this.render();
+      });
+    });
+
+    // Cancel Preview
+    const btnCancelPreview = this.container.querySelector('#btn-cancel-preview');
+    if (btnCancelPreview) {
+      btnCancelPreview.addEventListener('click', () => {
+        this.parsedImport = null;
+        this.importError = null;
+        this.render();
+      });
+    }
+
+    // Commit Bulk Import
+    const btnCommit = this.container.querySelector('#btn-commit-bulk-import');
+    if (btnCommit && this.parsedImport && this.parsedImport.validItems) {
+      btnCommit.addEventListener('click', async () => {
+        if (this.isImporting) return;
+        try {
+          this.isImporting = true;
+          this.render();
+
+          const itemsToImport = this.parsedImport.validItems;
+          const res = await portfolioStore.bulkImportHoldings(itemsToImport, this.importMode);
+
+          const count = res.totalImported || itemsToImport.length;
+          const avgMsg = res.averaged > 0 ? ` (${res.averaged} averaged with existing holdings, ${res.added} newly added)` : '';
+          alert(`✅ Successfully imported ${count} stocks${avgMsg}!`);
+
+          this.parsedImport = null;
+          this.isImporting = false;
+          this.activeTab = 'data';
+          this.render();
+        } catch (err) {
+          this.isImporting = false;
+          this.importError = err.message || 'Failed to import stocks';
+          this.render();
+        }
+      });
+    }
   }
 }
+

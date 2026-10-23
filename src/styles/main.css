@@ -4450,4 +4450,274 @@ body::after {
   border-color: #ffffff;
 }
 
+/* ==========================================================================
+   BULK IMPORT (EXCEL / CSV / JSON) STYLES
+   ========================================================================== */
+.bulk-import-card {
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+}
+
+.bulk-import-header {
+  display: flex;
+  flex-direction: column;
+  gap: 0.85rem;
+}
+
+.bulk-import-title-group .bulk-title {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 1.15rem;
+  font-weight: 800;
+  color: var(--text-primary);
+  margin: 0 0 0.35rem 0;
+}
+
+.bulk-import-title-group .bulk-subtitle {
+  font-size: 0.86rem;
+  color: var(--text-secondary);
+  margin: 0;
+  line-height: 1.5;
+}
+
+.template-downloads-row {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+  padding: 0.65rem 0.95rem;
+  background: var(--bg-surface);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+}
+
+.template-label {
+  font-size: 0.78rem;
+  font-weight: 700;
+  color: var(--text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.btn-template-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.3rem 0.65rem;
+  font-size: 0.78rem;
+  font-weight: 700;
+  font-family: var(--font-mono);
+  background: var(--bg-surface-elevated);
+  color: var(--text-primary);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-full);
+  cursor: pointer;
+  transition: all var(--transition-fast);
+}
+
+.btn-template-pill:hover {
+  background: rgba(99, 102, 241, 0.15);
+  color: var(--brand-indigo-light);
+  border-color: rgba(99, 102, 241, 0.4);
+}
+
+/* Bulk Dropzone */
+.bulk-dropzone {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 2.25rem 1.5rem;
+  background: rgba(255, 255, 255, 0.02);
+  border: 2px dashed var(--border-subtle);
+  border-radius: var(--radius-lg);
+  cursor: pointer;
+  text-align: center;
+  transition: all var(--transition-normal);
+}
+
+.bulk-dropzone:hover, .bulk-dropzone.drag-over {
+  border-color: var(--brand-indigo);
+  background: rgba(99, 102, 241, 0.05);
+}
+
+[data-theme="light"] .bulk-dropzone {
+  background: #f8fafc;
+  border-color: #cbd5e1;
+}
+
+[data-theme="light"] .bulk-dropzone:hover, [data-theme="light"] .bulk-dropzone.drag-over {
+  border-color: var(--brand-indigo);
+  background: #f1f5f9;
+}
+
+.dropzone-icon-box {
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  background: rgba(99, 102, 241, 0.12);
+  color: var(--brand-indigo-light);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 0.75rem;
+}
+
+.dropzone-title {
+  font-size: 1rem;
+  font-weight: 700;
+  color: var(--text-primary);
+  margin: 0 0 0.35rem 0;
+}
+
+.dropzone-desc {
+  font-size: 0.82rem;
+  color: var(--text-secondary);
+  max-width: 420px;
+  margin: 0 0 1rem 0;
+  line-height: 1.4;
+}
+
+/* Import Options Bar */
+.import-options-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  flex-wrap: wrap;
+  padding: 0.85rem 1.25rem;
+  background: var(--bg-surface);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+}
+
+.import-options-label {
+  font-size: 0.82rem;
+  font-weight: 700;
+  color: var(--text-secondary);
+}
+
+/* Pre-Import Preview Card */
+.bulk-preview-card {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  background: var(--bg-surface);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-lg);
+  padding: 1.25rem;
+  animation: fadeIn 0.25s ease-out;
+}
+
+.preview-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  flex-wrap: wrap;
+}
+
+.preview-file-badge {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.preview-file-badge .file-icon {
+  font-size: 1.5rem;
+}
+
+.preview-filename {
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+.preview-meta {
+  font-size: 0.8rem;
+  color: var(--bull-green);
+  font-family: var(--font-mono);
+}
+
+.preview-table-box {
+  overflow-x: auto;
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  max-height: 280px;
+  overflow-y: auto;
+}
+
+.preview-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.82rem;
+}
+
+.preview-table th {
+  position: sticky;
+  top: 0;
+  background: var(--bg-surface-elevated);
+  padding: 0.6rem 0.75rem;
+  font-weight: 700;
+  font-size: 0.75rem;
+  color: var(--text-secondary);
+  border-bottom: 1px solid var(--border-subtle);
+  z-index: 2;
+}
+
+.preview-table td {
+  padding: 0.55rem 0.75rem;
+  border-bottom: 1px solid var(--border-subtle);
+}
+
+.preview-table tr:last-child td {
+  border-bottom: none;
+}
+
+.badge-action {
+  font-size: 0.68rem;
+  font-weight: 700;
+  padding: 0.15rem 0.45rem;
+  border-radius: 4px;
+}
+
+.badge-action.action-new {
+  background: rgba(16, 185, 129, 0.15);
+  color: var(--bull-green);
+  border: 1px solid rgba(16, 185, 129, 0.3);
+}
+
+.badge-action.action-average {
+  background: rgba(56, 189, 248, 0.15);
+  color: #38bdf8;
+  border: 1px solid rgba(56, 189, 248, 0.3);
+}
+
+.preview-more-hint {
+  padding: 0.5rem;
+  text-align: center;
+  font-size: 0.78rem;
+  color: var(--text-muted);
+  font-style: italic;
+  background: rgba(0, 0, 0, 0.1);
+}
+
+.preview-commit-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  flex-wrap: wrap;
+  padding-top: 0.5rem;
+  border-top: 1px solid var(--border-subtle);
+}
+
+.preview-summary-text {
+  font-size: 0.88rem;
+  color: var(--text-primary);
+}
+
+
 

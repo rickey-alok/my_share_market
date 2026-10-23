@@ -1070,6 +1070,67 @@ class PortfolioStore {
     return true;
   }
 
+  /**
+   * Bulk import multiple stocks into portfolio
+   * @param {Array<Object>} items - Array of stock items [{ symbol, quantity, buyPrice, name, exchange, sector, notes, buyDate }]
+   * @param {string} mode - 'merge' (default: add/average with existing holdings) | 'replace' (clear existing portfolio first)
+   */
+  async bulkImportHoldings(items, mode = 'merge') {
+    if (!Array.isArray(items) || items.length === 0) {
+      throw new Error('No valid stock items provided for bulk import.');
+    }
+
+    if (mode === 'replace') {
+      await this.clearAllData();
+    }
+
+    const results = {
+      added: 0,
+      averaged: 0,
+      totalImported: 0,
+      holdings: []
+    };
+
+    for (const item of items) {
+      const sym = (item.symbol || '').toUpperCase().trim();
+      const qty = parseFloat(item.quantity);
+      const price = parseFloat(item.buyPrice);
+
+      if (!sym || isNaN(qty) || qty <= 0 || isNaN(price) || price < 0) {
+        continue;
+      }
+
+      const res = this.addOrUpdateHolding({
+        symbol: sym,
+        name: item.name,
+        exchange: item.exchange || 'NSE',
+        sector: item.sector,
+        quantity: qty,
+        buyPrice: price,
+        buyDate: item.buyDate || new Date().toISOString().split('T')[0],
+        notes: item.notes || 'Bulk imported'
+      });
+
+      if (res && res.isAveraged) {
+        results.averaged++;
+      } else {
+        results.added++;
+      }
+      results.totalImported++;
+    }
+
+    // Refresh live quotes in background for newly imported stocks
+    this.refreshMarketQuotes(true).catch(() => {});
+
+    this.notify({
+      type: 'BULK_IMPORT_COMPLETED',
+      results,
+      count: results.totalImported
+    });
+
+    return results;
+  }
+
   async clearAllData() {
     this.holdings = [];
     this.transactions = [];
