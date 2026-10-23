@@ -4053,3 +4053,232 @@ body::after {
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
 }
 
+/* Price Range Dual Widget (Day High/Low & 52-Week High/Low with CMP & My Price) */
+.range-dual-widget {
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
+  min-width: 190px;
+  max-width: 250px;
+}
+
+.range-sub-row {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+}
+
+.range-header-line {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+  line-height: 1;
+}
+
+.range-badge {
+  font-size: 0.64rem;
+  font-weight: 700;
+  padding: 0.08rem 0.35rem;
+  border-radius: 3px;
+  background: rgba(99, 102, 241, 0.14);
+  color: var(--brand-indigo-light);
+  letter-spacing: 0.04em;
+}
+
+.range-edge-val {
+  color: var(--text-muted);
+  font-size: 0.72rem;
+}
+
+.range-edge-val.left-edge {
+  margin-left: 0.35rem;
+  margin-right: auto;
+}
+
+.range-edge-val.right-edge {
+  margin-left: auto;
+}
+
+.range-bar-track {
+  position: relative;
+  width: 100%;
+  height: 14px;
+  display: flex;
+  align-items: center;
+  cursor: pointer;
+}
+
+.range-track-rail {
+  position: absolute;
+  left: 0;
+  right: 0;
+  height: 4px;
+  background: var(--bg-surface-elevated);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-full);
+}
+
+[data-theme="light"] .range-track-rail {
+  background: #e2e8f0;
+  border-color: #cbd5e1;
+}
+
+.range-pin {
+  position: absolute;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 2;
+  transition: transform var(--transition-fast);
+}
+
+.range-pin:hover {
+  transform: translate(-50%, -50%) scale(1.2);
+  z-index: 10;
+}
+
+/* CMP Pin */
+.range-pin.pin-cmp {
+  z-index: 3;
+}
+
+.pin-cmp .pin-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #38bdf8;
+  border: 1.5px solid #0f172a;
+  box-shadow: 0 0 6px rgba(56, 189, 248, 0.85);
+}
+
+.pin-cmp .pin-tag {
+  display: none;
+  position: absolute;
+  bottom: calc(100% + 4px);
+  background: #0f172a;
+  border: 1px solid rgba(56, 189, 248, 0.4);
+  color: #38bdf8;
+  font-family: var(--font-mono);
+  font-size: 0.65rem;
+  font-weight: 700;
+  padding: 0.1rem 0.35rem;
+  border-radius: 3px;
+  white-space: nowrap;
+  pointer-events: none;
+}
+
+.range-pin.pin-cmp:hover .pin-tag {
+  display: block;
+}
+
+/* My Price Pin */
+.range-pin.pin-my {
+  z-index: 4;
+}
+
+.pin-my .pin-dot {
+  width: 9px;
+  height: 9px;
+  transform: rotate(45deg);
+  background: #f59e0b;
+  border: 1.5px solid #0f172a;
+  box-shadow: 0 0 8px rgba(245, 158, 11, 0.7);
+}
+
+.pin-my.profit-pin .pin-dot {
+  background: var(--bull-green);
+  box-shadow: 0 0 8px rgba(16, 185, 129, 0.7);
+}
+
+.pin-my.loss-pin .pin-dot {
+  background: var(--bear-red);
+  box-shadow: 0 0 8px rgba(244, 63, 94, 0.7);
+}
+
+.pin-my .pin-tag {
+  position: absolute;
+  top: calc(100% + 2px);
+  background: rgba(15, 23, 42, 0.95);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  color: var(--text-primary);
+  font-family: var(--font-mono);
+  font-size: 0.62rem;
+  font-weight: 600;
+  padding: 0.08rem 0.3rem;
+  border-radius: 3px;
+  white-space: nowrap;
+  pointer-events: none;
+  opacity: 0.85;
+}
+
+.range-pin.pin-my:hover .pin-tag {
+  opacity: 1;
+  border-color: rgba(99, 102, 241, 0.5);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.5);
+}
+
+[data-theme="light"] .pin-my .pin-tag {
+  background: #ffffff;
+  border-color: #cbd5e1;
+  color: #0f172a;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.1);
+}
+
+/* Edge indicator styling if My Price is outside day/52w range */
+.pin-my.edge-below .pin-dot {
+  border-radius: 2px 0 0 2px;
+}
+
+.pin-my.edge-above .pin-dot {
+  border-radius: 0 2px 2px 0;
+}
+
+/* Mobile Card Price Range Section */
+.mobile-range-card-section {
+  background: rgba(255, 255, 255, 0.02);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  padding: 0.75rem 0.95rem;
+  margin: 0.85rem 0;
+}
+
+[data-theme="light"] .mobile-range-card-section {
+  background: #f8fafc;
+  border-color: #e2e8f0;
+}
+
+.mobile-range-title {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: var(--text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  margin-bottom: 0.65rem;
+}
+
+.range-pin-legend {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  font-size: 0.68rem;
+  font-family: var(--font-mono);
+  text-transform: none;
+}
+
+.legend-chip.legend-cmp {
+  color: #38bdf8;
+  font-weight: 600;
+}
+
+.legend-chip.legend-my {
+  color: #f59e0b;
+  font-weight: 600;
+}
+

@@ -20,6 +20,10 @@ const DEFAULT_HOLDINGS = [
     avgPrice: 1140.00,
     cmp: 1190.00,
     prevClose: 1184.50,
+    dayLow: 1163.10,
+    dayHigh: 1201.90,
+    week52Low: 1152.20,
+    week52High: 1611.80,
     buyDate: '2025-08-14',
     notes: 'Core conglomerate holding for energy transition'
   },
@@ -33,6 +37,10 @@ const DEFAULT_HOLDINGS = [
     avgPrice: 680.00,
     cmp: 692.80,
     prevClose: 694.05,
+    dayLow: 686.85,
+    dayHigh: 696.80,
+    week52Low: 681.90,
+    week52High: 1017.50,
     buyDate: '2025-09-02',
     notes: 'Private banking titan with merger synergies'
   },
@@ -46,6 +54,10 @@ const DEFAULT_HOLDINGS = [
     avgPrice: 2380.00,
     cmp: 2530.00,
     prevClose: 2506.90,
+    dayLow: 2517.20,
+    dayHigh: 2625.00,
+    week52Low: 1976.80,
+    week52High: 3350.00,
     buyDate: '2025-06-20',
     notes: 'Defensive IT cash cow, dividend payer'
   },
@@ -59,6 +71,10 @@ const DEFAULT_HOLDINGS = [
     avgPrice: 385.00,
     cmp: 396.00,
     prevClose: 414.25,
+    dayLow: 391.10,
+    dayHigh: 412.70,
+    week52Low: 306.30,
+    week52High: 509.00,
     buyDate: '2025-04-10',
     notes: 'EV market leadership and commercial vehicle turnaround'
   },
@@ -72,6 +88,10 @@ const DEFAULT_HOLDINGS = [
     avgPrice: 245.00,
     cmp: 257.90,
     prevClose: 258.90,
+    dayLow: 254.80,
+    dayHigh: 260.30,
+    week52Low: 253.15,
+    week52High: 426.40,
     buyDate: '2025-03-15',
     notes: 'FMCG scale and hotel business demerger'
   }
@@ -341,12 +361,17 @@ class PortfolioStore {
       const sym = (h.symbol || '').toUpperCase().trim();
       const ref = POPULAR_STOCKS.find(s => s.symbol.toUpperCase() === sym);
       if (ref && ref.cmp) {
-        if (Math.abs(h.cmp - ref.cmp) > 2) {
+        const needsRange = !h.dayHigh || !h.dayLow || !h.week52High || !h.week52Low;
+        if (Math.abs(h.cmp - ref.cmp) > 2 || needsRange) {
           changed = true;
           return {
             ...h,
             cmp: ref.cmp,
-            prevClose: ref.prevClose || h.prevClose
+            prevClose: ref.prevClose || h.prevClose,
+            dayHigh: ref.dayHigh || h.dayHigh || ref.cmp,
+            dayLow: ref.dayLow || h.dayLow || ref.cmp,
+            week52High: ref.week52High || h.week52High,
+            week52Low: ref.week52Low || h.week52Low
           };
         }
       }
@@ -522,6 +547,10 @@ class PortfolioStore {
         avgPrice: buyPrice,
         cmp: parseFloat(cmp),
         prevClose: parseFloat(prevClose),
+        dayHigh: refStock ? refStock.dayHigh : parseFloat(cmp),
+        dayLow: refStock ? refStock.dayLow : parseFloat(cmp),
+        week52High: refStock ? refStock.week52High : parseFloat(cmp * 1.25),
+        week52Low: refStock ? refStock.week52Low : parseFloat(cmp * 0.75),
         buyDate: item.buyDate || new Date().toISOString().split('T')[0],
         notes: item.notes || ''
       };
@@ -802,6 +831,13 @@ class PortfolioStore {
       totalDayPnL += dayPnL;
       totalPrevDayValue += prevDayValue;
 
+      // Day & 52-Week Range indicators
+      const refStock = POPULAR_STOCKS.find(s => s.symbol.toUpperCase() === (h.symbol || '').toUpperCase().trim());
+      const dayHigh = Number(h.dayHigh) || Number(h.high) || Number(refStock?.dayHigh) || (Math.max(h.cmp, prevClose) * 1.015);
+      const dayLow = Number(h.dayLow) || Number(h.low) || Number(refStock?.dayLow) || (Math.min(h.cmp, prevClose) * 0.985);
+      const week52High = Number(h.week52High) || Number(refStock?.week52High) || (h.cmp * 1.25);
+      const week52Low = Number(h.week52Low) || Number(refStock?.week52Low) || (h.cmp * 0.75);
+
       return {
         ...h,
         invested,
@@ -810,7 +846,11 @@ class PortfolioStore {
         pnlPercent,
         dayPnL,
         dayChangePercent,
-        dayChangePerShare
+        dayChangePerShare,
+        dayHigh: parseFloat(dayHigh.toFixed(2)),
+        dayLow: parseFloat(dayLow.toFixed(2)),
+        week52High: parseFloat(week52High.toFixed(2)),
+        week52Low: parseFloat(week52Low.toFixed(2))
       };
     });
 
@@ -951,7 +991,11 @@ class PortfolioStore {
           return {
             ...h,
             cmp: quote.cmp,
-            prevClose: quote.prevClose || h.prevClose || quote.cmp
+            prevClose: quote.prevClose || h.prevClose || quote.cmp,
+            dayHigh: quote.dayHigh || quote.high || h.dayHigh,
+            dayLow: quote.dayLow || quote.low || h.dayLow,
+            week52High: quote.week52High || h.week52High,
+            week52Low: quote.week52Low || h.week52Low
           };
         }
         return h;

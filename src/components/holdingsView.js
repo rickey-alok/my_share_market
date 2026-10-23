@@ -107,6 +107,7 @@ export class HoldingsView {
                 <th style="text-align: right;">Shares (Qty)</th>
                 <th style="text-align: right;">Avg. Price</th>
                 <th style="text-align: right;">CMP (Live)</th>
+                <th style="min-width: 210px; width: 230px;">Price Ranges (Day & 52W)</th>
                 <th style="text-align: right;">Total Invested</th>
                 <th style="text-align: right;">Current Value</th>
                 <th style="text-align: right;">Day's Change</th>
@@ -334,6 +335,89 @@ export class HoldingsView {
     `;
   }
 
+  renderRangeIndicator(h) {
+    const cmp = Number(h.cmp) || 0;
+    const myPrice = Number(h.avgPrice) || 0;
+
+    // Day Range
+    let dayLow = Number(h.dayLow) || Number(h.low) || (cmp * 0.985);
+    let dayHigh = Number(h.dayHigh) || Number(h.high) || (cmp * 1.015);
+    if (dayHigh <= dayLow) dayHigh = dayLow + (dayLow * 0.02 || 1);
+
+    const daySpan = dayHigh - dayLow;
+    const dayCmpPct = Math.max(2, Math.min(98, ((cmp - dayLow) / daySpan) * 100));
+    const dayMyPct = ((myPrice - dayLow) / daySpan) * 100;
+    const isDayMyBelow = myPrice < dayLow;
+    const isDayMyAbove = myPrice > dayHigh;
+    const dayClampedMyPct = Math.max(2, Math.min(98, dayMyPct));
+
+    // 52-Week Range
+    let w52Low = Number(h.week52Low) || (cmp * 0.75);
+    let w52High = Number(h.week52High) || (cmp * 1.25);
+    if (w52High <= w52Low) w52High = w52Low + (w52Low * 0.1 || 1);
+
+    const w52Span = w52High - w52Low;
+    const w52CmpPct = Math.max(2, Math.min(98, ((cmp - w52Low) / w52Span) * 100));
+    const w52MyPct = ((myPrice - w52Low) / w52Span) * 100;
+    const isW52MyBelow = myPrice < w52Low;
+    const isW52MyAbove = myPrice > w52High;
+    const w52ClampedMyPct = Math.max(2, Math.min(98, w52MyPct));
+
+    const isProfit = cmp >= myPrice;
+
+    return `
+      <div class="range-dual-widget" title="${h.symbol}: Day & 52-Week Range with My Price">
+        <!-- 1. Day Range Row -->
+        <div class="range-sub-row">
+          <div class="range-header-line">
+            <span class="range-badge">DAY</span>
+            <span class="range-edge-val left-edge" title="Today's Low">L: ${portfolioStore.formatMoney(dayLow)}</span>
+            <span class="range-edge-val right-edge" title="Today's High">H: ${portfolioStore.formatMoney(dayHigh)}</span>
+          </div>
+          <div class="range-bar-track" title="Day Low: ${portfolioStore.formatMoney(dayLow)} | CMP: ${portfolioStore.formatMoney(cmp)} | Day High: ${portfolioStore.formatMoney(dayHigh)} | My Price: ${portfolioStore.formatMoney(myPrice)}">
+            <div class="range-track-rail"></div>
+            <!-- CMP Pin -->
+            <div class="range-pin pin-cmp" style="left: ${dayCmpPct.toFixed(1)}%;" title="CMP (Live): ${portfolioStore.formatMoney(cmp)}">
+              <span class="pin-dot"></span>
+              <span class="pin-tag">CMP</span>
+            </div>
+            <!-- My Price Pin -->
+            <div class="range-pin pin-my ${isProfit ? 'profit-pin' : 'loss-pin'} ${isDayMyBelow ? 'edge-below' : ''} ${isDayMyAbove ? 'edge-above' : ''}" 
+                 style="left: ${dayClampedMyPct.toFixed(1)}%;" 
+                 title="My Avg Price: ${portfolioStore.formatMoney(myPrice)} ${isDayMyBelow ? '(Below Day Low)' : (isDayMyAbove ? '(Above Day High)' : '')}">
+              <span class="pin-dot"></span>
+              <span class="pin-tag">My: ${portfolioStore.formatMoney(myPrice)}</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- 2. 52-Week Range Row -->
+        <div class="range-sub-row" style="margin-top: 0.35rem;">
+          <div class="range-header-line">
+            <span class="range-badge">52W</span>
+            <span class="range-edge-val left-edge" title="52-Week Low">L: ${portfolioStore.formatMoney(w52Low)}</span>
+            <span class="range-edge-val right-edge" title="52-Week High">H: ${portfolioStore.formatMoney(w52High)}</span>
+          </div>
+          <div class="range-bar-track" title="52W Low: ${portfolioStore.formatMoney(w52Low)} | CMP: ${portfolioStore.formatMoney(cmp)} | 52W High: ${portfolioStore.formatMoney(w52High)} | My Price: ${portfolioStore.formatMoney(myPrice)}">
+            <div class="range-track-rail"></div>
+            <!-- CMP Pin -->
+            <div class="range-pin pin-cmp" style="left: ${w52CmpPct.toFixed(1)}%;" title="CMP (Live): ${portfolioStore.formatMoney(cmp)}">
+              <span class="pin-dot"></span>
+              <span class="pin-tag">CMP</span>
+            </div>
+            <!-- My Price Pin -->
+            <div class="range-pin pin-my ${isProfit ? 'profit-pin' : 'loss-pin'} ${isW52MyBelow ? 'edge-below' : ''} ${isW52MyAbove ? 'edge-above' : ''}" 
+                 style="left: ${w52ClampedMyPct.toFixed(1)}%;" 
+                 title="My Avg Price: ${portfolioStore.formatMoney(myPrice)} ${isW52MyBelow ? '(Below 52W Low)' : (isW52MyAbove ? '(Above 52W High)' : '')}">
+              <span class="pin-dot"></span>
+              <span class="pin-tag">My: ${portfolioStore.formatMoney(myPrice)}</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    `;
+  }
+
   renderHoldingsTableAndCards(metrics = portfolioStore.getPortfolioMetrics(), event = {}) {
     const tbody = this.container.querySelector('#holdings-page-tbody');
     const mobileList = this.container.querySelector('#holdings-page-mobile-list');
@@ -369,7 +453,7 @@ export class HoldingsView {
           <p style="margin-top: 0.35rem; font-size: 0.85rem;">Try modifying your search or click "Add Holdings" to add stocks to your portfolio.</p>
         </div>
       `;
-      tbody.innerHTML = `<tr><td colspan="11">${emptyHtml}</td></tr>`;
+      tbody.innerHTML = `<tr><td colspan="12">${emptyHtml}</td></tr>`;
       mobileList.innerHTML = emptyHtml;
       return;
     }
@@ -414,6 +498,9 @@ export class HoldingsView {
           </td>
           <td style="text-align: right;">
             <div class="num-cell cmp-cell ${tickClass}">${portfolioStore.formatMoney(h.cmp)}</div>
+          </td>
+          <td style="min-width: 210px; width: 230px; vertical-align: middle;">
+            ${this.renderRangeIndicator(h)}
           </td>
           <td style="text-align: right;">
             <div class="num-cell">${portfolioStore.formatMoney(h.invested)}</div>
@@ -508,6 +595,18 @@ export class HoldingsView {
               <span class="mobile-metric-label">Current Value</span>
               <span class="mobile-metric-value" style="color: var(--text-primary);">${portfolioStore.formatMoney(h.current)}</span>
             </div>
+          </div>
+
+          <!-- Price Ranges Indicator Section (Day & 52-Week with My Price) -->
+          <div class="mobile-range-card-section">
+            <div class="mobile-range-title">
+              <span>Day & 52-Week Price Ranges</span>
+              <span class="range-pin-legend">
+                <span class="legend-chip legend-cmp">● CMP</span>
+                <span class="legend-chip legend-my">◆ My Avg</span>
+              </span>
+            </div>
+            ${this.renderRangeIndicator(h)}
           </div>
 
           <div class="mobile-card-bottom">

@@ -228,6 +228,11 @@ class LiveMarketService {
             const dayChange = parseFloat(d.pricechange || (cmp - prevClose).toFixed(2));
             const dayChangePercent = parseFloat(d.pricepercentchange || (prevClose > 0 ? (((cmp - prevClose) / prevClose) * 100).toFixed(2) : '0'));
 
+            const dayHigh = parseFloat(d.HP || cmp);
+            const dayLow = parseFloat(d.LP || cmp);
+            const week52High = parseFloat(d['52H'] || d.fiftyTwoHigh || 0);
+            const week52Low = parseFloat(d['52L'] || d.fiftyTwoLow || 0);
+
             return {
               symbol: cleanSym,
               name: d.company || d.SC_FULLNM || cleanSym,
@@ -235,8 +240,12 @@ class LiveMarketService {
               prevClose,
               dayChange,
               dayChangePercent,
-              high: parseFloat(d.HP || cmp),
-              low: parseFloat(d.LP || cmp),
+              high: dayHigh,
+              low: dayLow,
+              dayHigh,
+              dayLow,
+              week52High,
+              week52Low,
               open: parseFloat(d.OPN || prevClose),
               marketState: d.market_state || (this.isMarketOpen() ? 'OPEN' : 'CLOSED'),
               lastUpdated: d.lastupd || '',
@@ -306,6 +315,11 @@ class LiveMarketService {
               const dayChange = price - prevClose;
               const dayChangePercent = prevClose > 0 ? (dayChange / prevClose) * 100 : 0;
 
+              const dayHigh = parseFloat(meta.regularMarketDayHigh || price);
+              const dayLow = parseFloat(meta.regularMarketDayLow || price);
+              const week52High = parseFloat(meta.fiftyTwoWeekHigh || 0);
+              const week52Low = parseFloat(meta.fiftyTwoWeekLow || 0);
+
               quote = {
                 symbol: cleanSym,
                 cmp: parseFloat(price.toFixed(2)),
@@ -314,8 +328,12 @@ class LiveMarketService {
                 dayChangePercent: parseFloat(dayChangePercent.toFixed(2)),
                 currency: meta.currency || 'INR',
                 exchange: meta.exchangeName || exchange,
-                high: meta.regularMarketDayHigh || price,
-                low: meta.regularMarketDayLow || price,
+                high: dayHigh,
+                low: dayLow,
+                dayHigh,
+                dayLow,
+                week52High,
+                week52Low,
                 source: 'LIVE_EXCHANGE',
                 timestamp: Date.now()
               };
@@ -323,12 +341,19 @@ class LiveMarketService {
             } else if (data && (data.price !== undefined || data.cmp !== undefined)) {
               const price = parseFloat(data.price || data.cmp);
               const prevClose = parseFloat(data.prevClose || price);
+              const refStock = POPULAR_STOCKS.find(s => s.symbol.toUpperCase() === cleanSym);
               quote = {
                 symbol: cleanSym,
                 cmp: price,
                 prevClose: prevClose,
                 dayChange: parseFloat((price - prevClose).toFixed(2)),
                 dayChangePercent: prevClose > 0 ? parseFloat((((price - prevClose) / prevClose) * 100).toFixed(2)) : 0,
+                high: refStock?.dayHigh || price,
+                low: refStock?.dayLow || price,
+                dayHigh: refStock?.dayHigh || price,
+                dayLow: refStock?.dayLow || price,
+                week52High: refStock?.week52High || 0,
+                week52Low: refStock?.week52Low || 0,
                 source: 'LIVE_EXCHANGE',
                 timestamp: Date.now()
               };
@@ -349,6 +374,12 @@ class LiveMarketService {
           prevClose: ref.prevClose || ref.cmp,
           dayChange: parseFloat((ref.cmp - (ref.prevClose || ref.cmp)).toFixed(2)),
           dayChangePercent: ref.dayChangePercent || 0,
+          high: ref.dayHigh || ref.cmp,
+          low: ref.dayLow || ref.cmp,
+          dayHigh: ref.dayHigh || ref.cmp,
+          dayLow: ref.dayLow || ref.cmp,
+          week52High: ref.week52High || (ref.cmp * 1.25),
+          week52Low: ref.week52Low || (ref.cmp * 0.75),
           source: 'DATABASE_REFERENCE',
           timestamp: Date.now()
         };
