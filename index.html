@@ -56,6 +56,15 @@
             <span>Dashboard</span>
           </button>
 
+          <button id="nav-btn-holdings" class="nav-tab-btn" data-view="holdings">
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"></path>
+              <polyline points="3.27 6.96 12 12.01 20.73 6.96"></polyline>
+              <line x1="12" y1="22.08" x2="12" y2="12"></line>
+            </svg>
+            <span>Holdings</span>
+          </button>
+
           <button id="nav-btn-analysis" class="nav-tab-btn" data-view="analysis">
             <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
               <path d="M3 3v18h18"></path>
@@ -172,7 +181,12 @@
         <!-- Rendered by DashboardView -->
       </section>
 
-      <!-- View 2: Add Holdings -->
+      <!-- View 2: Holdings List -->
+      <section id="view-holdings" class="view-container" role="region" aria-label="Holdings Portfolio List">
+        <!-- Rendered by HoldingsView -->
+      </section>
+
+      <!-- View 3: Add Holdings -->
       <section id="view-add-holding" class="view-container" role="region" aria-label="Add Holdings Form">
         <!-- Rendered by AddHoldingView -->
       </section>
@@ -198,6 +212,15 @@
           <rect x="3" y="16" width="7" height="5"></rect>
         </svg>
         <span>Dashboard</span>
+      </button>
+
+      <button class="mobile-nav-btn" data-view="holdings" id="mob-nav-holdings">
+        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"></path>
+          <polyline points="3.27 6.96 12 12.01 20.73 6.96"></polyline>
+          <line x1="12" y1="22.08" x2="12" y2="12"></line>
+        </svg>
+        <span>Holdings</span>
       </button>
 
       <button class="mobile-nav-btn" data-view="analysis" id="mob-nav-analysis">

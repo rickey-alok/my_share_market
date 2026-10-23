@@ -1,0 +1,561 @@
+// Holdings View - Dedicated Page for Portfolio Stock Holdings List
+import { portfolioStore } from '../state/portfolioStore.js';
+import { authService } from '../services/authService.js';
+import { liveMarketService } from '../services/liveMarketService.js';
+import { SECTORS } from '../data/stocksDatabase.js';
+
+const icons = {
+  refreshCw: `<svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 0 0-9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"></path><path d="M3 3v5h5"></path><path d="M3 12a9 9 0 0 0 9 9 9.75 9.75 0 0 0 6.74-2.74L21 16"></path><path d="M16 21h5v-5"></path></svg>`,
+  plus: `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>`,
+  trash2: `<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path><line x1="10" y1="11" x2="10" y2="17"></line><line x1="14" y1="11" x2="14" y2="17"></line></svg>`,
+  search: `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>`,
+  layers: `<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 2 7 12 12 22 7 12 2"></polygon><polyline points="2 17 12 22 22 17"></polyline><polyline points="2 12 12 17 22 12"></polyline></svg>`,
+  checkCircle: `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path><polyline points="22 4 12 14.01 9 11.01"></polyline></svg>`
+};
+
+export class HoldingsView {
+  constructor(container, onNavigateToAddHolding, onNavigateToStockDetail) {
+    this.container = container;
+    this.onNavigateToAddHolding = onNavigateToAddHolding;
+    this.onNavigateToStockDetail = onNavigateToStockDetail;
+    this.searchTerm = '';
+    this.selectedSector = 'ALL';
+    this.sortBy = 'value-desc';
+
+    this.init();
+  }
+
+  init() {
+    this.renderSkeleton();
+    this.attachEventListeners();
+    this.update();
+
+    // Subscribe to store updates
+    this.unsubscribe = portfolioStore.subscribe((event) => {
+      this.update(event);
+    });
+  }
+
+  renderSkeleton() {
+    this.container.innerHTML = `
+      <!-- Page Header -->
+      <div class="page-title-row">
+        <div>
+          <div style="display: flex; align-items: center; gap: 0.65rem;">
+            <h1 class="page-title">My Stock Holdings</h1>
+            <span class="brand-badge" id="holdings-header-count">0 Assets</span>
+          </div>
+          <p class="page-subtitle">Real-time market valuation, average buy prices, live CMP, and profit/loss breakdown</p>
+        </div>
+        <div class="page-header-actions">
+          <button id="btn-holdings-auto-refresh" class="btn btn-outline btn-sm ${liveMarketService.isAutoRefreshActive ? 'active-pulse' : ''}" title="Toggle 30s Auto Refresh during market hours" style="gap: 6px;">
+            <span class="live-dot ${liveMarketService.isAutoRefreshActive ? 'pulse-green' : 'dim'}" style="font-size: 0.75rem;">●</span>
+            <span id="holdings-auto-refresh-label">Auto-Sync: ${liveMarketService.isAutoRefreshActive ? 'ON' : 'OFF'}</span>
+          </button>
+          <button id="btn-holdings-sync-market" class="btn btn-outline btn-sm" title="Refresh Live Quotes">
+            ${icons.refreshCw}
+            <span id="holdings-sync-market-label">Sync Market</span>
+          </button>
+          <button id="btn-holdings-add" class="btn btn-primary btn-sm">
+            ${icons.plus}
+            <span>Add Holdings</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- Quick Summary Pills -->
+      <div class="holdings-summary-banner" id="holdings-summary-banner">
+        <!-- Dynamically injected -->
+      </div>
+
+      <!-- Holdings Container -->
+      <div class="holdings-container">
+        <div class="holdings-toolbar">
+          <div class="toolbar-left">
+            <div class="search-input-box">
+              ${icons.search}
+              <input type="text" id="holdings-page-search" class="search-input" placeholder="Search by symbol or company...">
+            </div>
+            <select id="holdings-page-sector-filter" class="filter-select">
+              <option value="ALL">All Sectors</option>
+              ${SECTORS.map(s => `<option value="${s}">${s}</option>`).join('')}
+            </select>
+          </div>
+          <div class="toolbar-right" style="display: flex; gap: 0.5rem; align-items: center;">
+            <select id="holdings-page-sort-filter" class="filter-select">
+              <option value="value-desc">Sort by: Highest Value</option>
+              <option value="value-asc">Sort by: Lowest Value</option>
+              <option value="pnl-desc">Sort by: Highest Profit %</option>
+              <option value="pnl-asc">Sort by: Lowest Profit %</option>
+              <option value="day-desc">Sort by: Top Day Gainers</option>
+              <option value="symbol-asc">Sort by: Symbol A-Z</option>
+            </select>
+            <button id="btn-holdings-clear-all" class="btn btn-outline btn-sm" style="color: var(--bear-red); border-color: rgba(239, 68, 68, 0.35); font-size: 0.8rem; padding: 0.35rem 0.65rem;" title="Delete all shares from portfolio and database">
+              ${icons.trash2}
+              <span>Clear All</span>
+            </button>
+          </div>
+        </div>
+
+        <!-- Desktop Table View -->
+        <div class="table-responsive">
+          <table class="holdings-table">
+            <thead>
+              <tr>
+                <th>Stock / Company</th>
+                <th>Exchange</th>
+                <th style="text-align: right;">Shares (Qty)</th>
+                <th style="text-align: right;">Avg. Price</th>
+                <th style="text-align: right;">CMP (Live)</th>
+                <th style="text-align: right;">Total Invested</th>
+                <th style="text-align: right;">Current Value</th>
+                <th style="text-align: right;">Day's Change</th>
+                <th style="text-align: right;">Total P&L</th>
+                <th>Weight</th>
+                <th style="text-align: center;">Actions</th>
+              </tr>
+            </thead>
+            <tbody id="holdings-page-tbody">
+              <!-- Dynamically injected -->
+            </tbody>
+          </table>
+        </div>
+
+        <!-- Mobile Card View -->
+        <div class="mobile-holdings-list" id="holdings-page-mobile-list">
+          <!-- Dynamically injected -->
+        </div>
+      </div>
+    `;
+  }
+
+  attachEventListeners() {
+    // Add Holdings Button
+    const btnAdd = this.container.querySelector('#btn-holdings-add');
+    if (btnAdd) {
+      btnAdd.addEventListener('click', () => {
+        if (this.onNavigateToAddHolding) this.onNavigateToAddHolding();
+      });
+    }
+
+    // Auto Refresh Toggle Button
+    const btnAutoRefresh = this.container.querySelector('#btn-holdings-auto-refresh');
+    const autoLabel = this.container.querySelector('#holdings-auto-refresh-label');
+    const dot = btnAutoRefresh?.querySelector('.live-dot');
+    if (btnAutoRefresh) {
+      btnAutoRefresh.addEventListener('click', () => {
+        const isActive = liveMarketService.toggleAutoRefresh();
+        if (isActive) {
+          btnAutoRefresh.classList.add('active-pulse');
+          if (autoLabel) autoLabel.textContent = 'Auto-Sync: ON';
+          if (dot) { dot.classList.add('pulse-green'); dot.classList.remove('dim'); }
+          portfolioStore.refreshMarketQuotes();
+        } else {
+          btnAutoRefresh.classList.remove('active-pulse');
+          if (autoLabel) autoLabel.textContent = 'Auto-Sync: OFF';
+          if (dot) { dot.classList.remove('pulse-green'); dot.classList.add('dim'); }
+        }
+      });
+    }
+
+    // Refresh Quotes Button
+    const btnRefresh = this.container.querySelector('#btn-holdings-sync-market');
+    const syncLabel = this.container.querySelector('#holdings-sync-market-label');
+    if (btnRefresh) {
+      btnRefresh.addEventListener('click', async () => {
+        btnRefresh.classList.add('rotating');
+        if (syncLabel) syncLabel.textContent = 'Syncing...';
+        const syncResult = await portfolioStore.refreshMarketQuotes(false);
+        btnRefresh.classList.remove('rotating');
+        const syncTime = liveMarketService.getLastSyncFormatted() || new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+        if (syncLabel) syncLabel.textContent = `Synced (${syncTime})`;
+
+        // Visual toast feedback
+        const count = syncResult?.totalCount || portfolioStore.holdings?.length || 0;
+        const meta = syncResult?.meta;
+        const isClosed = meta?.marketState === 'CLOSED' || !liveMarketService.isMarketOpen();
+        const msg = isClosed
+          ? `Synced ${count} stocks with today's closing market data (LTP • NSE/BSE)`
+          : `Live Market Synced: Updated ${count} stocks with real-time quotes (${syncTime})`;
+        this.showToast(msg, 'success');
+
+        setTimeout(() => {
+          if (syncLabel && syncLabel.textContent.startsWith('Synced')) {
+            syncLabel.textContent = 'Sync Market';
+          }
+        }, 4000);
+      });
+    }
+
+    // Search Input
+    const searchInput = this.container.querySelector('#holdings-page-search');
+    if (searchInput) {
+      searchInput.addEventListener('input', (e) => {
+        this.searchTerm = e.target.value.toLowerCase().trim();
+        this.renderHoldingsTableAndCards();
+      });
+    }
+
+    // Sector Filter
+    const sectorFilter = this.container.querySelector('#holdings-page-sector-filter');
+    if (sectorFilter) {
+      sectorFilter.addEventListener('change', (e) => {
+        this.selectedSector = e.target.value;
+        this.renderHoldingsTableAndCards();
+      });
+    }
+
+    // Sort Filter
+    const sortFilter = this.container.querySelector('#holdings-page-sort-filter');
+    if (sortFilter) {
+      sortFilter.addEventListener('change', (e) => {
+        this.sortBy = e.target.value;
+        this.renderHoldingsTableAndCards();
+      });
+    }
+
+    // Clear All Holdings Button
+    const btnClearAll = this.container.querySelector('#btn-holdings-clear-all');
+    if (btnClearAll) {
+      btnClearAll.addEventListener('click', async () => {
+        if (!portfolioStore.holdings || portfolioStore.holdings.length === 0) {
+          alert('Your portfolio is already empty.');
+          return;
+        }
+
+        const count = portfolioStore.holdings.length;
+        const confirmed = confirm(
+          `WARNING: This will permanently delete all ${count} holdings from your portfolio and database.\n\nAre you sure you want to proceed?`
+        );
+
+        if (!confirmed) return;
+
+        btnClearAll.disabled = true;
+        btnClearAll.textContent = 'Clearing...';
+
+        try {
+          await portfolioStore.clearAllHoldings();
+          this.showToast('All holdings removed successfully.', 'info');
+        } catch (err) {
+          console.error('Error clearing holdings:', err);
+          alert('Failed to clear holdings: ' + err.message);
+        } finally {
+          btnClearAll.disabled = false;
+          btnClearAll.innerHTML = `${icons.trash2} <span>Clear All</span>`;
+        }
+      });
+    }
+
+    // Delegate Table & Card Action Clicks
+    this.container.addEventListener('click', async (e) => {
+      // Delete holding
+      const deleteBtn = e.target.closest('[data-action="delete-holding"]');
+      if (deleteBtn) {
+        const id = deleteBtn.getAttribute('data-id');
+        const symbol = deleteBtn.getAttribute('data-symbol');
+        if (confirm(`Are you sure you want to remove ${symbol} from your portfolio?`)) {
+          deleteBtn.disabled = true;
+          await portfolioStore.deleteHolding(id, symbol);
+        }
+        return;
+      }
+
+      // Buy more / Average Price Calculator for this stock
+      const buyMoreBtn = e.target.closest('[data-action="buy-more"]');
+      if (buyMoreBtn) {
+        const symbol = buyMoreBtn.getAttribute('data-symbol');
+        if (symbol && this.onNavigateToStockDetail) {
+          this.onNavigateToStockDetail(symbol);
+        }
+        return;
+      }
+
+      // Click on Stock row or mobile card to view dedicated Stock Detail page
+      const row = e.target.closest('tr[data-symbol]');
+      const card = e.target.closest('.holding-mobile-card[data-symbol]');
+      const targetEl = row || card;
+      if (targetEl && !e.target.closest('button')) {
+        const symbol = targetEl.getAttribute('data-symbol');
+        if (symbol && this.onNavigateToStockDetail) {
+          this.onNavigateToStockDetail(symbol);
+        }
+      }
+    });
+  }
+
+  update(event = {}) {
+    const metrics = portfolioStore.getPortfolioMetrics();
+    this.renderHeaderCount(metrics);
+    this.renderSummaryBanner(metrics);
+    this.renderHoldingsTableAndCards(metrics, event);
+  }
+
+  renderHeaderCount(metrics) {
+    const countEl = this.container.querySelector('#holdings-header-count');
+    if (countEl) {
+      countEl.textContent = `${metrics.totalHoldingsCount} Assets`;
+    }
+  }
+
+  renderSummaryBanner(metrics) {
+    const banner = this.container.querySelector('#holdings-summary-banner');
+    if (!banner) return;
+
+    if (metrics.totalHoldingsCount === 0) {
+      banner.style.display = 'none';
+      return;
+    }
+
+    banner.style.display = 'flex';
+    const isTotalProfit = metrics.totalPnL >= 0;
+    const isDayProfit = metrics.totalDayPnL >= 0;
+
+    banner.innerHTML = `
+      <div class="summary-pill-item">
+        <span class="pill-label">Total Value</span>
+        <span class="pill-val">${portfolioStore.formatMoney(metrics.totalCurrentValue)}</span>
+      </div>
+      <div class="summary-pill-item">
+        <span class="pill-label">Total Invested</span>
+        <span class="pill-val">${portfolioStore.formatMoney(metrics.totalInvested)}</span>
+      </div>
+      <div class="summary-pill-item">
+        <span class="pill-label">Total P&L</span>
+        <span class="pill-val ${isTotalProfit ? 'bull' : 'bear'}">
+          ${isTotalProfit ? '+' : ''}${portfolioStore.formatMoney(metrics.totalPnL)} (${isTotalProfit ? '+' : ''}${metrics.totalPnLPercent.toFixed(2)}%)
+        </span>
+      </div>
+      <div class="summary-pill-item">
+        <span class="pill-label">Day's P&L</span>
+        <span class="pill-val ${isDayProfit ? 'bull' : 'bear'}">
+          ${isDayProfit ? '+' : ''}${portfolioStore.formatMoney(metrics.totalDayPnL)} (${isDayProfit ? '+' : ''}${metrics.totalDayPnLPercent.toFixed(2)}%)
+        </span>
+      </div>
+    `;
+  }
+
+  renderHoldingsTableAndCards(metrics = portfolioStore.getPortfolioMetrics(), event = {}) {
+    const tbody = this.container.querySelector('#holdings-page-tbody');
+    const mobileList = this.container.querySelector('#holdings-page-mobile-list');
+    if (!tbody || !mobileList) return;
+
+    // Filter
+    let filtered = metrics.holdings.filter(h => {
+      const matchSearch = this.searchTerm === '' || 
+        h.symbol.toLowerCase().includes(this.searchTerm) || 
+        h.name.toLowerCase().includes(this.searchTerm);
+      const matchSector = this.selectedSector === 'ALL' || h.sector === this.selectedSector;
+      return matchSearch && matchSector;
+    });
+
+    // Sort
+    filtered.sort((a, b) => {
+      switch (this.sortBy) {
+        case 'value-desc': return b.current - a.current;
+        case 'value-asc': return a.current - b.current;
+        case 'pnl-desc': return b.pnlPercent - a.pnlPercent;
+        case 'pnl-asc': return a.pnlPercent - b.pnlPercent;
+        case 'day-desc': return b.dayChangePercent - a.dayChangePercent;
+        case 'symbol-asc': return a.symbol.localeCompare(b.symbol);
+        default: return 0;
+      }
+    });
+
+    if (filtered.length === 0) {
+      const emptyHtml = `
+        <div class="empty-state">
+          <div class="empty-state-icon">${icons.layers}</div>
+          <h3>No matching holdings found</h3>
+          <p style="margin-top: 0.35rem; font-size: 0.85rem;">Try modifying your search or click "Add Holdings" to add stocks to your portfolio.</p>
+        </div>
+      `;
+      tbody.innerHTML = `<tr><td colspan="11">${emptyHtml}</td></tr>`;
+      mobileList.innerHTML = emptyHtml;
+      return;
+    }
+
+    // Check if event was a tick or sync to trigger pulse animation on CMP
+    const tickSymbol = event.type === 'PRICE_TICK' && event.tick ? event.tick.symbol : null;
+    const tickDirection = event.type === 'PRICE_TICK' && event.tick ? event.tick.direction : null;
+    const isMarketSynced = event.type === 'MARKET_QUOTES_UPDATED';
+
+    // Render Desktop Rows
+    tbody.innerHTML = filtered.map(h => {
+      const isProfit = h.pnl >= 0;
+      const isDayProfit = h.dayPnL >= 0;
+      const isTicking = tickSymbol === h.symbol;
+      const isSynced = isMarketSynced && event.quotes && event.quotes[h.symbol];
+      const tickClass = isTicking ? (tickDirection === 'up' ? 'tick-up' : 'tick-down') : (isSynced ? 'tick-up' : '');
+      const rowSyncClass = isSynced ? 'row-synced' : '';
+
+      return `
+        <tr data-symbol="${h.symbol}" class="${rowSyncClass}">
+          <td>
+            <div class="stock-identity">
+              <div class="stock-symbol-chip">${h.symbol.substring(0, 3)}</div>
+              <div class="stock-names">
+                <span class="stock-sym">
+                  ${h.symbol}
+                  <span class="exchange-tag">${h.exchange || 'NSE'}</span>
+                </span>
+                <span class="stock-full-name" title="${h.name}">${h.name}</span>
+              </div>
+            </div>
+          </td>
+          <td>
+            <span style="color: var(--text-secondary); font-size: 0.82rem;">${h.sector || 'Equity'}</span>
+          </td>
+          <td style="text-align: right;">
+            <div class="num-cell">${h.quantity.toLocaleString()}</div>
+            <div class="num-cell sub">shares</div>
+          </td>
+          <td style="text-align: right;">
+            <div class="num-cell">${portfolioStore.formatMoney(h.avgPrice)}</div>
+          </td>
+          <td style="text-align: right;">
+            <div class="num-cell cmp-cell ${tickClass}">${portfolioStore.formatMoney(h.cmp)}</div>
+          </td>
+          <td style="text-align: right;">
+            <div class="num-cell">${portfolioStore.formatMoney(h.invested)}</div>
+          </td>
+          <td style="text-align: right;">
+            <div class="num-cell" style="font-weight: 700;">${portfolioStore.formatMoney(h.current)}</div>
+          </td>
+          <td style="text-align: right;">
+            <div class="num-cell" style="color: ${isDayProfit ? 'var(--bull-green)' : 'var(--bear-red)'}; font-size: 0.84rem;">
+              ${isDayProfit ? '+' : ''}${h.dayChangePercent.toFixed(2)}%
+            </div>
+            <div class="num-cell sub" style="color: ${isDayProfit ? 'var(--bull-green)' : 'var(--bear-red)'};">
+              ${isDayProfit ? '+' : ''}${portfolioStore.formatMoney(h.dayPnL)}
+            </div>
+          </td>
+          <td style="text-align: right;">
+            <div class="return-badge ${isProfit ? 'bull' : 'bear'}">
+              ${isProfit ? '+' : ''}${portfolioStore.formatMoney(h.pnl)}
+              (${isProfit ? '+' : ''}${h.pnlPercent.toFixed(2)}%)
+            </div>
+          </td>
+          <td>
+            <div class="weight-bar-box">
+              <div style="font-size: 0.8rem; font-family: var(--font-mono); text-align: right; color: var(--text-secondary);">
+                ${h.weight.toFixed(1)}%
+              </div>
+              <div class="weight-track">
+                <div class="weight-fill" style="width: ${Math.min(100, Math.max(3, h.weight))}%;"></div>
+              </div>
+            </div>
+          </td>
+          <td style="text-align: center;">
+            <div class="table-actions" style="justify-content: center;">
+              <button class="btn btn-outline btn-sm" data-action="buy-more" data-symbol="${h.symbol}" title="Open Average Price Calculator (${h.symbol})">
+                ${icons.plus} Average
+              </button>
+              <button class="icon-action-btn delete-btn" data-action="delete-holding" data-id="${h.id}" data-symbol="${h.symbol}" title="Delete ${h.symbol}">
+                ${icons.trash2}
+              </button>
+            </div>
+          </td>
+        </tr>
+      `;
+    }).join('');
+
+    // Render Mobile Cards
+    mobileList.innerHTML = filtered.map(h => {
+      const isProfit = h.pnl >= 0;
+      const isDayProfit = h.dayPnL >= 0;
+      const isTicking = tickSymbol === h.symbol;
+      const isSynced = isMarketSynced && event.quotes && event.quotes[h.symbol];
+      const tickClass = isTicking ? (tickDirection === 'up' ? 'tick-up' : 'tick-down') : (isSynced ? 'tick-up' : '');
+      const cardSyncClass = isSynced ? 'card-synced' : '';
+
+      return `
+        <div class="holding-mobile-card ${cardSyncClass}" data-symbol="${h.symbol}" title="Click to view ${h.symbol} transactions & details">
+          <div class="mobile-card-top">
+            <div class="stock-identity">
+              <div class="stock-symbol-chip">${h.symbol.substring(0, 3)}</div>
+              <div class="stock-names">
+                <div class="stock-sym">
+                  ${h.symbol}
+                  <span class="exchange-tag">${h.exchange || 'NSE'}</span>
+                </div>
+                <span class="stock-full-name">${h.name}</span>
+              </div>
+            </div>
+            <div style="text-align: right;">
+              <div class="num-cell cmp-cell ${tickClass}" style="font-size: 1.05rem;">
+                ${portfolioStore.formatMoney(h.cmp)}
+              </div>
+              <div style="font-size: 0.75rem; font-family: var(--font-mono); color: ${isDayProfit ? 'var(--bull-green)' : 'var(--bear-red)'};">
+                ${isDayProfit ? '+' : ''}${h.dayChangePercent.toFixed(2)}%
+              </div>
+            </div>
+          </div>
+
+          <div class="mobile-card-metrics">
+            <div class="mobile-metric-item">
+              <span class="mobile-metric-label">Shares Held</span>
+              <span class="mobile-metric-value">${h.quantity.toLocaleString()}</span>
+            </div>
+            <div class="mobile-metric-item">
+              <span class="mobile-metric-label">Avg. Buy Price</span>
+              <span class="mobile-metric-value">${portfolioStore.formatMoney(h.avgPrice)}</span>
+            </div>
+            <div class="mobile-metric-item">
+              <span class="mobile-metric-label">Total Invested</span>
+              <span class="mobile-metric-value">${portfolioStore.formatMoney(h.invested)}</span>
+            </div>
+            <div class="mobile-metric-item">
+              <span class="mobile-metric-label">Current Value</span>
+              <span class="mobile-metric-value" style="color: var(--text-primary);">${portfolioStore.formatMoney(h.current)}</span>
+            </div>
+          </div>
+
+          <div class="mobile-card-bottom">
+            <div class="return-badge ${isProfit ? 'bull' : 'bear'}">
+              P&L: ${isProfit ? '+' : ''}${portfolioStore.formatMoney(h.pnl)} (${isProfit ? '+' : ''}${h.pnlPercent.toFixed(2)}%)
+            </div>
+            <div class="table-actions">
+              <button class="btn btn-outline btn-sm" data-action="buy-more" data-symbol="${h.symbol}" title="Open Average Price Calculator (${h.symbol})">
+                ${icons.plus} Average Calculator
+              </button>
+              <button class="icon-action-btn delete-btn" data-action="delete-holding" data-id="${h.id}" data-symbol="${h.symbol}">
+                ${icons.trash2}
+              </button>
+            </div>
+          </div>
+        </div>
+      `;
+    }).join('');
+  }
+
+  showToast(message, type = 'success') {
+    let container = document.querySelector('.toast-container');
+    if (!container) {
+      container = document.createElement('div');
+      container.className = 'toast-container';
+      document.body.appendChild(container);
+    }
+
+    const toast = document.createElement('div');
+    toast.className = `toast ${type}`;
+    toast.innerHTML = `
+      <div class="toast-icon">${type === 'success' ? (icons.checkCircle || '✓') : 'ℹ'}</div>
+      <div class="toast-message">${message}</div>
+    `;
+
+    container.appendChild(toast);
+
+    setTimeout(() => {
+      toast.style.opacity = '0';
+      toast.style.transform = 'translateY(10px)';
+      toast.style.transition = 'all 0.25s ease';
+      setTimeout(() => toast.remove(), 250);
+    }, 4000);
+  }
+
+  destroy() {
+    if (this.unsubscribe) {
+      this.unsubscribe();
+    }
+  }
+}

@@ -3955,3 +3955,101 @@ body::after {
   color: var(--accent-amber);
 }
 
+/* Dashboard Highlights Grid */
+.dashboard-highlights-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1.5rem;
+  margin-top: 1.5rem;
+}
+
+@media (max-width: 900px) {
+  .dashboard-highlights-grid {
+    grid-template-columns: 1fr;
+    gap: 1.25rem;
+  }
+}
+
+/* Highlight Stock Row in Dashboard Top Holdings */
+.highlight-stock-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.75rem 0.95rem;
+  background: var(--bg-surface);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  cursor: pointer;
+  transition: all var(--transition-fast);
+}
+
+.highlight-stock-row:hover {
+  background: var(--bg-surface-elevated);
+  border-color: rgba(99, 102, 241, 0.35);
+  transform: translateX(3px);
+}
+
+[data-theme="light"] .highlight-stock-row {
+  background: #f8fafc;
+  border-color: #e2e8f0;
+}
+
+[data-theme="light"] .highlight-stock-row:hover {
+  background: #f1f5f9;
+  border-color: var(--brand-indigo-light);
+}
+
+/* Holdings Summary Banner in Dedicated Holdings View */
+.holdings-summary-banner {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1rem;
+  margin-bottom: 1.5rem;
+}
+
+.summary-pill-item {
+  flex: 1;
+  min-width: 180px;
+  background: var(--bg-surface);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  padding: 0.85rem 1.15rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+  transition: border-color var(--transition-fast);
+}
+
+.summary-pill-item:hover {
+  border-color: var(--border-active);
+}
+
+.summary-pill-item .pill-label {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.summary-pill-item .pill-val {
+  font-size: 1.15rem;
+  font-weight: 700;
+  font-family: var(--font-mono);
+  color: var(--text-primary);
+}
+
+.summary-pill-item .pill-val.bull {
+  color: var(--bull-green);
+}
+
+.summary-pill-item .pill-val.bear {
+  color: var(--bear-red);
+}
+
+[data-theme="light"] .summary-pill-item {
+  background: #ffffff;
+  border-color: #e2e8f0;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+}
+
