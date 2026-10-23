@@ -332,6 +332,8 @@ class App {
   setupCloudSyncModal() {
     const btnSync = document.getElementById('btn-cloud-sync');
     const labelSync = document.getElementById('cloud-sync-label');
+    if (!btnSync) return;
+
     const modal = document.getElementById('modal-cloud-setup');
     const btnClose = document.getElementById('btn-close-modal');
     const btnCancel = document.getElementById('btn-cancel-modal');
