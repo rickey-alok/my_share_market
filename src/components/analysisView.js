@@ -163,13 +163,17 @@ export class AnalysisView {
     // Refresh button
     const btnRefresh = this.container.querySelector('#btn-analysis-sync');
     if (btnRefresh) {
-      btnRefresh.addEventListener('click', () => {
+      btnRefresh.addEventListener('click', async () => {
         btnRefresh.classList.add('rotating');
-        portfolioStore.refreshMarketQuotes();
-        setTimeout(() => {
-          btnRefresh.classList.remove('rotating');
-          this.updateAll();
-        }, 500);
+        const span = btnRefresh.querySelector('span');
+        if (span) span.textContent = 'Updating...';
+        await portfolioStore.refreshMarketQuotes(false);
+        this.updateAll();
+        btnRefresh.classList.remove('rotating');
+        if (span) {
+          span.textContent = 'Analysis Synced!';
+          setTimeout(() => { span.textContent = 'Refresh Analysis'; }, 2500);
+        }
       });
     }
 

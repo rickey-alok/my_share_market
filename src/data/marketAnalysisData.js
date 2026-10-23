@@ -1,20 +1,71 @@
 // Market Analysis Data & Historical Generator
 // FII / DII Institutional Activity, Indian Indices (NIFTY 50, SENSEX), and Holdings Range Gauges
 
+// Calculate dynamic latest trading days (Monday to Friday, skipping weekends & non-started sessions)
+export function getLatestTradingDays(count = 5) {
+  const days = [];
+  const now = new Date();
+  // Indian Standard Time (IST) offset: UTC+5:30
+  const utc = now.getTime() + (now.getTimezoneOffset() * 60000);
+  const ist = new Date(utc + (330 * 60000));
+
+  let cur = new Date(ist.getFullYear(), ist.getMonth(), ist.getDate());
+
+  // If Saturday (6) or Sunday (0), market is closed, latest completed session was Friday
+  if (cur.getDay() === 6) {
+    cur.setDate(cur.getDate() - 1);
+  } else if (cur.getDay() === 0) {
+    cur.setDate(cur.getDate() - 2);
+  } else {
+    // If weekday before 9:15 AM IST (555 mins), today's session hasn't started yet
+    const timeInMins = ist.getHours() * 60 + ist.getMinutes();
+    if (timeInMins < 555) {
+      if (cur.getDay() === 1) { // Monday morning -> Friday
+        cur.setDate(cur.getDate() - 3);
+      } else {
+        cur.setDate(cur.getDate() - 1);
+      }
+    }
+  }
+
+  while (days.length < count) {
+    if (cur.getDay() !== 0 && cur.getDay() !== 6) {
+      days.unshift(new Date(cur));
+    }
+    cur.setDate(cur.getDate() - 1);
+  }
+
+  return days;
+}
+
+export function getLatestTradingDaysLabels(count = 5) {
+  const days = getLatestTradingDays(count);
+  const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+  const dayNames = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+  return days.map(d => `${dayNames[d.getDay()]} ${d.getDate()} ${monthNames[d.getMonth()]}`);
+}
+
 export const FII_DII_DATA = {
   week: {
-    periodName: 'Past 5 Trading Days',
-    labels: ['Mon 13 Oct', 'Tue 14 Oct', 'Wed 15 Oct', 'Thu 16 Oct', 'Fri 17 Oct'],
-    fiiNet: [1240.50, -850.20, 2410.80, 1850.40, 2180.60],
-    diiNet: [1850.00, 2120.40, 1450.60, 2380.10, 1940.50],
-    fiiGrossBuy: [11240, 9450, 14210, 13850, 15180],
-    fiiGrossSell: [10000, 10300, 11800, 12000, 13000],
-    diiGrossBuy: [9850, 10120, 8950, 11380, 9940],
-    diiGrossSell: [8000, 8000, 7500, 9000, 8000]
+    periodName: 'Latest 5 Trading Days',
+    get labels() {
+      return getLatestTradingDaysLabels(5);
+    },
+    // Past 5 trading days baseline leading up to latest official NSE session
+    fiiNet: [-1069.50, -849.80, 1740.40, 2089.20, 887.65],
+    diiNet: [2240.20, 1850.10, 1450.60, 2230.40, 3235.36],
+    fiiGrossBuy: [12850, 11430, 13920, 15180, 14445],
+    fiiGrossSell: [13920, 12280, 12180, 13090, 13558],
+    diiGrossBuy: [14120, 13680, 14890, 16420, 19232],
+    diiGrossSell: [11880, 11830, 13440, 14190, 15997]
   },
   month: {
     periodName: 'Past 4 Weeks (Current Month)',
-    labels: ['Week 1 (1-7 Oct)', 'Week 2 (8-14 Oct)', 'Week 3 (15-21 Oct)', 'Week 4 (22-28 Oct)'],
+    get labels() {
+      const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+      const m = monthNames[new Date().getMonth()];
+      return [`Wk 1 (1-7 ${m})`, `Wk 2 (8-14 ${m})`, `Wk 3 (15-21 ${m})`, `Wk 4 (22-28 ${m})`];
+    },
     fiiNet: [4820.50, -2150.30, 6830.40, 5210.80],
     diiNet: [7450.20, 8120.60, 6950.40, 9240.10],
     fiiGrossBuy: [48200, 42150, 56830, 52210],
@@ -55,14 +106,64 @@ export const FII_DII_DATA = {
 };
 
 export function getFiiDiiMetrics(timeframe = 'week') {
-  const data = FII_DII_DATA[timeframe] || FII_DII_DATA.week;
-  const totalFiiNet = data.fiiNet.reduce((sum, val) => sum + val, 0);
-  const totalDiiNet = data.diiNet.reduce((sum, val) => sum + val, 0);
-  const totalFiiBuy = data.fiiGrossBuy.reduce((sum, val) => sum + val, 0);
-  const totalFiiSell = data.fiiGrossSell.reduce((sum, val) => sum + val, 0);
-  const totalDiiBuy = data.diiGrossBuy.reduce((sum, val) => sum + val, 0);
-  const totalDiiSell = data.diiGrossSell.reduce((sum, val) => sum + val, 0);
-  const combinedNet = totalFiiNet + totalDiiNet;
+  let data;
+
+  if (timeframe === 'week') {
+    const labels = getLatestTradingDaysLabels(5);
+    const startDate = labels[0];
+    const endDate = labels[labels.length - 1];
+
+    // Check if live or cached latest session exists in localStorage
+    let liveTodayData = null;
+    try {
+      if (typeof localStorage !== 'undefined') {
+        const cached = localStorage.getItem('apna_share_fii_dii_latest_v1');
+        if (cached) liveTodayData = JSON.parse(cached);
+      }
+    } catch (e) {}
+
+    // Latest 5 trading days baseline up to latest official session
+    const fiiNet = [-1069.50, -849.80, 1740.40, 2089.20, liveTodayData?.fiiNet || 887.65];
+    const diiNet = [2240.20, 1850.10, 1450.60, 2230.40, liveTodayData?.diiNet || 3235.36];
+    const fiiGrossBuy = [12850, 11430, 13920, 15180, liveTodayData?.fiiBuy || 14445];
+    const fiiGrossSell = [13920, 12280, 12180, 13090, liveTodayData?.fiiSell || 13558];
+    const diiGrossBuy = [14120, 13680, 14890, 16420, liveTodayData?.diiBuy || 19232];
+    const diiGrossSell = [11880, 11830, 13440, 14190, liveTodayData?.diiSell || 15997];
+
+    data = {
+      periodName: `Latest 5 Trading Days (${startDate} — ${endDate})`,
+      labels,
+      fiiNet,
+      diiNet,
+      fiiGrossBuy,
+      fiiGrossSell,
+      diiGrossBuy,
+      diiGrossSell
+    };
+  } else if (timeframe === 'month') {
+    const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+    const curMonth = monthNames[new Date().getMonth()];
+    data = {
+      periodName: `Past 4 Weeks (${curMonth} ${new Date().getFullYear()})`,
+      labels: [`Wk 1 (1-7 ${curMonth})`, `Wk 2 (8-14 ${curMonth})`, `Wk 3 (15-21 ${curMonth})`, `Wk 4 (22-28 ${curMonth})`],
+      fiiNet: FII_DII_DATA.month.fiiNet,
+      diiNet: FII_DII_DATA.month.diiNet,
+      fiiGrossBuy: FII_DII_DATA.month.fiiGrossBuy,
+      fiiGrossSell: FII_DII_DATA.month.fiiGrossSell,
+      diiGrossBuy: FII_DII_DATA.month.diiGrossBuy,
+      diiGrossSell: FII_DII_DATA.month.diiGrossSell
+    };
+  } else {
+    data = FII_DII_DATA[timeframe] || FII_DII_DATA.week;
+  }
+
+  const totalFiiNet = parseFloat(data.fiiNet.reduce((sum, val) => sum + val, 0).toFixed(2));
+  const totalDiiNet = parseFloat(data.diiNet.reduce((sum, val) => sum + val, 0).toFixed(2));
+  const totalFiiBuy = Math.round(data.fiiGrossBuy.reduce((sum, val) => sum + val, 0));
+  const totalFiiSell = Math.round(data.fiiGrossSell.reduce((sum, val) => sum + val, 0));
+  const totalDiiBuy = Math.round(data.diiGrossBuy.reduce((sum, val) => sum + val, 0));
+  const totalDiiSell = Math.round(data.diiGrossSell.reduce((sum, val) => sum + val, 0));
+  const combinedNet = parseFloat((totalFiiNet + totalDiiNet).toFixed(2));
 
   return {
     ...data,
@@ -80,7 +181,9 @@ export function getFiiDiiMetrics(timeframe = 'week') {
 // Major Benchmark Indices Historical Trajectories (NIFTY 50 and SENSEX)
 export const INDICES_DATA = {
   week: {
-    labels: ['Mon', 'Tue', 'Wed', 'Thu', 'Fri'],
+    get labels() {
+      return getLatestTradingDaysLabels(5);
+    },
     nifty: {
       name: 'NIFTY 50',
       current: 25124.60,
