@@ -4057,54 +4057,97 @@ body::after {
 .range-dual-widget {
   display: flex;
   flex-direction: column;
-  gap: 0.45rem;
-  min-width: 190px;
-  max-width: 250px;
+  gap: 0.65rem;
+  min-width: 230px;
+  max-width: 320px;
+  padding: 0.2rem 0;
+  box-sizing: border-box;
 }
 
 .range-sub-row {
   display: flex;
   flex-direction: column;
-  gap: 0.2rem;
+  gap: 0.35rem;
 }
 
 .range-header-line {
   display: flex;
   align-items: center;
   justify-content: space-between;
+  gap: 0.5rem;
   font-family: var(--font-mono);
   font-size: 0.72rem;
-  line-height: 1;
+  line-height: 1.2;
+}
+
+.range-badge-group {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  flex-shrink: 0;
 }
 
 .range-badge {
-  font-size: 0.64rem;
+  font-size: 0.62rem;
   font-weight: 700;
-  padding: 0.08rem 0.35rem;
+  padding: 0.12rem 0.35rem;
   border-radius: 3px;
-  background: rgba(99, 102, 241, 0.14);
-  color: var(--brand-indigo-light);
   letter-spacing: 0.04em;
+  line-height: 1;
 }
 
-.range-edge-val {
+.range-badge.badge-day {
+  background: rgba(56, 189, 248, 0.15);
+  color: #38bdf8;
+  border: 1px solid rgba(56, 189, 248, 0.3);
+}
+
+.range-badge.badge-52w {
+  background: rgba(168, 85, 247, 0.15);
+  color: #c084fc;
+  border: 1px solid rgba(168, 85, 247, 0.3);
+}
+
+.range-my-pill {
+  font-size: 0.7rem;
+  font-weight: 700;
+  font-family: var(--font-mono);
+  padding: 0.1rem 0.38rem;
+  border-radius: 4px;
+  line-height: 1;
+  white-space: nowrap;
+}
+
+.range-my-pill.pill-profit {
+  background: rgba(16, 185, 129, 0.12);
+  color: var(--bull-green);
+  border: 1px solid rgba(16, 185, 129, 0.28);
+}
+
+.range-my-pill.pill-loss {
+  background: rgba(244, 63, 94, 0.12);
+  color: var(--bear-red);
+  border: 1px solid rgba(244, 63, 94, 0.28);
+}
+
+.range-bounds-group {
+  display: flex;
+  align-items: center;
+  gap: 0.3rem;
+  font-size: 0.7rem;
   color: var(--text-muted);
-  font-size: 0.72rem;
+  white-space: nowrap;
 }
 
-.range-edge-val.left-edge {
-  margin-left: 0.35rem;
-  margin-right: auto;
-}
-
-.range-edge-val.right-edge {
-  margin-left: auto;
+.range-bound-sep {
+  opacity: 0.4;
+  font-size: 0.65rem;
 }
 
 .range-bar-track {
   position: relative;
   width: 100%;
-  height: 14px;
+  height: 10px;
   display: flex;
   align-items: center;
   cursor: pointer;
@@ -4118,11 +4161,28 @@ body::after {
   background: var(--bg-surface-elevated);
   border: 1px solid var(--border-subtle);
   border-radius: var(--radius-full);
+  overflow: hidden;
 }
 
 [data-theme="light"] .range-track-rail {
   background: #e2e8f0;
   border-color: #cbd5e1;
+}
+
+.range-track-fill {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  border-radius: var(--radius-full);
+  opacity: 0.75;
+}
+
+.range-track-fill.fill-profit {
+  background: linear-gradient(90deg, rgba(16, 185, 129, 0.3), var(--bull-green));
+}
+
+.range-track-fill.fill-loss {
+  background: linear-gradient(90deg, rgba(244, 63, 94, 0.3), var(--bear-red));
 }
 
 .range-pin {
@@ -4137,104 +4197,52 @@ body::after {
 }
 
 .range-pin:hover {
-  transform: translate(-50%, -50%) scale(1.2);
+  transform: translate(-50%, -50%) scale(1.35);
   z-index: 10;
 }
 
-/* CMP Pin */
+/* CMP Circle Pin */
 .range-pin.pin-cmp {
   z-index: 3;
 }
 
-.pin-cmp .pin-dot {
+.pin-marker-circle {
   width: 8px;
   height: 8px;
   border-radius: 50%;
   background: #38bdf8;
-  border: 1.5px solid #0f172a;
-  box-shadow: 0 0 6px rgba(56, 189, 248, 0.85);
+  border: 2px solid #0f172a;
+  box-shadow: 0 0 6px rgba(56, 189, 248, 0.95);
 }
 
-.pin-cmp .pin-tag {
-  display: none;
-  position: absolute;
-  bottom: calc(100% + 4px);
-  background: #0f172a;
-  border: 1px solid rgba(56, 189, 248, 0.4);
-  color: #38bdf8;
-  font-family: var(--font-mono);
-  font-size: 0.65rem;
-  font-weight: 700;
-  padding: 0.1rem 0.35rem;
-  border-radius: 3px;
-  white-space: nowrap;
-  pointer-events: none;
+[data-theme="light"] .pin-marker-circle {
+  border-color: #ffffff;
 }
 
-.range-pin.pin-cmp:hover .pin-tag {
-  display: block;
-}
-
-/* My Price Pin */
+/* My Price Diamond Pin */
 .range-pin.pin-my {
   z-index: 4;
 }
 
-.pin-my .pin-dot {
+.pin-marker-diamond {
   width: 9px;
   height: 9px;
   transform: rotate(45deg);
-  background: #f59e0b;
   border: 1.5px solid #0f172a;
-  box-shadow: 0 0 8px rgba(245, 158, 11, 0.7);
 }
 
-.pin-my.profit-pin .pin-dot {
+.pin-my.profit-pin .pin-marker-diamond {
   background: var(--bull-green);
-  box-shadow: 0 0 8px rgba(16, 185, 129, 0.7);
+  box-shadow: 0 0 8px rgba(16, 185, 129, 0.85);
 }
 
-.pin-my.loss-pin .pin-dot {
+.pin-my.loss-pin .pin-marker-diamond {
   background: var(--bear-red);
-  box-shadow: 0 0 8px rgba(244, 63, 94, 0.7);
+  box-shadow: 0 0 8px rgba(244, 63, 94, 0.85);
 }
 
-.pin-my .pin-tag {
-  position: absolute;
-  top: calc(100% + 2px);
-  background: rgba(15, 23, 42, 0.95);
-  border: 1px solid rgba(255, 255, 255, 0.15);
-  color: var(--text-primary);
-  font-family: var(--font-mono);
-  font-size: 0.62rem;
-  font-weight: 600;
-  padding: 0.08rem 0.3rem;
-  border-radius: 3px;
-  white-space: nowrap;
-  pointer-events: none;
-  opacity: 0.85;
-}
-
-.range-pin.pin-my:hover .pin-tag {
-  opacity: 1;
-  border-color: rgba(99, 102, 241, 0.5);
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.5);
-}
-
-[data-theme="light"] .pin-my .pin-tag {
-  background: #ffffff;
-  border-color: #cbd5e1;
-  color: #0f172a;
-  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.1);
-}
-
-/* Edge indicator styling if My Price is outside day/52w range */
-.pin-my.edge-below .pin-dot {
-  border-radius: 2px 0 0 2px;
-}
-
-.pin-my.edge-above .pin-dot {
-  border-radius: 0 2px 2px 0;
+[data-theme="light"] .pin-marker-diamond {
+  border-color: #ffffff;
 }
 
 /* Mobile Card Price Range Section */
