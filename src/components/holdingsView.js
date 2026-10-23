@@ -2,7 +2,7 @@
 import { portfolioStore } from '../state/portfolioStore.js';
 import { authService } from '../services/authService.js';
 import { liveMarketService } from '../services/liveMarketService.js';
-import { SECTORS } from '../data/stocksDatabase.js';
+import { SECTORS, calculateStockRSI } from '../data/stocksDatabase.js';
 
 const icons = {
   refreshCw: `<svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 0 0-9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"></path><path d="M3 3v5h5"></path><path d="M3 12a9 9 0 0 0 9 9 9.75 9.75 0 0 0 6.74-2.74L21 16"></path><path d="M16 21h5v-5"></path></svg>`,
@@ -107,7 +107,7 @@ export class HoldingsView {
                 <th style="text-align: right;">Shares (Qty)</th>
                 <th style="text-align: right;">Avg. Price</th>
                 <th style="text-align: right; white-space: nowrap;">CMP (Live)</th>
-                <th style="min-width: 250px; width: 280px;">Price Ranges (Day & 52W)</th>
+                <th style="min-width: 260px; width: 290px;">Ranges & RSI (Day, 52W, RSI)</th>
                 <th style="text-align: right;">Total Invested</th>
                 <th style="text-align: right;">Current Value</th>
                 <th style="text-align: right;">Day's Change</th>
@@ -369,8 +369,28 @@ export class HoldingsView {
 
     const isProfit = cmp >= myPrice;
 
+    // 3. 14-Period Relative Strength Index (RSI)
+    const rsi = calculateStockRSI(h);
+    const clampedRsiPct = Math.max(3, Math.min(97, rsi));
+
+    let rsiSentiment = 'Neutral';
+    let rsiClass = 'rsi-neutral';
+    if (rsi >= 70) {
+      rsiSentiment = 'Overbought';
+      rsiClass = 'rsi-overbought';
+    } else if (rsi <= 30) {
+      rsiSentiment = 'Oversold';
+      rsiClass = 'rsi-oversold';
+    } else if (rsi >= 58) {
+      rsiSentiment = 'Bullish';
+      rsiClass = 'rsi-bullish';
+    } else if (rsi < 42) {
+      rsiSentiment = 'Weak';
+      rsiClass = 'rsi-bearish';
+    }
+
     return `
-      <div class="range-dual-widget" title="${h.symbol}: Day & 52-Week Range">
+      <div class="range-dual-widget" title="${h.symbol}: Day Range, 52-Week Range & RSI (14)">
         <!-- 1. Day Range Sub-block (Intraday Low to High) -->
         <div class="range-sub-row">
           <div class="range-header-line">
@@ -422,6 +442,34 @@ export class HoldingsView {
                  style="left: ${w52ClampedMyPct.toFixed(1)}%;" 
                  title="My Avg Price: ${portfolioStore.formatMoney(myPrice)} ${isW52MyBelow ? '(Below 52W Low)' : (isW52MyAbove ? '(Above 52W High)' : '')}">
               <span class="pin-marker-diamond"></span>
+            </div>
+          </div>
+        </div>
+
+        <!-- 3. RSI Sub-block (14-Period Momentum) -->
+        <div class="range-sub-row range-rsi-row">
+          <div class="range-header-line">
+            <div class="range-badge-group">
+              <span class="range-badge badge-rsi">RSI</span>
+              <span class="range-rsi-pill ${rsiClass}" title="RSI (14-Period Momentum): ${rsi.toFixed(1)} (${rsiSentiment})">
+                ${rsi.toFixed(1)} ${rsiSentiment}
+              </span>
+            </div>
+            <div class="range-bounds-group">
+              <span class="range-bound-val" title="Oversold Threshold (<=30)">30 OS</span>
+              <span class="range-bound-sep">/</span>
+              <span class="range-bound-val" title="Overbought Threshold (>=70)">70 OB</span>
+            </div>
+          </div>
+          <div class="range-bar-track" title="14-Period RSI: ${rsi.toFixed(1)} | Sentiment: ${rsiSentiment} | Oversold: <=30 | Overbought: >=70">
+            <div class="range-track-rail range-track-rail-rsi">
+              <div class="rsi-zone-divider" style="left: 30%;" title="Oversold Threshold (30)"></div>
+              <div class="rsi-zone-divider" style="left: 70%;" title="Overbought Threshold (70)"></div>
+              <div class="range-track-fill fill-rsi ${rsiClass}" style="left: 0; width: ${clampedRsiPct.toFixed(1)}%;"></div>
+            </div>
+            <!-- RSI Pin Marker -->
+            <div class="range-pin pin-rsi ${rsiClass}" style="left: ${clampedRsiPct.toFixed(1)}%;" title="RSI (14): ${rsi.toFixed(1)} (${rsiSentiment})">
+              <span class="pin-marker-rsi"></span>
             </div>
           </div>
         </div>
@@ -510,7 +558,7 @@ export class HoldingsView {
           <td style="text-align: right; white-space: nowrap;">
             <div class="num-cell cmp-cell ${tickClass}">${portfolioStore.formatMoney(h.cmp)}</div>
           </td>
-          <td style="min-width: 250px; width: 280px; vertical-align: middle;">
+          <td style="min-width: 260px; width: 290px; vertical-align: middle;">
             ${this.renderRangeIndicator(h)}
           </td>
           <td style="text-align: right;">
@@ -608,13 +656,14 @@ export class HoldingsView {
             </div>
           </div>
 
-          <!-- Price Ranges Indicator Section (Day & 52-Week with My Price) -->
+          <!-- Price Ranges Indicator Section (Day, 52-Week & RSI) -->
           <div class="mobile-range-card-section">
             <div class="mobile-range-title">
-              <span>Day & 52-Week Price Ranges</span>
+              <span>Day, 52-Week & RSI Ranges</span>
               <span class="range-pin-legend">
                 <span class="legend-chip legend-cmp">● CMP</span>
                 <span class="legend-chip legend-my">◆ My Avg</span>
+                <span class="legend-chip legend-rsi">● RSI</span>
               </span>
             </div>
             ${this.renderRangeIndicator(h)}

@@ -4108,6 +4108,12 @@ body::after {
   border: 1px solid rgba(168, 85, 247, 0.3);
 }
 
+.range-badge.badge-rsi {
+  background: rgba(139, 92, 246, 0.15);
+  color: #a78bfa;
+  border: 1px solid rgba(139, 92, 246, 0.3);
+}
+
 .range-my-pill {
   font-size: 0.7rem;
   font-weight: 700;
@@ -4128,6 +4134,52 @@ body::after {
   background: rgba(244, 63, 94, 0.12);
   color: var(--bear-red);
   border: 1px solid rgba(244, 63, 94, 0.28);
+}
+
+.range-rsi-pill {
+  font-size: 0.69rem;
+  font-weight: 700;
+  font-family: var(--font-mono);
+  padding: 0.1rem 0.38rem;
+  border-radius: 4px;
+  line-height: 1;
+  white-space: nowrap;
+}
+
+.range-rsi-pill.rsi-oversold {
+  background: rgba(16, 185, 129, 0.14);
+  color: #34d399;
+  border: 1px solid rgba(16, 185, 129, 0.32);
+}
+
+.range-rsi-pill.rsi-neutral {
+  background: rgba(148, 163, 184, 0.12);
+  color: #94a3b8;
+  border: 1px solid rgba(148, 163, 184, 0.25);
+}
+
+.range-rsi-pill.rsi-bullish {
+  background: rgba(16, 185, 129, 0.12);
+  color: #10b981;
+  border: 1px solid rgba(16, 185, 129, 0.28);
+}
+
+.range-rsi-pill.rsi-bearish {
+  background: rgba(245, 158, 11, 0.12);
+  color: #fbbf24;
+  border: 1px solid rgba(245, 158, 11, 0.28);
+}
+
+.range-rsi-pill.rsi-overbought {
+  background: rgba(244, 63, 94, 0.15);
+  color: #fb7185;
+  border: 1px solid rgba(244, 63, 94, 0.32);
+}
+
+[data-theme="light"] .range-rsi-pill.rsi-neutral {
+  color: #475569;
+  background: #f1f5f9;
+  border-color: #cbd5e1;
 }
 
 .range-bounds-group {
@@ -4293,4 +4345,109 @@ body::after {
   color: #f59e0b;
   font-weight: 600;
 }
+
+.legend-chip.legend-rsi {
+  color: #a78bfa;
+  font-weight: 600;
+}
+
+/* RSI Track Rail with 3 distinct momentum zones (Oversold <30, Neutral 30-70, Overbought >70) */
+.range-track-rail.range-track-rail-rsi {
+  background: linear-gradient(
+    90deg,
+    rgba(16, 185, 129, 0.22) 0%,
+    rgba(16, 185, 129, 0.22) 30%,
+    rgba(148, 163, 184, 0.1) 30%,
+    rgba(148, 163, 184, 0.1) 70%,
+    rgba(244, 63, 94, 0.22) 70%,
+    rgba(244, 63, 94, 0.22) 100%
+  );
+}
+
+[data-theme="light"] .range-track-rail.range-track-rail-rsi {
+  background: linear-gradient(
+    90deg,
+    rgba(16, 185, 129, 0.22) 0%,
+    rgba(16, 185, 129, 0.22) 30%,
+    rgba(226, 232, 240, 0.85) 30%,
+    rgba(226, 232, 240, 0.85) 70%,
+    rgba(244, 63, 94, 0.22) 70%,
+    rgba(244, 63, 94, 0.22) 100%
+  );
+}
+
+.rsi-zone-divider {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 1px;
+  background: rgba(255, 255, 255, 0.35);
+  z-index: 1;
+  pointer-events: none;
+}
+
+[data-theme="light"] .rsi-zone-divider {
+  background: rgba(0, 0, 0, 0.25);
+}
+
+/* RSI Track Fills */
+.range-track-fill.fill-rsi {
+  background: linear-gradient(90deg, rgba(168, 85, 247, 0.2), #a855f7);
+  opacity: 0.85;
+}
+
+.range-track-fill.fill-rsi.rsi-oversold {
+  background: linear-gradient(90deg, rgba(16, 185, 129, 0.2), #10b981);
+}
+
+.range-track-fill.fill-rsi.rsi-bullish {
+  background: linear-gradient(90deg, rgba(16, 185, 129, 0.2), #10b981);
+}
+
+.range-track-fill.fill-rsi.rsi-bearish {
+  background: linear-gradient(90deg, rgba(245, 158, 11, 0.2), #f59e0b);
+}
+
+.range-track-fill.fill-rsi.rsi-overbought {
+  background: linear-gradient(90deg, rgba(244, 63, 94, 0.2), #f43f5e);
+}
+
+/* RSI Marker Pin */
+.range-pin.pin-rsi {
+  z-index: 3;
+}
+
+.pin-marker-rsi {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #a855f7;
+  border: 2px solid #0f172a;
+  box-shadow: 0 0 6px rgba(168, 85, 247, 0.95);
+}
+
+.pin-rsi.rsi-oversold .pin-marker-rsi {
+  background: #10b981;
+  box-shadow: 0 0 7px rgba(16, 185, 129, 0.95);
+}
+
+.pin-rsi.rsi-bullish .pin-marker-rsi {
+  background: #10b981;
+  box-shadow: 0 0 7px rgba(16, 185, 129, 0.95);
+}
+
+.pin-rsi.rsi-bearish .pin-marker-rsi {
+  background: #f59e0b;
+  box-shadow: 0 0 7px rgba(245, 158, 11, 0.95);
+}
+
+.pin-rsi.rsi-overbought .pin-marker-rsi {
+  background: #f43f5e;
+  box-shadow: 0 0 7px rgba(244, 63, 94, 0.95);
+}
+
+[data-theme="light"] .pin-marker-rsi {
+  border-color: #ffffff;
+}
+
 
