@@ -4185,6 +4185,10 @@ body::after {
   background: linear-gradient(90deg, rgba(244, 63, 94, 0.3), var(--bear-red));
 }
 
+.range-track-fill.fill-day-cmp {
+  background: linear-gradient(90deg, rgba(56, 189, 248, 0.15), rgba(56, 189, 248, 0.5));
+}
+
 .range-pin {
   position: absolute;
   top: 50%;

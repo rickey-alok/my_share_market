@@ -370,15 +370,12 @@ export class HoldingsView {
     const isProfit = cmp >= myPrice;
 
     return `
-      <div class="range-dual-widget" title="${h.symbol}: Day & 52-Week Range with My Price">
-        <!-- 1. Day Range Sub-block -->
+      <div class="range-dual-widget" title="${h.symbol}: Day & 52-Week Range">
+        <!-- 1. Day Range Sub-block (Intraday Low to High) -->
         <div class="range-sub-row">
           <div class="range-header-line">
             <div class="range-badge-group">
               <span class="range-badge badge-day">DAY</span>
-              <span class="range-my-pill ${isProfit ? 'pill-profit' : 'pill-loss'}" title="My Avg Price: ${portfolioStore.formatMoney(myPrice)} ${isDayMyBelow ? '(Below Day Low)' : (isDayMyAbove ? '(Above Day High)' : '')}">
-                My: ${portfolioStore.formatMoney(myPrice)}
-              </span>
             </div>
             <div class="range-bounds-group">
               <span class="range-bound-val" title="Today's Low">L: ${portfolioStore.formatMoney(dayLow)}</span>
@@ -386,29 +383,23 @@ export class HoldingsView {
               <span class="range-bound-val" title="Today's High">H: ${portfolioStore.formatMoney(dayHigh)}</span>
             </div>
           </div>
-          <div class="range-bar-track" title="Day Low: ${portfolioStore.formatMoney(dayLow)} | CMP: ${portfolioStore.formatMoney(cmp)} | Day High: ${portfolioStore.formatMoney(dayHigh)} | My Price: ${portfolioStore.formatMoney(myPrice)}">
+          <div class="range-bar-track" title="Today's Range: Low ${portfolioStore.formatMoney(dayLow)} — High ${portfolioStore.formatMoney(dayHigh)} | CMP: ${portfolioStore.formatMoney(cmp)}">
             <div class="range-track-rail">
-              <div class="range-track-fill ${isProfit ? 'fill-profit' : 'fill-loss'}" style="left: ${dayFillLeft.toFixed(1)}%; width: ${dayFillWidth.toFixed(1)}%;"></div>
+              <div class="range-track-fill fill-day-cmp" style="left: 0; width: ${dayCmpPct.toFixed(1)}%;"></div>
             </div>
-            <!-- CMP Circle Pin -->
-            <div class="range-pin pin-cmp" style="left: ${dayCmpPct.toFixed(1)}%;" title="CMP (Live): ${portfolioStore.formatMoney(cmp)}">
+            <!-- CMP Circle Pin (Current Market Price on Day Range) -->
+            <div class="range-pin pin-cmp" style="left: ${dayCmpPct.toFixed(1)}%;" title="Current Price (CMP): ${portfolioStore.formatMoney(cmp)}">
               <span class="pin-marker-circle"></span>
-            </div>
-            <!-- My Price Diamond Pin -->
-            <div class="range-pin pin-my ${isProfit ? 'profit-pin' : 'loss-pin'}" 
-                 style="left: ${dayClampedMyPct.toFixed(1)}%;" 
-                 title="My Avg Price: ${portfolioStore.formatMoney(myPrice)} ${isDayMyBelow ? '(Below Day Low)' : (isDayMyAbove ? '(Above Day High)' : '')}">
-              <span class="pin-marker-diamond"></span>
             </div>
           </div>
         </div>
 
-        <!-- 2. 52-Week Range Sub-block -->
+        <!-- 2. 52-Week Range Sub-block (52W Low/High with My Price & CMP) -->
         <div class="range-sub-row">
           <div class="range-header-line">
             <div class="range-badge-group">
               <span class="range-badge badge-52w">52W</span>
-              <span class="range-my-pill ${isProfit ? 'pill-profit' : 'pill-loss'}" title="My Avg Price: ${portfolioStore.formatMoney(myPrice)} ${isW52MyBelow ? '(Below 52W Low)' : (isW52MyAbove ? '(Above 52W High)' : '')}">
+              <span class="range-my-pill ${isProfit ? 'pill-profit' : 'pill-loss'}" title="My Avg Buy Price: ${portfolioStore.formatMoney(myPrice)} ${isW52MyBelow ? '(Below 52W Low)' : (isW52MyAbove ? '(Above 52W High)' : '')}">
                 My: ${portfolioStore.formatMoney(myPrice)}
               </span>
             </div>
