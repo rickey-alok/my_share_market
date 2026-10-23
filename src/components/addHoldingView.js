@@ -53,7 +53,7 @@ export class AddHoldingView {
     this.render();
 
     this.unsubscribe = portfolioStore.subscribe((event) => {
-      if (event.type === 'HOLDING_ADDED' || event.type === 'TRANSACTION_RECORDED') {
+      if (event.type === 'HOLDING_ADDED' || event.type === 'TRANSACTION_RECORDED' || event.type === 'PORTFOLIO_RESET') {
         if (this.mode === 'single') {
           this.updateRecentTransactions();
         }

@@ -27,9 +27,14 @@ export class StockDetailView {
 
       if (event.type === 'PRICE_TICK') {
         this.handlePriceTick(event.tick);
-      } else if (event.type === 'HOLDING_DELETED' || (event.type === 'HOLDING_SOLD' && event.isFullExit)) {
-        if ((event.holding && event.holding.symbol === this.currentSymbol) || (event.soldHolding && event.soldHolding.symbol === this.currentSymbol) || event.symbol === this.currentSymbol) {
+      } else if (event.type === 'HOLDING_DELETED' || (event.type === 'HOLDING_SOLD' && event.isFullExit) || event.type === 'PORTFOLIO_RESET') {
+        const holding = portfolioStore.getHoldingBySymbol(this.currentSymbol);
+        if (!holding) {
           this.renderNotFound();
+        } else {
+          this.updateFinancialMetrics();
+          this.updateTransactionTable();
+          this.updateProjectedImpact();
         }
       } else {
         // Holding updated, trade added, or cloud sync

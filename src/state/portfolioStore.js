@@ -3,8 +3,8 @@ import { firebaseService } from '../services/firebase.js';
 import { authService } from '../services/authService.js';
 import { liveMarketService } from '../services/liveMarketService.js';
 
-const STORAGE_KEY_HOLDINGS = 'apex_portfolio_holdings_v1';
-const STORAGE_KEY_TRANSACTIONS = 'apex_portfolio_txs_v1';
+const STORAGE_KEY_GUEST_HOLDINGS = 'apna_share_guest_holdings_v1';
+const STORAGE_KEY_GUEST_TRANSACTIONS = 'apna_share_guest_txs_v1';
 const STORAGE_KEY_CURRENCY = 'apex_portfolio_currency_v1';
 const STORAGE_KEY_LIVE_FEED = 'apex_portfolio_live_feed_v1';
 
@@ -100,8 +100,6 @@ const DEFAULT_HOLDINGS = [
 class PortfolioStore {
   constructor() {
     this.subscribers = new Set();
-    this.holdings = this.loadHoldings();
-    this.transactions = this.loadTransactions();
     this.currency = 'INR';
     this.isLiveFeedActive = typeof localStorage !== 'undefined' ? localStorage.getItem(STORAGE_KEY_LIVE_FEED) !== 'false' : false;
     this.timer = null;
@@ -113,44 +111,130 @@ class PortfolioStore {
     this.firestoreUnsubscribeHoldings = null;
     this.firestoreUnsubscribeTransactions = null;
 
-    if (this.isLiveFeedActive && liveMarketService.isMarketOpen()) {
+    const initialUser = this.getActiveUser();
+    if (initialUser && !initialUser.isGuest && initialUser.uid) {
+      this.activeSyncedUserId = initialUser.uid;
+      let userHoldings = this.loadUserHoldings(initialUser.uid);
+      if (userHoldings.length === 0) {
+        try {
+          const legacy = localStorage.getItem('apex_portfolio_holdings_v1');
+          if (legacy) {
+            const parsed = JSON.parse(legacy);
+            if (Array.isArray(parsed) && parsed.length > 0) {
+              this.saveUserHoldings(initialUser.uid, parsed);
+              userHoldings = parsed;
+            }
+          }
+        } catch (e) {}
+      }
+      this.holdings = userHoldings;
+      this.transactions = this.loadUserTransactions(initialUser.uid);
+    } else {
+      this.holdings = this.loadGuestHoldings();
+      this.transactions = this.loadGuestTransactions();
+    }
+
+    if (this.isLiveFeedActive && liveMarketService.isMarketOpen() && this.holdings.length > 0) {
       this.startLiveSimulation();
     }
 
-    if (firebaseService.isConfigured) {
-      this.initFirestoreSync();
+    if (firebaseService.isConfigured && this.activeSyncedUserId) {
+      this.initFirestoreSync(this.activeSyncedUserId);
     }
 
     // Sync holding prices with latest market database
     this.syncWithMarketDatabase();
 
     // Automatically fetch real-time quotes on startup/refresh (non-blocking)
-    setTimeout(() => {
-      this.refreshMarketQuotes(true);
-    }, 150);
+    if (this.holdings.length > 0) {
+      setTimeout(() => {
+        this.refreshMarketQuotes(true);
+      }, 150);
+    }
 
     // Subscribe to live market auto-refresh interval ticks
     liveMarketService.subscribe((event) => {
-      if (event.type === 'AUTO_REFRESH_TICK') {
+      if (event.type === 'AUTO_REFRESH_TICK' && this.holdings.length > 0) {
         this.refreshMarketQuotes(true);
       }
     });
 
     // React automatically to login/logout events to switch user-scoped data
     authService.subscribe((event) => {
-      if (event.type === 'LOGIN_SUCCESS' || event.type === 'AUTH_STATE_CHANGED') {
-        const u = authService.getUser();
-        if (u && !u.isGuest) {
-          this.initFirestoreSync(u.uid);
+      const user = event.user || authService.getUser();
+      const isRegistered = user && !user.isGuest && Boolean(user.uid);
+
+      if (event.type === 'LOGIN_SUCCESS' || (event.type === 'AUTH_STATE_CHANGED' && isRegistered)) {
+        if (user && user.uid) {
+          this.handleUserLogin(user.uid);
         }
-      } else if (event.type === 'LOGOUT') {
-        this.activeSyncedUserId = null;
-        this.cleanupFirestoreSync();
-        this.holdings = this.loadHoldings();
-        this.transactions = this.loadTransactions();
-        this.notify({ type: 'PORTFOLIO_RESET' });
+      } else if (event.type === 'LOGOUT' || (event.type === 'AUTH_STATE_CHANGED' && !isRegistered && this.activeSyncedUserId)) {
+        this.handleUserLogout();
       }
     });
+  }
+
+  cleanLegacyStorage() {
+    try {
+      localStorage.removeItem('apex_portfolio_holdings_v1');
+      localStorage.removeItem('apex_portfolio_txs_v1');
+    } catch (e) {}
+  }
+
+  handleUserLogin(userId) {
+    if (!userId || userId === 'usr_local_guest') return;
+    if (this.activeSyncedUserId === userId && this.isCloudSyncing) return;
+
+    this.cleanupFirestoreSync();
+    this.activeSyncedUserId = userId;
+    this.isInspectingOtherUser = false;
+    this.inspectedUser = null;
+
+    // Migrate any legacy holdings into this user's private storage if needed
+    try {
+      const userKey = this.getUserHoldingsKey(userId);
+      const existing = localStorage.getItem(userKey);
+      if (!existing) {
+        const legacy = localStorage.getItem('apex_portfolio_holdings_v1');
+        if (legacy) {
+          localStorage.setItem(userKey, legacy);
+        }
+      }
+      const legacyTxs = localStorage.getItem('apex_portfolio_txs_v1');
+      if (legacyTxs && !localStorage.getItem(this.getUserTransactionsKey(userId))) {
+        localStorage.setItem(this.getUserTransactionsKey(userId), legacyTxs);
+      }
+      this.cleanLegacyStorage();
+    } catch (e) {}
+
+    // Load locally cached data for this specific user
+    this.holdings = this.loadUserHoldings(userId);
+    this.transactions = this.loadUserTransactions(userId);
+    this.notify({ type: 'PORTFOLIO_RESET' });
+
+    // Connect to Firestore sync for this user
+    this.initFirestoreSync(userId);
+  }
+
+  handleUserLogout() {
+    this.activeSyncedUserId = null;
+    this.isInspectingOtherUser = false;
+    this.inspectedUser = null;
+    this.cleanupFirestoreSync();
+
+    // Clean legacy storage and guest storage on logout so NO prior user data can linger
+    this.cleanLegacyStorage();
+    try {
+      localStorage.removeItem(STORAGE_KEY_GUEST_HOLDINGS);
+      localStorage.removeItem(STORAGE_KEY_GUEST_TRANSACTIONS);
+    } catch (e) {}
+
+    // Reset in-memory state to clean empty portfolio
+    this.holdings = [];
+    this.transactions = [];
+    this.stopLiveSimulation();
+
+    this.notify({ type: 'PORTFOLIO_RESET' });
   }
 
   getActiveUser() {
@@ -196,7 +280,7 @@ class PortfolioStore {
 
     this.cleanupFirestoreSync();
 
-    if (!effectiveUid) {
+    if (!effectiveUid || effectiveUid === 'usr_local_guest') {
       this.activeSyncedUserId = null;
       return;
     }
@@ -205,6 +289,8 @@ class PortfolioStore {
 
     // Listen to user-specific private holdings (/users/{userId}/holdings)
     this.firestoreUnsubscribeHoldings = firebaseService.listenToUserHoldings(effectiveUid, (cloudHoldings) => {
+      if (this.activeSyncedUserId !== effectiveUid) return;
+
       if (Array.isArray(cloudHoldings)) {
         if (cloudHoldings.length > 0) {
           let priceUpdated = false;
@@ -212,7 +298,7 @@ class PortfolioStore {
             const sym = (h.symbol || '').toUpperCase().trim();
             const ref = POPULAR_STOCKS.find(s => s.symbol.toUpperCase() === sym);
             if (ref && ref.cmp) {
-              // Only calibrate wildly obsolete prices (e.g. pre-split Reliance 2336 -> 1190 or Tata Motors 800 -> 396)
+              // Only calibrate wildly obsolete prices
               if (Math.abs(h.cmp - ref.cmp) / ref.cmp > 0.35) {
                 priceUpdated = true;
                 return { ...h, cmp: ref.cmp, prevClose: ref.prevClose || h.prevClose };
@@ -232,35 +318,22 @@ class PortfolioStore {
             }
           }
         } else {
-          // Cloud has 0 holdings: If this device has existing holdings, upload them to cloud
-          if (this.holdings && this.holdings.length > 0 && !this.isInspectingOtherUser) {
-            const u = this.getActiveUser();
-            for (const h of this.holdings) {
-              firebaseService.saveUserHolding(effectiveUid, h, u?.email);
-            }
-            this.notify({ type: 'CLOUD_SYNC_UPDATED' });
-          } else {
-            this.holdings = [];
-            this.saveHoldings(this.holdings);
-            this.notify({ type: 'CLOUD_SYNC_UPDATED' });
-          }
+          // Cloud has 0 holdings for this user
+          this.holdings = [];
+          this.saveHoldings(this.holdings);
+          this.notify({ type: 'CLOUD_SYNC_UPDATED' });
         }
       }
     });
 
     // Listen to user-specific private transactions (/users/{userId}/transactions)
     this.firestoreUnsubscribeTransactions = firebaseService.listenToUserTransactions(effectiveUid, (cloudTxs) => {
+      if (this.activeSyncedUserId !== effectiveUid) return;
+
       if (Array.isArray(cloudTxs)) {
-        if (cloudTxs.length > 0) {
-          this.transactions = cloudTxs;
-          this.saveTransactions(this.transactions);
-          this.notify({ type: 'CLOUD_TX_UPDATED' });
-        } else if (this.transactions && this.transactions.length > 0 && !this.isInspectingOtherUser) {
-          const u = this.getActiveUser();
-          for (const tx of this.transactions) {
-            firebaseService.recordUserTransaction(effectiveUid, tx, u?.email);
-          }
-        }
+        this.transactions = cloudTxs;
+        this.saveTransactions(this.transactions);
+        this.notify({ type: 'CLOUD_TX_UPDATED' });
       }
     });
 
@@ -300,11 +373,10 @@ class PortfolioStore {
     this.isInspectingOtherUser = false;
     this.inspectedUser = null;
     const activeUser = this.getActiveUser();
-    if (activeUser && !activeUser.isGuest) {
+    if (activeUser && !activeUser.isGuest && activeUser.uid) {
       this.initFirestoreSync(activeUser.uid);
     } else {
-      this.holdings = this.loadHoldings();
-      this.transactions = this.loadTransactions();
+      this.handleUserLogout();
     }
     this.notify({ type: 'ADMIN_EXIT_INSPECT' });
   }
@@ -317,41 +389,116 @@ class PortfolioStore {
     return success;
   }
 
-  loadHoldings() {
+  getUserHoldingsKey(uid) {
+    return `apna_share_user_holdings_${uid}`;
+  }
+
+  getUserTransactionsKey(uid) {
+    return `apna_share_user_txs_${uid}`;
+  }
+
+  loadUserHoldings(uid) {
+    if (!uid || uid === 'usr_local_guest') return [];
     try {
-      const data = localStorage.getItem(STORAGE_KEY_HOLDINGS);
+      const data = localStorage.getItem(this.getUserHoldingsKey(uid));
       if (data !== null) {
         const parsed = JSON.parse(data);
-        if (Array.isArray(parsed)) {
-          // If the user cleared or deleted all holdings, preserve empty array!
-          if (parsed.length === 0) {
-            return [];
-          }
-          // Sync any outdated prices from POPULAR_STOCKS
-          let pricesCalibrated = false;
-          const updated = parsed.map(h => {
-            const sym = (h.symbol || '').toUpperCase().trim();
-            const ref = POPULAR_STOCKS.find(s => s.symbol.toUpperCase() === sym);
-            if (ref && ref.cmp) {
-              if (Math.abs(h.cmp - ref.cmp) / ref.cmp > 0.35) {
-                pricesCalibrated = true;
-                return { ...h, cmp: ref.cmp, prevClose: ref.prevClose || h.prevClose };
-              }
-            }
-            return h;
-          });
-          if (pricesCalibrated) {
-            this.saveHoldings(updated);
-          }
-          return updated;
-        }
+        if (Array.isArray(parsed)) return parsed;
       }
     } catch (e) {
-      console.error('Failed to load holdings from localStorage', e);
+      console.error('Failed to load user holdings from localStorage', e);
     }
-    // Return default seed holdings ONLY on the very first visit (data === null)
-    this.saveHoldings(DEFAULT_HOLDINGS);
-    return DEFAULT_HOLDINGS;
+    return [];
+  }
+
+  saveUserHoldings(uid, holdings) {
+    if (!uid || uid === 'usr_local_guest') return;
+    try {
+      localStorage.setItem(this.getUserHoldingsKey(uid), JSON.stringify(holdings));
+    } catch (e) {
+      console.error('Failed to save user holdings to localStorage', e);
+    }
+  }
+
+  loadUserTransactions(uid) {
+    if (!uid || uid === 'usr_local_guest') return [];
+    try {
+      const data = localStorage.getItem(this.getUserTransactionsKey(uid));
+      if (data !== null) {
+        const parsed = JSON.parse(data);
+        if (Array.isArray(parsed)) return parsed;
+      }
+    } catch (e) {
+      console.error('Failed to load user transactions from localStorage', e);
+    }
+    return [];
+  }
+
+  saveUserTransactions(uid, transactions) {
+    if (!uid || uid === 'usr_local_guest') return;
+    try {
+      localStorage.setItem(this.getUserTransactionsKey(uid), JSON.stringify(transactions));
+    } catch (e) {
+      console.error('Failed to save user transactions to localStorage', e);
+    }
+  }
+
+  loadGuestHoldings() {
+    try {
+      const data = localStorage.getItem(STORAGE_KEY_GUEST_HOLDINGS);
+      if (data !== null) {
+        const parsed = JSON.parse(data);
+        if (Array.isArray(parsed)) return parsed;
+      }
+    } catch (e) {
+      console.error('Failed to load guest holdings from localStorage', e);
+    }
+    return [];
+  }
+
+  saveGuestHoldings(holdings) {
+    try {
+      localStorage.setItem(STORAGE_KEY_GUEST_HOLDINGS, JSON.stringify(holdings));
+    } catch (e) {
+      console.error('Failed to save guest holdings to localStorage', e);
+    }
+  }
+
+  loadGuestTransactions() {
+    try {
+      const data = localStorage.getItem(STORAGE_KEY_GUEST_TRANSACTIONS);
+      if (data !== null) {
+        const parsed = JSON.parse(data);
+        if (Array.isArray(parsed)) return parsed;
+      }
+    } catch (e) {
+      console.error('Failed to load guest transactions from localStorage', e);
+    }
+    return [];
+  }
+
+  saveGuestTransactions(transactions) {
+    try {
+      localStorage.setItem(STORAGE_KEY_GUEST_TRANSACTIONS, JSON.stringify(transactions));
+    } catch (e) {
+      console.error('Failed to save guest transactions to localStorage', e);
+    }
+  }
+
+  loadHoldings() {
+    const uid = this.getActiveUserId();
+    if (uid && uid !== 'usr_local_guest') {
+      return this.loadUserHoldings(uid);
+    }
+    return this.loadGuestHoldings();
+  }
+
+  loadTransactions() {
+    const uid = this.getActiveUserId();
+    if (uid && uid !== 'usr_local_guest') {
+      return this.loadUserTransactions(uid);
+    }
+    return this.loadGuestTransactions();
   }
 
   // Synchronize active holdings with the latest real market prices
@@ -427,43 +574,20 @@ class PortfolioStore {
   }
 
   saveHoldings(holdings) {
-    try {
-      localStorage.setItem(STORAGE_KEY_HOLDINGS, JSON.stringify(holdings));
-    } catch (e) {
-      console.error('Failed to save holdings to localStorage', e);
+    const uid = this.getActiveUserId();
+    if (uid && uid !== 'usr_local_guest' && !this.isInspectingOtherUser) {
+      this.saveUserHoldings(uid, holdings);
+    } else if (!this.isInspectingOtherUser) {
+      this.saveGuestHoldings(holdings);
     }
-  }
-
-  loadTransactions() {
-    try {
-      const data = localStorage.getItem(STORAGE_KEY_TRANSACTIONS);
-      if (data) {
-        return JSON.parse(data);
-      }
-    } catch (e) {
-      console.error('Failed to load transactions', e);
-    }
-    // Seed initial transactions matching defaults
-    const initialTxs = DEFAULT_HOLDINGS.map((h, idx) => ({
-      id: `tx_${idx + 1}`,
-      holdingId: h.id,
-      symbol: h.symbol,
-      type: 'BUY',
-      quantity: h.quantity,
-      price: h.avgPrice,
-      date: h.buyDate,
-      totalAmount: h.quantity * h.avgPrice,
-      notes: h.notes || 'Initial holding purchase'
-    }));
-    this.saveTransactions(initialTxs);
-    return initialTxs;
   }
 
   saveTransactions(transactions) {
-    try {
-      localStorage.setItem(STORAGE_KEY_TRANSACTIONS, JSON.stringify(transactions));
-    } catch (e) {
-      console.error('Failed to save transactions', e);
+    const uid = this.getActiveUserId();
+    if (uid && uid !== 'usr_local_guest' && !this.isInspectingOtherUser) {
+      this.saveUserTransactions(uid, transactions);
+    } else if (!this.isInspectingOtherUser) {
+      this.saveGuestTransactions(transactions);
     }
   }
 

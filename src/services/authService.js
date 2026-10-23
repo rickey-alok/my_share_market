@@ -215,16 +215,7 @@ class AuthService {
     const provider = new GoogleAuthProvider();
     provider.setCustomParameters({ prompt: 'select_account' });
 
-    // Check if running on mobile device / small viewport where popups are frequently blocked
-    const isMobileDevice = /Android|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) || (window.innerWidth <= 768);
-
     try {
-      if (isMobileDevice) {
-        // Direct redirect on mobile avoids aggressive mobile popup blockers
-        await signInWithRedirect(this.auth, provider);
-        return null;
-      }
-
       const result = await signInWithPopup(this.auth, provider);
       const user = result.user;
       const email = (user.email || '').toLowerCase().trim();
