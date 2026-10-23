@@ -83,7 +83,7 @@ class PortfolioStore {
     this.holdings = this.loadHoldings();
     this.transactions = this.loadTransactions();
     this.currency = 'INR';
-    this.isLiveFeedActive = localStorage.getItem(STORAGE_KEY_LIVE_FEED) !== 'false';
+    this.isLiveFeedActive = typeof localStorage !== 'undefined' ? localStorage.getItem(STORAGE_KEY_LIVE_FEED) !== 'false' : false;
     this.timer = null;
     this.lastTickSymbol = null;
     this.isCloudSyncing = false;
@@ -93,7 +93,7 @@ class PortfolioStore {
     this.firestoreUnsubscribeHoldings = null;
     this.firestoreUnsubscribeTransactions = null;
 
-    if (this.isLiveFeedActive) {
+    if (this.isLiveFeedActive && liveMarketService.isMarketOpen()) {
       this.startLiveSimulation();
     }
 
@@ -870,18 +870,30 @@ class PortfolioStore {
     };
   }
 
-  // Realistic Market Simulation (price fluctuations)
+  // Realistic Market Simulation (price fluctuations - active market hours only)
   startLiveSimulation() {
-    if (this.timer) clearInterval(this.timer);
+    this.stopLiveSimulation();
+
+    // STRICT RULE: Prices MUST NEVER fluctuate outside market hours (nights, weekends, or closed sessions)
+    if (!liveMarketService.isMarketOpen()) {
+      return;
+    }
+
     this.timer = setInterval(() => {
+      // If market session closes while tab is open, stop fluctuations immediately
+      if (!liveMarketService.isMarketOpen()) {
+        this.stopLiveSimulation();
+        return;
+      }
+
       if (!this.isLiveFeedActive || this.holdings.length === 0) return;
 
       // Pick a random holding to fluctuate
       const randomIndex = Math.floor(Math.random() * this.holdings.length);
       const target = this.holdings[randomIndex];
 
-      // Realistic tick between -0.35% and +0.35%
-      const deltaPercent = (Math.random() * 0.7 - 0.35) / 100;
+      // Realistic tick between -0.20% and +0.20%
+      const deltaPercent = (Math.random() * 0.40 - 0.20) / 100;
       const oldPrice = target.cmp;
       const newPrice = Math.max(1, parseFloat((oldPrice * (1 + deltaPercent)).toFixed(2)));
 
@@ -896,7 +908,7 @@ class PortfolioStore {
         this.saveHoldings(this.holdings);
         this.notify({ type: 'PRICE_TICK', tick: this.lastTickSymbol });
       }
-    }, 2800);
+    }, 3200);
   }
 
   stopLiveSimulation() {
@@ -909,7 +921,7 @@ class PortfolioStore {
   toggleLiveFeed() {
     this.isLiveFeedActive = !this.isLiveFeedActive;
     localStorage.setItem(STORAGE_KEY_LIVE_FEED, this.isLiveFeedActive);
-    if (this.isLiveFeedActive) {
+    if (this.isLiveFeedActive && liveMarketService.isMarketOpen()) {
       this.startLiveSimulation();
     } else {
       this.stopLiveSimulation();

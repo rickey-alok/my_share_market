@@ -8,6 +8,7 @@ import { StockDetailView } from './components/stockDetailView.js';
 import { AnalysisView } from './components/analysisView.js';
 import { ProfileModal } from './components/profileModal.js';
 import { authService } from './services/authService.js';
+import { liveMarketService } from './services/liveMarketService.js';
 
 if (typeof window !== 'undefined') {
   window.authService = authService;
@@ -236,11 +237,20 @@ class App {
 
     const updateLiveUI = (isActive) => {
       if (!btnToggle) return;
+      const isOpen = liveMarketService.isMarketOpen();
+      if (!isOpen) {
+        btnToggle.classList.add('inactive');
+        btnToggle.setAttribute('title', 'Market is currently closed (Mon–Fri 9:15 AM – 3:30 PM IST). Prices are stable.');
+        if (textLabel) textLabel.textContent = 'CLOSED';
+        return;
+      }
       if (isActive) {
         btnToggle.classList.remove('inactive');
+        btnToggle.setAttribute('title', 'Live Market Feed Active');
         if (textLabel) textLabel.textContent = 'LIVE';
       } else {
         btnToggle.classList.add('inactive');
+        btnToggle.setAttribute('title', 'Market Feed Paused');
         if (textLabel) textLabel.textContent = 'PAUSED';
       }
     };
@@ -252,11 +262,18 @@ class App {
         updateLiveUI(active);
       });
     }
+
+    // Refresh status every minute in case market session opens or closes
+    setInterval(() => {
+      updateLiveUI(portfolioStore.isLiveFeedActive);
+    }, 60000);
   }
 
   setupTickerSimulation() {
-    // Subtle ticker fluctuation for market atmosphere
+    // Only fluctuate during active market trading hours; NEVER outside market hours / nights / weekends
     setInterval(() => {
+      if (!liveMarketService.isMarketOpen()) return;
+
       const tickerTrack = document.getElementById('global-ticker-track');
       if (!tickerTrack) return;
       const items = tickerTrack.querySelectorAll('.ticker-item');
@@ -267,7 +284,6 @@ class App {
       const chgEl = target.querySelector('.ticker-chg');
       if (!chgEl) return;
 
-      // Small random delta
       const isUp = Math.random() > 0.45;
       const delta = (Math.random() * 0.15).toFixed(2);
       if (isUp) {

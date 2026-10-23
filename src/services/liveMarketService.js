@@ -465,6 +465,8 @@ class LiveMarketService {
     this.autoRefreshTimer = setInterval(() => {
       // Only poll automatically if the document is active and visible
       if (typeof document !== 'undefined' && document.hidden) return;
+      // Do not auto-poll continuously outside market hours (nights/weekends)
+      if (!this.isMarketOpen()) return;
       this.notify({ type: 'AUTO_REFRESH_TICK' });
     }, intervalMs);
 
