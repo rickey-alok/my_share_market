@@ -229,8 +229,18 @@ body::after {
   border: 1px solid rgba(99, 102, 241, 0.35);
   border-radius: var(--radius-full);
   color: var(--brand-indigo-light);
+  -webkit-text-fill-color: currentColor;
   letter-spacing: 0.05em;
   text-transform: uppercase;
+  display: inline-flex;
+  align-items: center;
+}
+
+[data-theme="light"] .brand-badge {
+  background: rgba(99, 102, 241, 0.12);
+  border-color: rgba(99, 102, 241, 0.28);
+  color: var(--brand-indigo);
+  -webkit-text-fill-color: var(--brand-indigo);
 }
 
 /* Nav Tabs (Desktop) */
@@ -2988,7 +2998,8 @@ body::after {
     gap: 0.75rem;
   }
   .brand-badge {
-    display: none;
+    font-size: 0.62rem;
+    padding: 0.14rem 0.45rem;
   }
   .nav-tabs {
     gap: 0.2rem;
@@ -3033,7 +3044,10 @@ body::after {
     font-size: 1.05rem;
   }
   .brand-badge {
-    display: none; /* Hide 'CALCULATOR' pill on mobile to prevent header squishing */
+    display: inline-flex;
+    font-size: 0.58rem;
+    padding: 0.12rem 0.42rem;
+    letter-spacing: 0.04em;
   }
   .nav-tabs {
     display: none; /* Replaced by bottom nav */
