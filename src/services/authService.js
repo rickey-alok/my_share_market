@@ -2,6 +2,8 @@
 import { 
   getAuth, 
   signInWithPopup, 
+  signInWithRedirect,
+  getRedirectResult,
   GoogleAuthProvider, 
   signInWithEmailAndPassword, 
   createUserWithEmailAndPassword, 
@@ -58,6 +60,33 @@ class AuthService {
     try {
       if (firebaseService.app) {
         this.auth = getAuth(firebaseService.app);
+
+        // Capture redirect login result on mobile browsers
+        getRedirectResult(this.auth).then((result) => {
+          if (result && result.user) {
+            const user = result.user;
+            const email = (user.email || '').toLowerCase().trim();
+            const isAdminUser = ADMIN_EMAILS.includes(email);
+            this.currentUser = {
+              uid: user.uid,
+              displayName: user.displayName || user.email.split('@')[0],
+              email: user.email,
+              photoURL: user.photoURL || null,
+              role: isAdminUser ? 'Master Administrator' : 'Verified Google Investor',
+              accountTier: isAdminUser ? 'Platform Admin' : 'Google Cloud Verified',
+              isAdmin: isAdminUser,
+              joinedDate: new Date(user.metadata?.creationTime || Date.now()).toLocaleDateString('en-IN', { month: 'short', year: 'numeric' }),
+              isGuest: false,
+              provider: 'google.com'
+            };
+            this.saveUser(this.currentUser);
+            firebaseService.saveUserProfile(this.currentUser);
+            this.notify({ type: 'LOGIN_SUCCESS', user: this.currentUser });
+          }
+        }).catch((err) => {
+          console.warn('Redirect sign-in resolution error:', err);
+        });
+
         onAuthStateChanged(this.auth, (firebaseUser) => {
           if (firebaseUser) {
             const email = (firebaseUser.email || '').toLowerCase().trim();
@@ -183,9 +212,19 @@ class AuthService {
     if (!this.auth) {
       throw new Error('Firebase Auth is not initialized. Please ensure your internet connection is active.');
     }
+    const provider = new GoogleAuthProvider();
+    provider.setCustomParameters({ prompt: 'select_account' });
+
+    // Check if running on mobile device / small viewport where popups are frequently blocked
+    const isMobileDevice = /Android|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) || (window.innerWidth <= 768);
+
     try {
-      const provider = new GoogleAuthProvider();
-      provider.setCustomParameters({ prompt: 'select_account' });
+      if (isMobileDevice) {
+        // Direct redirect on mobile avoids aggressive mobile popup blockers
+        await signInWithRedirect(this.auth, provider);
+        return null;
+      }
+
       const result = await signInWithPopup(this.auth, provider);
       const user = result.user;
       const email = (user.email || '').toLowerCase().trim();
@@ -208,6 +247,17 @@ class AuthService {
       return this.currentUser;
     } catch (error) {
       console.error('Google Sign-In Error:', error);
+
+      // If popup was blocked by browser, seamlessly fallback to redirect
+      if (error.code === 'auth/popup-blocked' || error.code === 'auth/cancelled-popup-request') {
+        try {
+          await signInWithRedirect(this.auth, provider);
+          return null;
+        } catch (redirectErr) {
+          throw new Error('Google sign-in was blocked. Please enable popups or tap Continue.');
+        }
+      }
+
       let friendlyMsg = error.message;
       if (error.code === 'auth/popup-closed-by-user') {
         friendlyMsg = 'Google sign-in popup was closed before completion. Please try again.';

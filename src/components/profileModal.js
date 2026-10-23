@@ -231,7 +231,12 @@ export class ProfileModal {
               ? 'You have master administrative access across the platform. You can inspect any user\'s portfolio or manage your own data.' 
               : 'Your portfolio holdings, buy/sell transactions, and customized settings are securely isolated and linked only to your Google account.'}
           </p>
-          <div style="display: flex; gap: 0.75rem; margin-top: 1.5rem;">
+          <div style="display: flex; gap: 0.75rem; margin-top: 1.5rem; flex-wrap: wrap;">
+            <!-- Force Cloud Sync Button -->
+            <button type="button" class="btn btn-primary btn-sm" id="btn-force-cloud-sync" style="display: inline-flex; align-items: center; gap: 0.55rem; padding: 0.65rem 1.25rem; font-weight: 700; font-size: 0.9rem;">
+              <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17.5 19H9a7 7 0 1 1 6.71-9h1.79a4.5 4.5 0 1 1 0 9Z"></path></svg>
+              <span>Sync All to Cloud Now</span>
+            </button>
             <!-- Prominent Log Out Button for Registered User -->
             <button type="button" class="btn btn-outline btn-sm btn-danger-soft" id="btn-auth-logout" style="display: inline-flex; align-items: center; gap: 0.55rem; padding: 0.65rem 1.5rem; font-weight: 700; font-size: 0.9rem;">
               ${icons.logOut}
@@ -584,6 +589,25 @@ export class ProfileModal {
       btnLogout.addEventListener('click', async () => {
         await authService.logout();
         this.render();
+      });
+    }
+
+    // Force Cloud Sync Button
+    const btnForceCloudSync = this.container.querySelector('#btn-force-cloud-sync');
+    if (btnForceCloudSync) {
+      btnForceCloudSync.addEventListener('click', async () => {
+        try {
+          btnForceCloudSync.disabled = true;
+          btnForceCloudSync.textContent = 'Syncing...';
+          await portfolioStore.syncHoldingsToCloud();
+          const user = authService.getUser();
+          alert(`✅ Successfully synced ${portfolioStore.holdings.length} stocks to your cloud account! Any device (phone or laptop) signed into ${user.email} will now display the exact same shares.`);
+        } catch (err) {
+          alert('Sync error: ' + err.message);
+        } finally {
+          btnForceCloudSync.disabled = false;
+          btnForceCloudSync.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17.5 19H9a7 7 0 1 1 6.71-9h1.79a4.5 4.5 0 1 1 0 9Z"></path></svg> <span>Sync All to Cloud Now</span>`;
+        }
       });
     }
 

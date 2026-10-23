@@ -1,6 +1,7 @@
 // Dashboard View Component (Page 1)
 import { portfolioStore } from '../state/portfolioStore.js';
 import { liveMarketService } from '../services/liveMarketService.js';
+import { authService } from '../services/authService.js';
 import { icons } from '../utils/icons.js';
 import { SECTORS } from '../data/stocksDatabase.js';
 import Chart from 'chart.js/auto';
@@ -27,6 +28,11 @@ export class DashboardView {
     this.unsubscribe = portfolioStore.subscribe((event) => {
       this.update(event);
     });
+
+    // Subscribe to auth updates to toggle guest banner
+    authService.subscribe(() => {
+      this.updateGuestBanner();
+    });
   }
 
   renderSkeleton() {
@@ -49,6 +55,18 @@ export class DashboardView {
           <button id="btn-quick-add" class="btn btn-primary btn-sm">
             ${icons.plus}
             <span>Add Holdings</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- Cloud Sync Notice Banner for Guest / Offline Mode -->
+      <div id="guest-mode-banner" class="guest-mode-banner" style="display: none;">
+        <div class="guest-banner-content">
+          <div class="guest-banner-text">
+            <strong>Viewing Offline / Demo Shares:</strong> Sign in with Google to synchronize your actual portfolio across your mobile phone and laptop.
+          </div>
+          <button type="button" class="btn btn-primary btn-sm" id="btn-banner-login-google" style="font-size: 0.82rem; padding: 0.45rem 0.95rem; white-space: nowrap;">
+            Sign In with Google
           </button>
         </div>
       </div>
@@ -142,6 +160,23 @@ export class DashboardView {
   }
 
   attachEventListeners() {
+    // Banner Login Button
+    const btnBannerLogin = this.container.querySelector('#btn-banner-login-google');
+    if (btnBannerLogin) {
+      btnBannerLogin.addEventListener('click', async () => {
+        try {
+          btnBannerLogin.disabled = true;
+          btnBannerLogin.textContent = 'Connecting...';
+          await authService.loginWithGoogle();
+        } catch (err) {
+          alert(err.message);
+        } finally {
+          btnBannerLogin.disabled = false;
+          btnBannerLogin.textContent = 'Sign In with Google';
+        }
+      });
+    }
+
     // Quick Add Button
     const btnQuickAdd = this.container.querySelector('#btn-quick-add');
     if (btnQuickAdd) {
@@ -290,11 +325,19 @@ export class DashboardView {
   }
 
   update(event = {}) {
+    this.updateGuestBanner();
     const metrics = portfolioStore.getPortfolioMetrics();
     this.renderKPIs(metrics);
     this.renderChart(metrics);
     this.renderSectorList(metrics);
     this.renderHoldingsTableAndCards(metrics, event);
+  }
+
+  updateGuestBanner() {
+    const banner = this.container.querySelector('#guest-mode-banner');
+    if (!banner) return;
+    const user = authService.getUser();
+    banner.style.display = (user && user.isGuest) ? 'block' : 'none';
   }
 
   renderKPIs(metrics) {

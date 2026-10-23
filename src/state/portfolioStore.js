@@ -186,28 +186,43 @@ class PortfolioStore {
     // Listen to user-specific private holdings (/users/{userId}/holdings)
     this.firestoreUnsubscribeHoldings = firebaseService.listenToUserHoldings(effectiveUid, (cloudHoldings) => {
       if (Array.isArray(cloudHoldings)) {
-        let priceUpdated = false;
-        const calibrated = cloudHoldings.map(h => {
-          const sym = (h.symbol || '').toUpperCase().trim();
-          const ref = POPULAR_STOCKS.find(s => s.symbol.toUpperCase() === sym);
-          if (ref && ref.cmp) {
-            // Calibrate outdated price (e.g. Reliance 2336 -> 1202)
-            if (Math.abs(h.cmp - ref.cmp) > 2) {
-              priceUpdated = true;
-              return { ...h, cmp: ref.cmp, prevClose: ref.prevClose || h.prevClose };
+        if (cloudHoldings.length > 0) {
+          let priceUpdated = false;
+          const calibrated = cloudHoldings.map(h => {
+            const sym = (h.symbol || '').toUpperCase().trim();
+            const ref = POPULAR_STOCKS.find(s => s.symbol.toUpperCase() === sym);
+            if (ref && ref.cmp) {
+              // Calibrate outdated price (e.g. Reliance 2336 -> 1202)
+              if (Math.abs(h.cmp - ref.cmp) > 2) {
+                priceUpdated = true;
+                return { ...h, cmp: ref.cmp, prevClose: ref.prevClose || h.prevClose };
+              }
+            }
+            return h;
+          });
+
+          this.holdings = calibrated;
+          this.saveHoldings(this.holdings);
+          this.notify({ type: 'CLOUD_SYNC_UPDATED' });
+
+          if (priceUpdated && !this.isInspectingOtherUser) {
+            const u = this.getActiveUser();
+            for (const h of this.holdings) {
+              firebaseService.saveUserHolding(effectiveUid, h, u?.email);
             }
           }
-          return h;
-        });
-
-        this.holdings = calibrated;
-        this.saveHoldings(this.holdings);
-        this.notify({ type: 'CLOUD_SYNC_UPDATED' });
-
-        if (priceUpdated && !this.isInspectingOtherUser) {
-          const u = this.getActiveUser();
-          for (const h of this.holdings) {
-            firebaseService.saveUserHolding(effectiveUid, h, u?.email);
+        } else {
+          // Cloud has 0 holdings: If this device has existing holdings, upload them to cloud
+          if (this.holdings && this.holdings.length > 0 && !this.isInspectingOtherUser) {
+            const u = this.getActiveUser();
+            for (const h of this.holdings) {
+              firebaseService.saveUserHolding(effectiveUid, h, u?.email);
+            }
+            this.notify({ type: 'CLOUD_SYNC_UPDATED' });
+          } else {
+            this.holdings = [];
+            this.saveHoldings(this.holdings);
+            this.notify({ type: 'CLOUD_SYNC_UPDATED' });
           }
         }
       }
@@ -216,9 +231,16 @@ class PortfolioStore {
     // Listen to user-specific private transactions (/users/{userId}/transactions)
     this.firestoreUnsubscribeTransactions = firebaseService.listenToUserTransactions(effectiveUid, (cloudTxs) => {
       if (Array.isArray(cloudTxs)) {
-        this.transactions = cloudTxs;
-        this.saveTransactions(this.transactions);
-        this.notify({ type: 'CLOUD_TX_UPDATED' });
+        if (cloudTxs.length > 0) {
+          this.transactions = cloudTxs;
+          this.saveTransactions(this.transactions);
+          this.notify({ type: 'CLOUD_TX_UPDATED' });
+        } else if (this.transactions && this.transactions.length > 0 && !this.isInspectingOtherUser) {
+          const u = this.getActiveUser();
+          for (const tx of this.transactions) {
+            firebaseService.recordUserTransaction(effectiveUid, tx, u?.email);
+          }
+        }
       }
     });
 
@@ -1003,6 +1025,20 @@ class PortfolioStore {
     }
 
     this.notify({ type: 'DATA_CLEARED' });
+  }
+
+  // Manually push all active holdings to Firestore cloud
+  async syncHoldingsToCloud() {
+    if (!firebaseService.isConfigured || this.isInspectingOtherUser) return false;
+    const uid = this.getActiveUserId();
+    const u = this.getActiveUser();
+    if (!uid || uid === 'usr_local_guest') return false;
+
+    for (const h of this.holdings) {
+      await firebaseService.saveUserHolding(uid, h, u?.email);
+    }
+    this.notify({ type: 'CLOUD_SYNC_UPDATED' });
+    return true;
   }
 }
 

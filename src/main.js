@@ -412,31 +412,54 @@ class App {
     const nameEl = document.getElementById('header-user-name');
     const badgeEl = document.getElementById('header-user-badge');
 
+    const mobProfileLabel = document.getElementById('mob-profile-label');
+
     const updateHeaderUser = (user) => {
       if (!user) user = authService.getUser();
-      if (nameEl) nameEl.textContent = user.displayName || 'Investor';
-      if (badgeEl) {
-        if (user.isAdmin) {
-          badgeEl.textContent = 'Admin';
-          badgeEl.style.background = 'rgba(245, 158, 11, 0.2)';
+      const isGuest = !user || user.isGuest;
+
+      if (isGuest) {
+        if (nameEl) nameEl.textContent = 'Guest Trader';
+        if (badgeEl) {
+          badgeEl.textContent = 'Sign In';
+          badgeEl.style.background = 'rgba(245, 158, 11, 0.15)';
           badgeEl.style.color = 'var(--accent-amber)';
-          badgeEl.style.borderColor = 'rgba(245, 158, 11, 0.4)';
-        } else {
-          badgeEl.textContent = user.isGuest ? 'Demo' : 'Pro';
-          badgeEl.style.background = '';
-          badgeEl.style.color = '';
-          badgeEl.style.borderColor = '';
+          badgeEl.style.borderColor = 'rgba(245, 158, 11, 0.35)';
         }
-      }
-      if (avatarEl) {
-        if (user.photoURL) {
-          avatarEl.innerHTML = `<img src="${user.photoURL}" alt="${user.displayName}" class="user-avatar-mini-img">`;
-        } else {
-          const parts = (user.displayName || 'IN').trim().split(' ');
-          const initials = parts.length >= 2 
-            ? (parts[0][0] + parts[parts.length - 1][0]).toUpperCase()
-            : (user.displayName || 'IN').slice(0, 2).toUpperCase();
-          avatarEl.innerHTML = `<span>${initials}</span>`;
+        if (avatarEl) {
+          avatarEl.innerHTML = `<span style="font-size: 0.7rem; font-weight: 700;">GUEST</span>`;
+        }
+        if (mobProfileLabel) {
+          mobProfileLabel.textContent = 'Sign In';
+        }
+      } else {
+        if (nameEl) nameEl.textContent = user.displayName || (user.email ? user.email.split('@')[0] : 'Investor');
+        if (badgeEl) {
+          if (user.isAdmin) {
+            badgeEl.textContent = 'Admin';
+            badgeEl.style.background = 'rgba(245, 158, 11, 0.2)';
+            badgeEl.style.color = 'var(--accent-amber)';
+            badgeEl.style.borderColor = 'rgba(245, 158, 11, 0.4)';
+          } else {
+            badgeEl.textContent = 'Cloud Synced';
+            badgeEl.style.background = 'rgba(16, 185, 129, 0.15)';
+            badgeEl.style.color = 'var(--bull-green)';
+            badgeEl.style.borderColor = 'rgba(16, 185, 129, 0.35)';
+          }
+        }
+        if (avatarEl) {
+          if (user.photoURL) {
+            avatarEl.innerHTML = `<img src="${user.photoURL}" alt="${user.displayName}" class="user-avatar-mini-img">`;
+          } else {
+            const parts = (user.displayName || 'IN').trim().split(' ');
+            const initials = parts.length >= 2 
+              ? (parts[0][0] + parts[parts.length - 1][0]).toUpperCase()
+              : (user.displayName || 'IN').slice(0, 2).toUpperCase();
+            avatarEl.innerHTML = `<span>${initials}</span>`;
+          }
+        }
+        if (mobProfileLabel) {
+          mobProfileLabel.textContent = 'Profile';
         }
       }
     };
