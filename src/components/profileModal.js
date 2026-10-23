@@ -577,7 +577,7 @@ export class ProfileModal {
               </div>
               <h5 class="dropzone-title">Click to upload or drag & drop your file</h5>
               <p class="dropzone-desc">
-                Supports Excel (.xlsx, .xls), CSV (.csv), or JSON (.json) files from Zerodha Kite, Groww, AngelOne, Upstox, or custom spreadsheet.
+                Supports Excel (.xlsx, .xls), CSV (.csv), or JSON (.json) files from Invest Right, Zerodha Kite, Groww, AngelOne, Upstox, or custom spreadsheet.
               </p>
               <button type="button" class="btn btn-primary btn-sm" id="btn-browse-bulk-file">
                 Select File from Device
@@ -638,12 +638,13 @@ export class ProfileModal {
                     <th>Exch</th>
                     <th style="text-align: right;">Qty</th>
                     <th style="text-align: right;">Buy Price</th>
+                    <th style="text-align: right;">LTP / CMP</th>
                     <th style="text-align: right;">Total Amount</th>
                     <th style="text-align: center;">Action</th>
                   </tr>
                 </thead>
                 <tbody>
-                  ${this.parsedImport.validItems.slice(0, 25).map(item => {
+                  ${this.parsedImport.validItems.slice(0, 30).map(item => {
                     const isExisting = portfolioStore.holdings.some(h => h.symbol.toUpperCase() === item.symbol);
                     return `
                       <tr>
@@ -652,6 +653,7 @@ export class ProfileModal {
                         <td><span class="exchange-tag">${item.exchange}</span></td>
                         <td class="mono text-right">${item.quantity.toLocaleString()}</td>
                         <td class="mono text-right">${portfolioStore.formatMoney(item.buyPrice)}</td>
+                        <td class="mono text-right" style="color: var(--accent-gold);">${portfolioStore.formatMoney(item.cmp)}</td>
                         <td class="mono text-right" style="font-weight: 700;">${portfolioStore.formatMoney(item.quantity * item.buyPrice)}</td>
                         <td style="text-align: center;">
                           <span class="badge-action ${isExisting && this.importMode === 'merge' ? 'action-average' : 'action-new'}">
@@ -663,8 +665,8 @@ export class ProfileModal {
                   }).join('')}
                 </tbody>
               </table>
-              ${this.parsedImport.validItems.length > 25 ? `
-                <div class="preview-more-hint">...and ${this.parsedImport.validItems.length - 25} more stocks will be imported</div>
+              ${this.parsedImport.validItems.length > 30 ? `
+                <div class="preview-more-hint">...and ${this.parsedImport.validItems.length - 30} more stocks will be imported</div>
               ` : ''}
             </div>
 
