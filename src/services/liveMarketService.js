@@ -38,12 +38,45 @@ function setStoredItem(key, val) {
   } catch (e) {}
 }
 
+// Fast dictionary of common Indian NSE/BSE symbols to their Moneycontrol scrip identifiers
+const SCRIP_MAP = {
+  'RELIANCE': 'RI',
+  'TCS': 'TCS',
+  'HDFCBANK': 'HDF01',
+  'INFY': 'IT',
+  'TATAMOTORS': 'TML02',
+  'TMCV': 'TML02',
+  'TMPV': 'TMPV',
+  'ICICIBANK': 'ICI02',
+  'ITC': 'ITC',
+  'BHARTIARTL': 'BTV',
+  'LT': 'LT',
+  'SUNPHARMA': 'SPI',
+  'BAJFINANCE': 'BAF',
+  'ZOMATO': 'Z01',
+  'ETERNAL': 'Z01',
+  'SBIN': 'SBI',
+  'KOTAKBANK': 'KMF',
+  'MARUTI': 'MU01',
+  'WIPRO': 'W',
+  'HCLTECH': 'HCL02',
+  'AXISBANK': 'UTI10',
+  'TITAN': 'TI01',
+  'ASIANPAINT': 'API',
+  'TATASTEEL': 'TIS',
+  'NTPC': 'NTP',
+  'ONGC': 'ONG',
+  'COALINDIA': 'CI29'
+};
+
 class LiveMarketService {
   constructor() {
     this.customProxyUrl = getStoredItem(STORAGE_KEY_CUSTOM_PROXY, '') || (typeof import.meta !== 'undefined' && import.meta.env?.VITE_MARKET_PROXY_URL) || '';
     this.isAutoRefreshActive = getStoredItem(STORAGE_KEY_AUTO_REFRESH, 'false') === 'true';
     this.cache = new Map();
+    this.scripCache = new Map(Object.entries(SCRIP_MAP));
     this.lastSyncTimestamp = null;
+    this.lastSyncMeta = null;
     this.subscribers = new Set();
     this.autoRefreshTimer = null;
 
@@ -88,6 +121,13 @@ class LiveMarketService {
     return d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
   }
 
+  getLastSyncMeta() {
+    return this.lastSyncMeta || {
+      marketState: this.isMarketOpen() ? 'OPEN' : 'CLOSED',
+      timestamp: this.lastSyncTimestamp
+    };
+  }
+
   // Check if Indian Stock Market (NSE/BSE) is currently in active trading session
   // Monday to Friday, 9:15 AM to 3:30 PM IST (UTC+5:30)
   isMarketOpen() {
@@ -122,94 +162,184 @@ class LiveMarketService {
   }
 
   /**
+   * Resolve Moneycontrol scrip identifier for any symbol
+   */
+  async resolveScripId(cleanSym) {
+    if (this.scripCache.has(cleanSym)) {
+      return this.scripCache.get(cleanSym);
+    }
+
+    try {
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 3500);
+      const sUrl = `https://www.moneycontrol.com/mccode/common/autosuggestion_solr.php?query=${encodeURIComponent(cleanSym)}&type=1&format=json`;
+      const sRes = await fetch(sUrl, {
+        signal: controller.signal,
+        headers: { 'Accept': 'application/json' }
+      });
+      clearTimeout(timeoutId);
+
+      if (sRes.ok) {
+        const items = await sRes.json();
+        if (Array.isArray(items) && items.length > 0) {
+          const match = items.find(i => 
+            (i.pdt_dis_nm && i.pdt_dis_nm.toUpperCase().includes(cleanSym)) || 
+            (i.sc_id && i.sc_id.toUpperCase() === cleanSym)
+          ) || items[0];
+
+          if (match && match.sc_id) {
+            this.scripCache.set(cleanSym, match.sc_id);
+            return match.sc_id;
+          }
+        }
+      }
+    } catch (e) {
+      // Ignore lookup failure
+    }
+
+    return null;
+  }
+
+  /**
+   * Primary live quote fetcher via direct CORS-enabled real-time endpoint
+   */
+  async fetchDirectLiveQuote(cleanSym, exchange = 'NSE') {
+    const scId = await this.resolveScripId(cleanSym);
+    if (!scId) return null;
+
+    try {
+      const ex = exchange.toUpperCase() === 'BSE' ? 'bse' : 'nse';
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 4000);
+      const url = `https://priceapi.moneycontrol.com/pricefeed/${ex}/equitycash/${encodeURIComponent(scId)}`;
+      const res = await fetch(url, {
+        signal: controller.signal,
+        headers: { 'Accept': 'application/json' }
+      });
+      clearTimeout(timeoutId);
+
+      if (res.ok) {
+        const json = await res.json();
+        if (json && json.data && json.data.pricecurrent) {
+          const d = json.data;
+          const cmp = parseFloat(d.pricecurrent);
+          if (!isNaN(cmp) && cmp > 0) {
+            const prevClose = parseFloat(d.priceprevclose || d.referencePrice || cmp);
+            const dayChange = parseFloat(d.pricechange || (cmp - prevClose).toFixed(2));
+            const dayChangePercent = parseFloat(d.pricepercentchange || (prevClose > 0 ? (((cmp - prevClose) / prevClose) * 100).toFixed(2) : '0'));
+
+            return {
+              symbol: cleanSym,
+              name: d.company || d.SC_FULLNM || cleanSym,
+              cmp,
+              prevClose,
+              dayChange,
+              dayChangePercent,
+              high: parseFloat(d.HP || cmp),
+              low: parseFloat(d.LP || cmp),
+              open: parseFloat(d.OPN || prevClose),
+              marketState: d.market_state || (this.isMarketOpen() ? 'OPEN' : 'CLOSED'),
+              lastUpdated: d.lastupd || '',
+              source: 'LIVE_EXCHANGE',
+              timestamp: Date.now()
+            };
+          }
+        }
+      }
+    } catch (e) {
+      // Primary direct fetch failed
+    }
+
+    return null;
+  }
+
+  /**
    * Fetch live quote for a single symbol
-   * Attempts:
-   * 1. Custom proxy URL if configured (Cloudflare Worker)
-   * 2. Local Vite dev server proxy (/api/market/...)
-   * 3. Fallback to latest catalog in stocksDatabase.js
+   * Pipeline:
+   * 1. Direct CORS-enabled real-time market API (Moneycontrol CDN)
+   * 2. Custom proxy or local Vite proxy (Yahoo Finance)
+   * 3. Fallback to calibrated catalog in stocksDatabase.js
    */
   async fetchQuote(symbol, exchange = 'NSE') {
     const cleanSym = (symbol || '').toUpperCase().trim();
-    const ticker = this.formatTicker(cleanSym, exchange);
+    if (!cleanSym) return null;
 
-    // List of candidate endpoints
-    const endpoints = [];
+    // 1. Direct real-time exchange quote
+    let quote = await this.fetchDirectLiveQuote(cleanSym, exchange);
 
-    // 1. User or environment configured proxy/worker
-    if (this.customProxyUrl) {
-      const base = this.customProxyUrl.replace(/\/+$/, '');
-      const yahooUrl = `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(ticker)}?interval=1d&range=1d`;
-      endpoints.push(`${base}?url=${encodeURIComponent(yahooUrl)}`);
-      endpoints.push(`${base}?symbol=${encodeURIComponent(ticker)}`);
-      endpoints.push(`${base}/${encodeURIComponent(ticker)}`);
-    }
+    // 2. Secondary fallback: Proxy endpoints if direct didn't return
+    if (!quote) {
+      const ticker = this.formatTicker(cleanSym, exchange);
+      const endpoints = [];
 
-    // 2. Vite local development proxy
-    endpoints.push(`/api/market/${ticker}?interval=1d&range=1d`);
+      if (this.customProxyUrl) {
+        const base = this.customProxyUrl.replace(/\/+$/, '');
+        const yahooUrl = `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(ticker)}?interval=1d&range=1d`;
+        endpoints.push(`${base}?url=${encodeURIComponent(yahooUrl)}`);
+        endpoints.push(`${base}?symbol=${encodeURIComponent(ticker)}`);
+        endpoints.push(`${base}/${encodeURIComponent(ticker)}`);
+      }
 
-    let quote = null;
+      endpoints.push(`/api/market/${ticker}?interval=1d&range=1d`);
 
-    for (const url of endpoints) {
-      try {
-        const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort(), 4000);
-        const res = await fetch(url, {
-          headers: { 'Accept': 'application/json' },
-          signal: controller.signal
-        });
-        clearTimeout(timeoutId);
+      for (const url of endpoints) {
+        try {
+          const controller = new AbortController();
+          const timeoutId = setTimeout(() => controller.abort(), 3500);
+          const res = await fetch(url, {
+            headers: { 'Accept': 'application/json' },
+            signal: controller.signal
+          });
+          clearTimeout(timeoutId);
 
-        if (res.ok) {
-          const contentType = res.headers.get('content-type') || '';
-          if (!contentType.includes('application/json') && !contentType.includes('text/plain')) {
-            // Likely HTML from an SPA catch-all rewrite, skip
-            continue;
+          if (res.ok) {
+            const contentType = res.headers.get('content-type') || '';
+            if (!contentType.includes('application/json') && !contentType.includes('text/plain')) {
+              continue;
+            }
+
+            const data = await res.json();
+            if (data && data.chart && data.chart.result && data.chart.result[0]) {
+              const meta = data.chart.result[0].meta;
+              const price = meta.regularMarketPrice || meta.chartPreviousClose;
+              const prevClose = meta.chartPreviousClose || price;
+              const dayChange = price - prevClose;
+              const dayChangePercent = prevClose > 0 ? (dayChange / prevClose) * 100 : 0;
+
+              quote = {
+                symbol: cleanSym,
+                cmp: parseFloat(price.toFixed(2)),
+                prevClose: parseFloat(prevClose.toFixed(2)),
+                dayChange: parseFloat(dayChange.toFixed(2)),
+                dayChangePercent: parseFloat(dayChangePercent.toFixed(2)),
+                currency: meta.currency || 'INR',
+                exchange: meta.exchangeName || exchange,
+                high: meta.regularMarketDayHigh || price,
+                low: meta.regularMarketDayLow || price,
+                source: 'LIVE_EXCHANGE',
+                timestamp: Date.now()
+              };
+              break;
+            } else if (data && (data.price !== undefined || data.cmp !== undefined)) {
+              const price = parseFloat(data.price || data.cmp);
+              const prevClose = parseFloat(data.prevClose || price);
+              quote = {
+                symbol: cleanSym,
+                cmp: price,
+                prevClose: prevClose,
+                dayChange: parseFloat((price - prevClose).toFixed(2)),
+                dayChangePercent: prevClose > 0 ? parseFloat((((price - prevClose) / prevClose) * 100).toFixed(2)) : 0,
+                source: 'LIVE_EXCHANGE',
+                timestamp: Date.now()
+              };
+              break;
+            }
           }
-
-          const data = await res.json();
-          // Support both Yahoo standard structure and simplified proxy formats
-          if (data && data.chart && data.chart.result && data.chart.result[0]) {
-            const meta = data.chart.result[0].meta;
-            const price = meta.regularMarketPrice || meta.chartPreviousClose;
-            const prevClose = meta.chartPreviousClose || price;
-            const dayChange = price - prevClose;
-            const dayChangePercent = prevClose > 0 ? (dayChange / prevClose) * 100 : 0;
-
-            quote = {
-              symbol: cleanSym,
-              cmp: parseFloat(price.toFixed(2)),
-              prevClose: parseFloat(prevClose.toFixed(2)),
-              dayChange: parseFloat(dayChange.toFixed(2)),
-              dayChangePercent: parseFloat(dayChangePercent.toFixed(2)),
-              currency: meta.currency || 'INR',
-              exchange: meta.exchangeName || exchange,
-              high: meta.regularMarketDayHigh || price,
-              low: meta.regularMarketDayLow || price,
-              source: 'LIVE_EXCHANGE',
-              timestamp: Date.now()
-            };
-            break;
-          } else if (data && (data.price !== undefined || data.cmp !== undefined)) {
-            const price = parseFloat(data.price || data.cmp);
-            const prevClose = parseFloat(data.prevClose || price);
-            quote = {
-              symbol: cleanSym,
-              cmp: price,
-              prevClose: prevClose,
-              dayChange: parseFloat((price - prevClose).toFixed(2)),
-              dayChangePercent: prevClose > 0 ? parseFloat((((price - prevClose) / prevClose) * 100).toFixed(2)) : 0,
-              source: 'LIVE_EXCHANGE',
-              timestamp: Date.now()
-            };
-            break;
-          }
-        }
-      } catch (err) {
-        // Continue to next endpoint on failure
+        } catch (err) {}
       }
     }
 
-    // 3. Fallback: Use verified stocksDatabase catalog
+    // 3. Tertiary fallback: Verified stocksDatabase catalog
     if (!quote) {
       const ref = POPULAR_STOCKS.find(s => s.symbol.toUpperCase() === cleanSym);
       if (ref) {
@@ -223,7 +353,6 @@ class LiveMarketService {
           timestamp: Date.now()
         };
       } else {
-        // Return cached quote if available
         quote = this.cache.get(cleanSym) || null;
       }
     }
@@ -236,7 +365,7 @@ class LiveMarketService {
   }
 
   /**
-   * Fetch live prices for an array of holdings
+   * Fetch live prices for an array of holdings in parallel
    * Returns: { [symbol]: quote }
    */
   async fetchQuotesForHoldings(holdings) {
@@ -244,6 +373,8 @@ class LiveMarketService {
 
     const uniqueSymbols = [...new Set(holdings.map(h => (h.symbol || '').toUpperCase().trim()).filter(Boolean))];
     const results = {};
+    let liveCount = 0;
+    let detectedMarketState = this.isMarketOpen() ? 'OPEN' : 'CLOSED';
 
     await Promise.allSettled(
       uniqueSymbols.map(async (sym) => {
@@ -251,12 +382,32 @@ class LiveMarketService {
         const quote = await this.fetchQuote(sym, holding?.exchange || 'NSE');
         if (quote) {
           results[sym] = quote;
+          if (quote.source === 'LIVE_EXCHANGE') {
+            liveCount++;
+            if (quote.marketState) {
+              detectedMarketState = quote.marketState;
+            }
+          }
         }
       })
     );
 
     this.lastSyncTimestamp = Date.now();
-    this.notify({ type: 'QUOTES_SYNCED', quotes: results, timestamp: this.lastSyncTimestamp });
+    this.lastSyncMeta = {
+      total: uniqueSymbols.length,
+      liveCount,
+      marketState: detectedMarketState,
+      timestamp: this.lastSyncTimestamp,
+      lastSyncFormatted: this.getLastSyncFormatted()
+    };
+
+    this.notify({
+      type: 'QUOTES_SYNCED',
+      quotes: results,
+      timestamp: this.lastSyncTimestamp,
+      meta: this.lastSyncMeta
+    });
+
     return results;
   }
 

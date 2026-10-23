@@ -1093,6 +1093,30 @@ body::after {
   text-shadow: 0 0 10px var(--bear-red);
 }
 
+@keyframes syncGlowFlash {
+  0% {
+    background-color: rgba(99, 102, 241, 0.28);
+    box-shadow: inset 0 0 12px rgba(99, 102, 241, 0.3);
+  }
+  40% {
+    background-color: rgba(16, 185, 129, 0.22);
+    box-shadow: inset 0 0 10px rgba(16, 185, 129, 0.25);
+  }
+  100% {
+    background-color: transparent;
+    box-shadow: none;
+  }
+}
+
+.row-synced td {
+  animation: syncGlowFlash 1.6s ease-out;
+}
+
+.card-synced {
+  animation: syncGlowFlash 1.6s ease-out;
+  border-color: rgba(99, 102, 241, 0.5) !important;
+}
+
 /* Weight progress bar */
 .weight-bar-box {
   width: 90px;

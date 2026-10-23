@@ -18,8 +18,8 @@ const DEFAULT_HOLDINGS = [
     sector: 'Energy & Petrochemicals',
     quantity: 45,
     avgPrice: 1140.00,
-    cmp: 1202.00,
-    prevClose: 1211.20,
+    cmp: 1190.00,
+    prevClose: 1184.50,
     buyDate: '2025-08-14',
     notes: 'Core conglomerate holding for energy transition'
   },
@@ -31,8 +31,8 @@ const DEFAULT_HOLDINGS = [
     sector: 'Banking & Financials',
     quantity: 120,
     avgPrice: 680.00,
-    cmp: 712.00,
-    prevClose: 728.85,
+    cmp: 692.80,
+    prevClose: 694.05,
     buyDate: '2025-09-02',
     notes: 'Private banking titan with merger synergies'
   },
@@ -44,21 +44,21 @@ const DEFAULT_HOLDINGS = [
     sector: 'Information Technology',
     quantity: 25,
     avgPrice: 2380.00,
-    cmp: 2460.90,
-    prevClose: 2463.00,
+    cmp: 2530.00,
+    prevClose: 2506.90,
     buyDate: '2025-06-20',
     notes: 'Defensive IT cash cow, dividend payer'
   },
   {
     id: 'h_4',
     symbol: 'TATAMOTORS',
-    name: 'Tata Motors Ltd.',
+    name: 'Tata Motors Commercial Vehicles Ltd.',
     exchange: 'NSE',
     sector: 'Automobile',
     quantity: 85,
     avgPrice: 385.00,
-    cmp: 418.60,
-    prevClose: 412.00,
+    cmp: 396.00,
+    prevClose: 414.25,
     buyDate: '2025-04-10',
     notes: 'EV market leadership and commercial vehicle turnaround'
   },
@@ -70,8 +70,8 @@ const DEFAULT_HOLDINGS = [
     sector: 'Consumer Goods (FMCG)',
     quantity: 200,
     avgPrice: 245.00,
-    cmp: 261.00,
-    prevClose: 263.40,
+    cmp: 257.90,
+    prevClose: 258.90,
     buyDate: '2025-03-15',
     notes: 'FMCG scale and hotel business demerger'
   }
@@ -192,8 +192,8 @@ class PortfolioStore {
             const sym = (h.symbol || '').toUpperCase().trim();
             const ref = POPULAR_STOCKS.find(s => s.symbol.toUpperCase() === sym);
             if (ref && ref.cmp) {
-              // Calibrate outdated price (e.g. Reliance 2336 -> 1202)
-              if (Math.abs(h.cmp - ref.cmp) > 2) {
+              // Only calibrate wildly obsolete prices (e.g. pre-split Reliance 2336 -> 1190 or Tata Motors 800 -> 396)
+              if (Math.abs(h.cmp - ref.cmp) / ref.cmp > 0.35) {
                 priceUpdated = true;
                 return { ...h, cmp: ref.cmp, prevClose: ref.prevClose || h.prevClose };
               }
@@ -313,7 +313,7 @@ class PortfolioStore {
             const sym = (h.symbol || '').toUpperCase().trim();
             const ref = POPULAR_STOCKS.find(s => s.symbol.toUpperCase() === sym);
             if (ref && ref.cmp) {
-              if (Math.abs(h.cmp - ref.cmp) > 2) {
+              if (Math.abs(h.cmp - ref.cmp) / ref.cmp > 0.35) {
                 pricesCalibrated = true;
                 return { ...h, cmp: ref.cmp, prevClose: ref.prevClose || h.prevClose };
               }
@@ -922,19 +922,19 @@ class PortfolioStore {
   async refreshMarketQuotes(isSilent = false) {
     if (!Array.isArray(this.holdings) || this.holdings.length === 0) {
       this.notify({ type: 'MANUAL_REFRESH', isSilent, timestamp: Date.now() });
-      return;
+      return { totalCount: 0, updatedCount: 0, meta: null };
     }
 
     try {
       const quotes = await liveMarketService.fetchQuotesForHoldings(this.holdings);
-      let updated = false;
+      let updatedCount = 0;
 
       this.holdings = this.holdings.map(h => {
         const sym = (h.symbol || '').toUpperCase().trim();
         const quote = quotes[sym];
         if (quote && quote.cmp && quote.cmp > 0) {
           if (Math.abs(h.cmp - quote.cmp) > 0.01) {
-            updated = true;
+            updatedCount++;
           }
           return {
             ...h,
@@ -957,16 +957,23 @@ class PortfolioStore {
         }
       }
 
+      const meta = liveMarketService.getLastSyncMeta();
+
       this.notify({
         type: 'MARKET_QUOTES_UPDATED',
         isSilent,
         timestamp: Date.now(),
-        quotes
+        quotes,
+        meta,
+        updatedCount
       });
+
+      return { totalCount: this.holdings.length, updatedCount, quotes, meta };
     } catch (err) {
       console.warn('refreshMarketQuotes error:', err);
       this.syncWithMarketDatabase();
       this.notify({ type: 'MANUAL_REFRESH', isSilent, timestamp: Date.now() });
+      return { totalCount: this.holdings.length, updatedCount: 0, meta: null, error: err.message };
     }
   }
 

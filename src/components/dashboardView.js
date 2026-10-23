@@ -212,10 +212,20 @@ export class DashboardView {
       btnRefresh.addEventListener('click', async () => {
         btnRefresh.classList.add('rotating');
         if (syncLabel) syncLabel.textContent = 'Syncing...';
-        await portfolioStore.refreshMarketQuotes();
+        const syncResult = await portfolioStore.refreshMarketQuotes(false);
         btnRefresh.classList.remove('rotating');
         const syncTime = liveMarketService.getLastSyncFormatted() || new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
         if (syncLabel) syncLabel.textContent = `Synced (${syncTime})`;
+
+        // Visual toast feedback
+        const count = syncResult?.totalCount || portfolioStore.holdings?.length || 0;
+        const meta = syncResult?.meta;
+        const isClosed = meta?.marketState === 'CLOSED' || !liveMarketService.isMarketOpen();
+        const msg = isClosed
+          ? `Synced ${count} stocks with today's closing market data (LTP • NSE/BSE)`
+          : `Live Market Synced: Updated ${count} stocks with real-time quotes (${syncTime})`;
+        this.showToast(msg, 'success');
+
         setTimeout(() => {
           if (syncLabel && syncLabel.textContent.startsWith('Synced')) {
             syncLabel.textContent = 'Sync Market';
@@ -590,19 +600,22 @@ export class DashboardView {
       return;
     }
 
-    // Check if event was a tick to trigger pulse animation on CMP
+    // Check if event was a tick or sync to trigger pulse animation on CMP
     const tickSymbol = event.type === 'PRICE_TICK' && event.tick ? event.tick.symbol : null;
     const tickDirection = event.type === 'PRICE_TICK' && event.tick ? event.tick.direction : null;
+    const isMarketSynced = event.type === 'MARKET_QUOTES_UPDATED';
 
     // Render Desktop Rows
     tbody.innerHTML = filtered.map(h => {
       const isProfit = h.pnl >= 0;
       const isDayProfit = h.dayPnL >= 0;
       const isTicking = tickSymbol === h.symbol;
-      const tickClass = isTicking ? (tickDirection === 'up' ? 'tick-up' : 'tick-down') : '';
+      const isSynced = isMarketSynced && event.quotes && event.quotes[h.symbol];
+      const tickClass = isTicking ? (tickDirection === 'up' ? 'tick-up' : 'tick-down') : (isSynced ? 'tick-up' : '');
+      const rowSyncClass = isSynced ? 'row-synced' : '';
 
       return `
-        <tr data-symbol="${h.symbol}">
+        <tr data-symbol="${h.symbol}" class="${rowSyncClass}">
           <td>
             <div class="stock-identity">
               <div class="stock-symbol-chip">${h.symbol.substring(0, 3)}</div>
@@ -677,10 +690,12 @@ export class DashboardView {
       const isProfit = h.pnl >= 0;
       const isDayProfit = h.dayPnL >= 0;
       const isTicking = tickSymbol === h.symbol;
-      const tickClass = isTicking ? (tickDirection === 'up' ? 'tick-up' : 'tick-down') : '';
+      const isSynced = isMarketSynced && event.quotes && event.quotes[h.symbol];
+      const tickClass = isTicking ? (tickDirection === 'up' ? 'tick-up' : 'tick-down') : (isSynced ? 'tick-up' : '');
+      const cardSyncClass = isSynced ? 'card-synced' : '';
 
       return `
-        <div class="holding-mobile-card" data-symbol="${h.symbol}" title="Click to view ${h.symbol} transactions & details">
+        <div class="holding-mobile-card ${cardSyncClass}" data-symbol="${h.symbol}" title="Click to view ${h.symbol} transactions & details">
           <div class="mobile-card-top">
             <div class="stock-identity">
               <div class="stock-symbol-chip">${h.symbol.substring(0, 3)}</div>
@@ -737,6 +752,31 @@ export class DashboardView {
         </div>
       `;
     }).join('');
+  }
+
+  showToast(message, type = 'success') {
+    let container = document.querySelector('.toast-container');
+    if (!container) {
+      container = document.createElement('div');
+      container.className = 'toast-container';
+      document.body.appendChild(container);
+    }
+
+    const toast = document.createElement('div');
+    toast.className = `toast ${type}`;
+    toast.innerHTML = `
+      <div class="toast-icon">${type === 'success' ? (icons.checkCircle || '✓') : 'ℹ'}</div>
+      <div class="toast-message">${message}</div>
+    `;
+
+    container.appendChild(toast);
+
+    setTimeout(() => {
+      toast.style.opacity = '0';
+      toast.style.transform = 'translateY(10px)';
+      toast.style.transition = 'all 0.25s ease';
+      setTimeout(() => toast.remove(), 250);
+    }, 4000);
   }
 
   destroy() {
