@@ -1234,6 +1234,47 @@ body::after {
 /* ========================================================
    PAGE 2: ADD HOLDINGS / TRANSACTIONS VIEW
    ======================================================== */
+/* Mode Switcher Tabs on Add Holding Page */
+.add-holding-mode-tabs {
+  display: inline-flex;
+  background: var(--bg-surface-elevated);
+  padding: 0.35rem;
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--border-subtle);
+  gap: 0.35rem;
+  margin-bottom: 1.75rem;
+}
+
+.mode-tab-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.55rem;
+  padding: 0.65rem 1.35rem;
+  border-radius: var(--radius-md);
+  font-size: 0.9rem;
+  font-weight: 700;
+  color: var(--text-secondary);
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  transition: all var(--transition-fast);
+}
+
+.mode-tab-btn:hover {
+  color: var(--text-primary);
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.mode-tab-btn.active {
+  background: var(--brand-indigo);
+  color: #ffffff;
+  box-shadow: 0 4px 14px rgba(99, 102, 241, 0.35);
+}
+
+[data-theme="light"] .mode-tab-btn:hover {
+  background: rgba(0, 0, 0, 0.05);
+}
+
 .add-holding-layout {
   display: grid;
   grid-template-columns: 1.35fr 1fr;

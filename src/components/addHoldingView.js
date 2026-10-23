@@ -1,21 +1,45 @@
-// Add Holdings View Component (Page 2)
+// Add Holdings View Component (Page 2) with Single Entry and Bulk Import Modes
 import { portfolioStore } from '../state/portfolioStore.js';
 import { liveMarketService } from '../services/liveMarketService.js';
 import { POPULAR_STOCKS, SECTORS, EXCHANGES } from '../data/stocksDatabase.js';
 import { icons } from '../utils/icons.js';
+import {
+  parseImportFile,
+  downloadSampleExcel,
+  downloadSampleCsv,
+  downloadSampleJson
+} from '../utils/fileImporter.js';
 
 export class AddHoldingView {
-  constructor(containerElement, onNavigateToDashboard, onNavigateToStockDetail) {
+  constructor(containerElement, onNavigateToDashboard, onNavigateToStockDetail, onNavigateToHoldings) {
     this.container = containerElement;
     this.onNavigateToDashboard = onNavigateToDashboard;
     this.onNavigateToStockDetail = onNavigateToStockDetail;
+    this.onNavigateToHoldings = onNavigateToHoldings;
     this.preselectedSymbol = null;
+
+    // View mode: 'single' | 'bulk'
+    this.mode = 'single';
+    this.parsedImport = null;
+    this.importMode = 'merge'; // 'merge' | 'replace'
+    this.isImporting = false;
+    this.importError = null;
 
     this.init();
   }
 
   setPrefill(data = {}) {
+    if (data.mode === 'bulk') {
+      this.mode = 'bulk';
+      this.render();
+      return;
+    }
+    if (data.mode === 'single') {
+      this.mode = 'single';
+    }
     if (data.symbol) {
+      this.mode = 'single';
+      this.render();
       this.preselectedSymbol = data.symbol;
       const symbolInput = this.container.querySelector('#input-symbol');
       if (symbolInput) {
@@ -27,25 +51,23 @@ export class AddHoldingView {
 
   init() {
     this.render();
-    this.attachEventListeners();
-    this.updateRecentTransactions();
 
     this.unsubscribe = portfolioStore.subscribe((event) => {
       if (event.type === 'HOLDING_ADDED' || event.type === 'TRANSACTION_RECORDED') {
-        this.updateRecentTransactions();
+        if (this.mode === 'single') {
+          this.updateRecentTransactions();
+        }
       }
     });
   }
 
   render() {
-    const today = new Date().toISOString().split('T')[0];
-
     this.container.innerHTML = `
       <!-- Page Title -->
       <div class="page-title-row">
         <div>
-          <h1 class="page-title">Add New Holding</h1>
-          <p class="page-subtitle">Add a new stock position to your portfolio</p>
+          <h1 class="page-title">Add Holdings</h1>
+          <p class="page-subtitle">Add individual stock positions or bulk import from Excel / CSV / JSON spreadsheets</p>
         </div>
         <div class="page-header-actions">
           <button id="btn-back-dashboard" class="btn btn-outline btn-sm">
@@ -55,6 +77,33 @@ export class AddHoldingView {
         </div>
       </div>
 
+      <!-- Mode Switcher Tabs: Single Stock vs Bulk Import -->
+      <div class="add-holding-mode-tabs">
+        <button type="button" class="mode-tab-btn ${this.mode === 'single' ? 'active' : ''}" data-mode="single">
+          ${icons.plus}
+          <span>Single Stock Entry</span>
+        </button>
+        <button type="button" class="mode-tab-btn ${this.mode === 'bulk' ? 'active' : ''}" data-mode="bulk">
+          ${icons.upload}
+          <span>Bulk Import (Excel / CSV / JSON)</span>
+        </button>
+      </div>
+
+      <!-- Active Mode Section -->
+      ${this.mode === 'bulk' ? this.renderBulkImportSection() : this.renderSingleHoldingSection()}
+    `;
+
+    this.attachEventListeners();
+    if (this.mode === 'single') {
+      this.updateRecentTransactions();
+    }
+  }
+
+  // 1. Single Stock Entry Form & Right Rail Calculator
+  renderSingleHoldingSection() {
+    const today = new Date().toISOString().split('T')[0];
+
+    return `
       <div class="add-holding-layout">
         <!-- Main Form Column -->
         <div class="form-card">
@@ -83,7 +132,7 @@ export class AddHoldingView {
                   type="text" 
                   id="input-symbol" 
                   class="form-control mono" 
-                  placeholder="e.g. RELIANCE, TCS, AAPL" 
+                  placeholder="e.g. RELIANCE, TCS, INFY" 
                   required 
                   autocomplete="off"
                   list="stocks-datalist"
@@ -244,6 +293,174 @@ export class AddHoldingView {
     `;
   }
 
+  // 2. Bulk Import Section (Excel, CSV & JSON)
+  renderBulkImportSection() {
+    return `
+      <div class="bulk-import-card" style="margin-top: 0;">
+        <!-- Header & Template Download Bar -->
+        <div class="bulk-import-header">
+          <div class="bulk-import-title-group">
+            <h3 class="bulk-title" style="margin: 0 0 0.4rem 0; font-size: 1.15rem; font-weight: 700; color: var(--text-primary); display: flex; align-items: center; gap: 0.5rem;">
+              ${icons.upload} Bulk Import Stocks (Excel, CSV & JSON)
+            </h3>
+            <p class="bulk-subtitle" style="margin: 0; font-size: 0.85rem; color: var(--text-secondary); line-height: 1.5;">
+              Quickly populate or append multiple stock holdings into your portfolio by importing an Excel spreadsheet (<strong>.xlsx</strong>, <strong>.xls</strong>), CSV (<strong>.csv</strong>), or JSON file (<strong>.json</strong>).
+            </p>
+          </div>
+
+          <div class="template-downloads-row">
+            <span class="template-label">Sample Templates:</span>
+            <button type="button" class="btn-template-pill" id="btn-download-sample-excel" title="Download sample Excel template (.xlsx)">
+              📊 Excel (.xlsx)
+            </button>
+            <button type="button" class="btn-template-pill" id="btn-download-sample-csv" title="Download sample CSV template (.csv)">
+              📄 CSV (.csv)
+            </button>
+            <button type="button" class="btn-template-pill" id="btn-download-sample-json" title="Download sample JSON template (.json)">
+              📦 JSON (.json)
+            </button>
+          </div>
+        </div>
+
+        ${this.importError ? `
+          <div class="alert-error-chip" style="margin-bottom: 0.5rem; display: block; background: rgba(244, 63, 94, 0.15); color: #fb7185; padding: 0.75rem 1rem; border-radius: var(--radius-md); border: 1px solid rgba(244, 63, 94, 0.3);">
+            ❌ ${this.importError}
+          </div>
+        ` : ''}
+
+        <!-- Upload Dropzone (hidden if preview is active) -->
+        ${!this.parsedImport ? `
+          <div class="bulk-dropzone" id="bulk-dropzone">
+            <input type="file" id="input-bulk-file" accept=".xlsx,.xls,.csv,.json" style="display: none;" />
+            <div class="dropzone-content">
+              <div class="dropzone-icon-box">
+                ${icons.upload}
+              </div>
+              <h4 class="dropzone-title">Click to upload or drag & drop your file</h4>
+              <p class="dropzone-desc">
+                Supports Excel (.xlsx, .xls), CSV (.csv), or JSON (.json) files from Invest Right, Zerodha Kite, Groww, AngelOne, Upstox, or custom spreadsheet.
+              </p>
+              <button type="button" class="btn btn-primary btn-sm" id="btn-browse-bulk-file">
+                Select File from Device
+              </button>
+            </div>
+          </div>
+        ` : ''}
+
+        <!-- Import Mode Bar -->
+        <div class="import-options-bar">
+          <span class="import-options-label">Import Action:</span>
+          <div class="radio-pill-group">
+            <label class="radio-pill ${this.importMode === 'merge' ? 'active' : ''}">
+              <input type="radio" name="bulk_import_mode" value="merge" ${this.importMode === 'merge' ? 'checked' : ''} />
+              <span>Merge & Average (Recommended)</span>
+            </label>
+            <label class="radio-pill ${this.importMode === 'replace' ? 'active' : ''}">
+              <input type="radio" name="bulk_import_mode" value="replace" ${this.importMode === 'replace' ? 'checked' : ''} />
+              <span>Replace Portfolio</span>
+            </label>
+          </div>
+        </div>
+
+        <!-- Pre-Import Preview Card -->
+        ${this.parsedImport ? `
+          <div class="bulk-preview-card">
+            <div class="preview-header">
+              <div class="preview-file-badge">
+                <span class="file-icon">📊</span>
+                <div>
+                  <div class="preview-filename">
+                    ${this.parsedImport.fileName} 
+                    <span class="profile-chip badge-member" style="margin-left: 0.5rem;">${this.parsedImport.fileType}</span>
+                  </div>
+                  <div class="preview-meta">
+                    ${this.parsedImport.validItems.length} valid stocks found • Total Invested: ${portfolioStore.formatMoney(this.parsedImport.totalInvested)}
+                  </div>
+                </div>
+              </div>
+              <button type="button" class="btn btn-ghost btn-sm" id="btn-cancel-preview">
+                Clear & Choose Another File
+              </button>
+            </div>
+
+            ${this.parsedImport.invalidRows.length > 0 ? `
+              <div style="font-size: 0.78rem; color: var(--accent-amber); background: rgba(245, 158, 11, 0.1); padding: 0.5rem 0.85rem; border-radius: var(--radius-sm); border: 1px solid rgba(245, 158, 11, 0.25);">
+                ⚠️ Skipped ${this.parsedImport.invalidRows.length} invalid or empty row(s) missing required symbol, quantity, or buy price.
+              </div>
+            ` : ''}
+
+            <!-- Table Preview -->
+            <div class="preview-table-box">
+              <table class="preview-table">
+                <thead>
+                  <tr>
+                    <th>Symbol</th>
+                    <th>Company Name</th>
+                    <th>Exch</th>
+                    <th style="text-align: right;">Qty</th>
+                    <th style="text-align: right;">Buy Price</th>
+                    <th style="text-align: right;">LTP / CMP</th>
+                    <th style="text-align: right;">Total Amount</th>
+                    <th style="text-align: center;">Action</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  ${this.parsedImport.validItems.slice(0, 30).map(item => {
+                    const isExisting = portfolioStore.holdings.some(h => h.symbol.toUpperCase() === item.symbol);
+                    return `
+                      <tr>
+                        <td class="mono font-bold" style="color: var(--brand-indigo-light);">${item.symbol}</td>
+                        <td style="color: var(--text-primary); max-width: 180px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" title="${item.name}">${item.name}</td>
+                        <td><span class="exchange-tag">${item.exchange}</span></td>
+                        <td class="mono text-right">${item.quantity.toLocaleString()}</td>
+                        <td class="mono text-right">${portfolioStore.formatMoney(item.buyPrice)}</td>
+                        <td class="mono text-right" style="color: var(--accent-gold);">${portfolioStore.formatMoney(item.cmp)}</td>
+                        <td class="mono text-right" style="font-weight: 700;">${portfolioStore.formatMoney(item.quantity * item.buyPrice)}</td>
+                        <td style="text-align: center;">
+                          <span class="badge-action ${isExisting && this.importMode === 'merge' ? 'action-average' : 'action-new'}">
+                            ${isExisting && this.importMode === 'merge' ? 'Will Average' : 'New Stock'}
+                          </span>
+                        </td>
+                      </tr>
+                    `;
+                  }).join('')}
+                </tbody>
+              </table>
+              ${this.parsedImport.validItems.length > 30 ? `
+                <div class="preview-more-hint">...and ${this.parsedImport.validItems.length - 30} more stocks will be imported</div>
+              ` : ''}
+            </div>
+
+            <!-- Commit Button -->
+            <div class="preview-commit-bar">
+              <div class="preview-summary-text">
+                Ready to ${this.importMode === 'replace' ? 'replace portfolio with' : 'import and merge'} <strong>${this.parsedImport.validItems.length} stocks</strong>.
+              </div>
+              <button type="button" class="btn btn-primary" id="btn-commit-bulk-import" ${this.isImporting ? 'disabled' : ''}>
+                ${this.isImporting ? 'Importing Stocks...' : `${icons.plus} Confirm & Add All ${this.parsedImport.validItems.length} Stocks`}
+              </button>
+            </div>
+          </div>
+        ` : ''}
+      </div>
+    `;
+  }
+
+  async processBulkFile(file) {
+    this.importError = null;
+    try {
+      const parsed = await parseImportFile(file);
+      if (parsed.validItems.length === 0) {
+        throw new Error('No valid stock rows found in the uploaded file. Please check column headers (Symbol, Quantity, Buy Price).');
+      }
+      this.parsedImport = parsed;
+      this.render();
+    } catch (err) {
+      this.importError = err.message || 'Failed to parse file';
+      this.render();
+    }
+  }
+
   attachEventListeners() {
     // Back to dashboard
     const btnBack = this.container.querySelector('#btn-back-dashboard');
@@ -253,6 +470,145 @@ export class AddHoldingView {
       });
     }
 
+    // Mode Switcher Tabs (Single vs Bulk)
+    const modeTabs = this.container.querySelectorAll('.mode-tab-btn');
+    modeTabs.forEach(tab => {
+      tab.addEventListener('click', () => {
+        const targetMode = tab.getAttribute('data-mode');
+        if (this.mode !== targetMode) {
+          this.mode = targetMode;
+          this.render();
+        }
+      });
+    });
+
+    if (this.mode === 'bulk') {
+      this.attachBulkImportEvents();
+    } else {
+      this.attachSingleHoldingEvents();
+    }
+  }
+
+  attachBulkImportEvents() {
+    // Sample Template Download Buttons
+    const btnSampleXlsx = this.container.querySelector('#btn-download-sample-excel');
+    if (btnSampleXlsx) {
+      btnSampleXlsx.addEventListener('click', () => downloadSampleExcel());
+    }
+    const btnSampleCsv = this.container.querySelector('#btn-download-sample-csv');
+    if (btnSampleCsv) {
+      btnSampleCsv.addEventListener('click', () => downloadSampleCsv());
+    }
+    const btnSampleJson = this.container.querySelector('#btn-download-sample-json');
+    if (btnSampleJson) {
+      btnSampleJson.addEventListener('click', () => downloadSampleJson());
+    }
+
+    // Dropzone & File Input
+    const dropzone = this.container.querySelector('#bulk-dropzone');
+    const inputBulkFile = this.container.querySelector('#input-bulk-file');
+    const btnBrowse = this.container.querySelector('#btn-browse-bulk-file');
+
+    if (btnBrowse && inputBulkFile) {
+      btnBrowse.addEventListener('click', (e) => {
+        e.stopPropagation();
+        inputBulkFile.click();
+      });
+    }
+
+    if (dropzone && inputBulkFile) {
+      dropzone.addEventListener('click', () => {
+        inputBulkFile.click();
+      });
+
+      ['dragenter', 'dragover'].forEach(eventName => {
+        dropzone.addEventListener(eventName, (e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          dropzone.classList.add('dragover');
+        });
+      });
+
+      ['dragleave', 'dragend'].forEach(eventName => {
+        dropzone.addEventListener(eventName, (e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          dropzone.classList.remove('dragover');
+        });
+      });
+
+      dropzone.addEventListener('drop', (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        dropzone.classList.remove('dragover');
+        if (e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files[0]) {
+          this.processBulkFile(e.dataTransfer.files[0]);
+        }
+      });
+
+      inputBulkFile.addEventListener('change', (e) => {
+        if (e.target.files && e.target.files[0]) {
+          this.processBulkFile(e.target.files[0]);
+        }
+      });
+    }
+
+    // Mode Radios (Merge vs Replace)
+    const modeRadios = this.container.querySelectorAll('input[name="bulk_import_mode"]');
+    modeRadios.forEach(radio => {
+      radio.addEventListener('change', () => {
+        this.importMode = radio.value;
+        this.render();
+      });
+    });
+
+    // Cancel Preview
+    const btnCancelPreview = this.container.querySelector('#btn-cancel-preview');
+    if (btnCancelPreview) {
+      btnCancelPreview.addEventListener('click', () => {
+        this.parsedImport = null;
+        this.importError = null;
+        this.render();
+      });
+    }
+
+    // Commit Bulk Import
+    const btnCommit = this.container.querySelector('#btn-commit-bulk-import');
+    if (btnCommit && this.parsedImport && this.parsedImport.validItems) {
+      btnCommit.addEventListener('click', async () => {
+        if (this.isImporting) return;
+        try {
+          this.isImporting = true;
+          this.render();
+
+          const itemsToImport = this.parsedImport.validItems;
+          const res = await portfolioStore.bulkImportHoldings(itemsToImport, this.importMode);
+
+          const count = res.totalImported || itemsToImport.length;
+          const avgMsg = res.averaged > 0 ? ` (${res.averaged} averaged with existing holdings, ${res.added} newly added)` : '';
+          this.showToast(`✅ Successfully imported ${count} stocks${avgMsg}!`, 'success');
+
+          this.parsedImport = null;
+          this.isImporting = false;
+
+          // Navigate to Holdings page after short delay
+          setTimeout(() => {
+            if (this.onNavigateToHoldings) {
+              this.onNavigateToHoldings();
+            } else {
+              window.location.hash = '#/holdings';
+            }
+          }, 800);
+        } catch (err) {
+          this.isImporting = false;
+          this.importError = err.message || 'Failed to import stocks';
+          this.render();
+        }
+      });
+    }
+  }
+
+  attachSingleHoldingEvents() {
     // Quick stock pills
     const pills = this.container.querySelectorAll('.stock-pill');
     pills.forEach(pill => {
@@ -292,14 +648,18 @@ export class AddHoldingView {
     });
 
     // Quantity & Price live recalculation
-    qtyInput.addEventListener('input', () => this.recalculateImpact());
+    if (qtyInput) {
+      qtyInput.addEventListener('input', () => this.recalculateImpact());
+    }
 
     const priceInput = this.container.querySelector('#input-buy-price');
-    priceInput.addEventListener('input', () => this.recalculateImpact());
+    if (priceInput) {
+      priceInput.addEventListener('input', () => this.recalculateImpact());
+    }
 
     // "Use Current Market Price" button
     const btnUseCmp = this.container.querySelector('#btn-use-cmp');
-    if (btnUseCmp) {
+    if (btnUseCmp && symbolInput && priceInput) {
       btnUseCmp.addEventListener('click', () => {
         const symbol = symbolInput.value.toUpperCase().trim();
         const refStock = POPULAR_STOCKS.find(s => s.symbol.toUpperCase() === symbol);
@@ -325,8 +685,8 @@ export class AddHoldingView {
     const btnGotoCalc = this.container.querySelector('#btn-goto-stock-calc');
     if (btnGotoCalc) {
       btnGotoCalc.addEventListener('click', () => {
-        const symbolInput = this.container.querySelector('#input-symbol');
-        const symbol = symbolInput ? symbolInput.value.toUpperCase().trim() : '';
+        const symInput = this.container.querySelector('#input-symbol');
+        const symbol = symInput ? symInput.value.toUpperCase().trim() : '';
         if (symbol && this.onNavigateToStockDetail) {
           this.onNavigateToStockDetail(symbol);
         } else if (symbol) {
@@ -358,39 +718,22 @@ export class AddHoldingView {
       if (exchangeSelect) exchangeSelect.value = existingHolding.exchange || 'NSE';
     } else if (matchedStock) {
       if (companyInput) companyInput.value = matchedStock.name;
-      if (sectorSelect) sectorSelect.value = matchedStock.sector;
-      if (exchangeSelect) exchangeSelect.value = matchedStock.exchange;
+      if (sectorSelect) sectorSelect.value = matchedStock.sector || 'Others';
+      if (exchangeSelect) exchangeSelect.value = matchedStock.exchange || 'NSE';
     }
 
-    if (cmpVal && (!priceInput.value || priceInput.value === '0')) {
-      priceInput.value = cmpVal;
-      priceInput.dataset.autoFilled = 'true';
-    }
-
-    if (cmpBadge && cmpVal) {
-      cmpBadge.innerHTML = `CMP: ${portfolioStore.formatMoney(cmpVal)}`;
+    if (cmpVal && cmpBadge) {
+      cmpBadge.textContent = `CMP: ${portfolioStore.formatMoney(cmpVal)}`;
     } else if (cmpBadge) {
       cmpBadge.textContent = '';
     }
 
-    this.recalculateImpact();
+    // Auto-fill buy price if empty
+    if (cmpVal && priceInput && !priceInput.value) {
+      priceInput.value = cmpVal;
+    }
 
-    // Asynchronously query live quote from market feeds
-    liveMarketService.fetchQuote(cleanSym, exchangeSelect?.value || 'NSE').then(quote => {
-      const symInput = this.container.querySelector('#input-symbol');
-      const curSym = (symInput?.value || '').toUpperCase().trim();
-      if (curSym === cleanSym && quote && quote.cmp) {
-        if (!priceInput.value || priceInput.value === '0' || priceInput.dataset.autoFilled === 'true') {
-          priceInput.value = quote.cmp;
-          priceInput.dataset.autoFilled = 'true';
-        }
-        if (cmpBadge) {
-          const liveTag = quote.source === 'LIVE_EXCHANGE' ? '<span style="color: var(--accent-gold); font-size: 0.72rem; margin-right: 4px;">● LIVE</span>' : '';
-          cmpBadge.innerHTML = `${liveTag}CMP: ${portfolioStore.formatMoney(quote.cmp)}`;
-        }
-        this.recalculateImpact();
-      }
-    }).catch(() => {});
+    this.recalculateImpact();
   }
 
   recalculateImpact() {
@@ -398,154 +741,167 @@ export class AddHoldingView {
     const qtyInput = this.container.querySelector('#input-quantity');
     const priceInput = this.container.querySelector('#input-buy-price');
 
-    const symbol = symbolInput ? symbolInput.value.toUpperCase().trim() : '';
-    const quantity = parseFloat(qtyInput ? qtyInput.value : 0) || 0;
-    const price = parseFloat(priceInput ? priceInput.value : 0) || 0;
+    if (!symbolInput || !qtyInput || !priceInput) return;
 
-    const totalOutlay = quantity * price;
+    const symbol = symbolInput.value.toUpperCase().trim();
+    const qty = parseInt(qtyInput.value, 10) || 0;
+    const price = parseFloat(priceInput.value) || 0;
 
-    // Update Elements
+    const totalOutlay = qty * price;
+
+    // Update impact cards
     const outlayEl = this.container.querySelector('#impact-total-outlay');
     const sharesEl = this.container.querySelector('#impact-shares-val');
     const priceEl = this.container.querySelector('#impact-price-val');
     const cmpEl = this.container.querySelector('#impact-cmp-val');
     const statusBadge = this.container.querySelector('#holding-status-badge');
+    const existingNotice = this.container.querySelector('#existing-holding-notice');
     const submitBtnLabel = this.container.querySelector('#submit-btn-label');
-    const avgAlertBox = this.container.querySelector('#averaging-alert-box');
 
     if (outlayEl) outlayEl.textContent = portfolioStore.formatMoney(totalOutlay);
-    if (sharesEl) sharesEl.textContent = quantity.toLocaleString();
+    if (sharesEl) sharesEl.textContent = qty.toLocaleString();
     if (priceEl) priceEl.textContent = portfolioStore.formatMoney(price);
 
-    // Check if holding already exists in portfolio
-    const existingHolding = portfolioStore.getHoldingBySymbol(symbol);
-    const refStock = POPULAR_STOCKS.find(s => s.symbol.toUpperCase() === symbol);
-    const cmp = existingHolding ? existingHolding.cmp : (refStock ? refStock.cmp : price);
+    // Check existing
+    const existingHolding = symbol ? portfolioStore.getHoldingBySymbol(symbol) : null;
+    const refStock = symbol ? POPULAR_STOCKS.find(s => s.symbol.toUpperCase() === symbol) : null;
+    const cmpVal = (existingHolding && existingHolding.cmp) || (refStock && refStock.cmp) || null;
 
     if (cmpEl) {
-      cmpEl.textContent = cmp ? portfolioStore.formatMoney(cmp) : '--';
+      cmpEl.textContent = cmpVal ? portfolioStore.formatMoney(cmpVal) : '--';
     }
 
-    const existingNotice = this.container.querySelector('#existing-holding-notice');
-    const existingSym = this.container.querySelector('#existing-notice-symbol');
-    const existingQty = this.container.querySelector('#existing-notice-qty');
+    if (existingHolding) {
+      if (statusBadge) {
+        statusBadge.textContent = 'Existing Holding';
+        statusBadge.classList.add('existing');
+      }
+      if (submitBtnLabel) {
+        submitBtnLabel.textContent = `Average Position (${existingHolding.quantity} + ${qty} shares)`;
+      }
 
-    if (existingHolding && symbol) {
-      statusBadge.textContent = 'Already In Portfolio';
-      statusBadge.style.color = 'var(--accent-cyan)';
-      statusBadge.style.background = 'rgba(6, 182, 212, 0.15)';
-      statusBadge.style.borderColor = 'rgba(6, 182, 212, 0.35)';
-
+      // Show notice
       if (existingNotice) {
         existingNotice.classList.remove('is-hidden');
-        if (existingSym) existingSym.textContent = existingHolding.symbol;
-        if (existingQty) existingQty.textContent = existingHolding.quantity.toLocaleString();
+        const noticeSym = this.container.querySelector('#existing-notice-symbol');
+        const noticeQty = this.container.querySelector('#existing-notice-qty');
+        if (noticeSym) noticeSym.textContent = existingHolding.symbol;
+        if (noticeQty) noticeQty.textContent = existingHolding.quantity.toLocaleString();
       }
     } else {
-      statusBadge.textContent = 'New Holding';
-      statusBadge.style.color = 'var(--brand-indigo-light)';
-      statusBadge.style.background = 'rgba(99, 102, 241, 0.15)';
-      statusBadge.style.borderColor = 'rgba(99, 102, 241, 0.3)';
-
+      if (statusBadge) {
+        statusBadge.textContent = 'New Holding';
+        statusBadge.classList.remove('existing');
+      }
+      if (submitBtnLabel) {
+        submitBtnLabel.textContent = 'Confirm & Add to Portfolio';
+      }
       if (existingNotice) {
         existingNotice.classList.add('is-hidden');
       }
     }
 
-    if (submitBtnLabel) {
-      submitBtnLabel.textContent = 'Confirm & Add to Portfolio';
-    }
-
-    // Portfolio change estimation
-    const metrics = portfolioStore.getPortfolioMetrics();
-    const portfolioChangeEl = this.container.querySelector('#impact-portfolio-change');
-    if (portfolioChangeEl && metrics.totalInvested > 0) {
-      const pctIncrease = (totalOutlay / metrics.totalInvested) * 100;
-      portfolioChangeEl.textContent = `+${pctIncrease.toFixed(1)}% to Invested Base`;
+    // Estimate portfolio change percentage
+    const changeEl = this.container.querySelector('#impact-portfolio-change');
+    if (changeEl) {
+      const metrics = portfolioStore.getPortfolioMetrics();
+      const newTotal = metrics.totalInvested + totalOutlay;
+      const pctIncrease = metrics.totalInvested > 0 ? (totalOutlay / metrics.totalInvested) * 100 : 100;
+      changeEl.textContent = totalOutlay > 0 ? `+${pctIncrease.toFixed(1)}% portfolio size` : '+0.00%';
     }
   }
 
   handleSubmit() {
     const symbolInput = this.container.querySelector('#input-symbol');
+    const exchangeSelect = this.container.querySelector('#select-exchange');
+    const companyInput = this.container.querySelector('#input-company-name');
+    const sectorSelect = this.container.querySelector('#select-sector');
     const qtyInput = this.container.querySelector('#input-quantity');
     const priceInput = this.container.querySelector('#input-buy-price');
-    const companyInput = this.container.querySelector('#input-company-name');
-    const exchangeSelect = this.container.querySelector('#select-exchange');
-    const sectorSelect = this.container.querySelector('#select-sector');
     const dateInput = this.container.querySelector('#input-buy-date');
     const notesInput = this.container.querySelector('#input-notes');
 
     const symbol = symbolInput.value.toUpperCase().trim();
-    const quantity = parseFloat(qtyInput.value);
+    const exchange = exchangeSelect.value;
+    const name = companyInput.value.trim();
+    const sector = sectorSelect.value;
+    const quantity = parseInt(qtyInput.value, 10);
     const buyPrice = parseFloat(priceInput.value);
+    const buyDate = dateInput.value;
+    const notes = notesInput.value.trim();
 
     if (!symbol) {
-      alert('Please enter a valid stock symbol.');
       symbolInput.focus();
+      this.showToast('Please enter a valid stock symbol.', 'error');
       return;
     }
 
-    if (!quantity || quantity <= 0) {
-      alert('Please enter a valid quantity of shares (must be greater than 0).');
+    if (isNaN(quantity) || quantity <= 0) {
       qtyInput.focus();
+      this.showToast('Please enter a valid number of shares.', 'error');
       return;
     }
 
-    if (!buyPrice || buyPrice <= 0) {
-      alert('Please enter a valid buy price per share.');
+    if (isNaN(buyPrice) || buyPrice <= 0) {
       priceInput.focus();
+      this.showToast('Please enter a valid purchase price.', 'error');
       return;
     }
 
-    // Process in store
-    const result = portfolioStore.addOrUpdateHolding({
-      symbol: symbol,
-      name: companyInput.value.trim() || symbol,
-      exchange: exchangeSelect.value,
-      sector: sectorSelect.value,
-      quantity: quantity,
-      buyPrice: buyPrice,
-      buyDate: dateInput.value,
-      notes: notesInput.value.trim()
-    });
+    try {
+      const result = portfolioStore.addOrUpdateHolding({
+        symbol,
+        exchange,
+        name,
+        sector,
+        quantity,
+        buyPrice,
+        buyDate,
+        notes
+      });
 
-    // Show success notification
-    this.showToast(
-      result.isAveraged 
-        ? `Successfully averaged ${symbol}! New weighted average: ${portfolioStore.formatMoney(result.newAvgPrice)}` 
-        : `Successfully added ${quantity} shares of ${symbol} to your portfolio!`,
-      'success'
-    );
-
-    // Reset Form
-    symbolInput.value = '';
-    qtyInput.value = '';
-    priceInput.value = '';
-    companyInput.value = '';
-    notesInput.value = '';
-    this.container.querySelectorAll('.stock-pill').forEach(p => p.classList.remove('active'));
-    this.recalculateImpact();
-
-    // After brief moment, automatically navigate to Dashboard so user sees the reflected holding!
-    setTimeout(() => {
-      if (this.onNavigateToDashboard) {
-        this.onNavigateToDashboard();
+      if (result.isAveraged) {
+        this.showToast(`Averaged ${symbol}! New Avg Price: ${portfolioStore.formatMoney(result.newAvgPrice)}`, 'success');
+      } else {
+        this.showToast(`Added ${quantity} shares of ${symbol} to your portfolio!`, 'success');
       }
-    }, 1200);
+
+      // Reset form
+      symbolInput.value = '';
+      companyInput.value = '';
+      qtyInput.value = '';
+      priceInput.value = '';
+      notesInput.value = '';
+      const cmpBadge = this.container.querySelector('#cmp-display-badge');
+      if (cmpBadge) cmpBadge.textContent = '';
+
+      const pills = this.container.querySelectorAll('.stock-pill');
+      pills.forEach(p => p.classList.remove('active'));
+
+      this.recalculateImpact();
+      this.updateRecentTransactions();
+
+      // Trigger background quote update for newly added stock
+      portfolioStore.refreshMarketQuotes(true);
+
+    } catch (err) {
+      this.showToast(err.message || 'Failed to add holding.', 'error');
+    }
   }
 
   updateRecentTransactions() {
     const list = this.container.querySelector('#recent-tx-list');
-    const countBadge = this.container.querySelector('#recent-count-badge');
+    const badge = this.container.querySelector('#recent-count-badge');
     if (!list) return;
 
     const txs = portfolioStore.transactions.slice(0, 5);
-    if (countBadge) {
-      countBadge.textContent = `${portfolioStore.transactions.length} orders`;
+
+    if (badge) {
+      badge.textContent = `${portfolioStore.transactions.length} trades recorded`;
     }
 
     if (txs.length === 0) {
-      list.innerHTML = `<div style="color: var(--text-muted); font-size: 0.8rem; padding: 0.5rem;">No recent transactions</div>`;
+      list.innerHTML = `<div style="padding: 1rem 0; color: var(--text-muted); font-size: 0.85rem; text-align: center;">No transaction history yet.</div>`;
       return;
     }
 

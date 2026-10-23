@@ -55,8 +55,10 @@ class App {
     this.addHoldingView = new AddHoldingView(
       addHoldingContainer,
       () => this.navigateTo('dashboard'),
-      (symbol) => this.navigateTo('stock', { symbol })
+      (symbol) => this.navigateTo('stock', { symbol }),
+      () => this.navigateTo('holdings')
     );
+    window.app = this;
 
     this.stockDetailView = new StockDetailView(
       stockDetailContainer,
@@ -110,8 +112,9 @@ class App {
       this.switchView('stock-detail', symbol);
     } else if (hash === 'holdings') {
       this.switchView('holdings');
-    } else if (hash === 'add-holding') {
-      this.switchView('add-holding');
+    } else if (hash.startsWith('add-holding')) {
+      const isBulk = hash.includes('mode=bulk');
+      this.switchView('add-holding', isBulk ? { mode: 'bulk' } : null);
     } else if (hash === 'analysis') {
       this.switchView('analysis');
     } else {
@@ -159,7 +162,12 @@ class App {
         }
       }
     } else {
-      if (addHoldingContainer) addHoldingContainer.classList.add('active');
+      if (addHoldingContainer) {
+        addHoldingContainer.classList.add('active');
+        if (param && this.addHoldingView) {
+          this.addHoldingView.setPrefill(param);
+        }
+      }
     }
 
     window.scrollTo({ top: 0, behavior: 'smooth' });
