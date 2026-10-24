@@ -1,5 +1,6 @@
 // Stock Detail View - Dedicated transaction history, position metrics & averaging calculator
 import { portfolioStore } from '../state/portfolioStore.js';
+import { POPULAR_STOCKS } from '../data/stocksDatabase.js';
 
 const icons = {
   arrowLeft: `<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="19" y1="12" x2="5" y2="12"></line><polyline points="12 19 5 12 12 5"></polyline></svg>`,
@@ -742,6 +743,7 @@ export class StockDetailView {
 
     // Update current value & unrealized P&L
     this.updateFinancialMetrics();
+    this.updateTransactionTable();
   }
 
   // Updates KPI metric cards without touching form inputs
@@ -802,6 +804,12 @@ export class StockDetailView {
       return;
     }
 
+    const holding = portfolioStore.getHoldingBySymbol(this.currentSymbol);
+    const refStock = POPULAR_STOCKS.find(s => s.symbol.toUpperCase() === (this.currentSymbol || '').toUpperCase());
+    const currentCmp = holding && !isNaN(parseFloat(holding.cmp)) && parseFloat(holding.cmp) > 0
+      ? parseFloat(holding.cmp)
+      : (refStock ? refStock.cmp : (holding ? parseFloat(holding.avgPrice) : 0));
+
     wrapper.innerHTML = `
       <div class="table-responsive">
         <table class="holdings-table detail-tx-table">
@@ -812,12 +820,23 @@ export class StockDetailView {
               <th style="text-align: right;">Quantity</th>
               <th style="text-align: right;">Execution Price</th>
               <th style="text-align: right;">Total Amount</th>
+              <th style="text-align: right;" title="Profit or Loss calculated against Current Market Price (${portfolioStore.formatMoney(currentCmp)})">Profit / Loss (vs CMP)</th>
               <th>Notes / Reason</th>
             </tr>
           </thead>
           <tbody>
             ${transactions.map(tx => {
               const isBuy = (tx.type || 'BUY').toUpperCase() === 'BUY';
+              const execPrice = Number(tx.price) || 0;
+              const qty = Number(tx.quantity) || 0;
+              const totalCost = Number(tx.totalAmount) || (qty * execPrice);
+
+              // Profit / Loss calculation w.r.t CMP
+              const orderCurrentVal = qty * currentCmp;
+              const orderPnl = currentCmp > 0 ? (orderCurrentVal - totalCost) : 0;
+              const orderPnlPercent = (currentCmp > 0 && execPrice > 0) ? (((currentCmp - execPrice) / execPrice) * 100) : 0;
+              const isOrderProfit = orderPnl >= 0;
+
               return `
                 <tr>
                   <td>
@@ -843,15 +862,27 @@ export class StockDetailView {
                       ${portfolioStore.formatMoney(tx.totalAmount || (tx.quantity * tx.price))}
                     </span>
                   </td>
+                  <td style="text-align: right;">
+                    ${isBuy ? `
+                      <div class="mono" style="font-weight: 700; color: ${isOrderProfit ? 'var(--bull-green)' : 'var(--bear-red)'}; font-size: 0.88rem;">
+                        ${isOrderProfit ? '+' : ''}${portfolioStore.formatMoney(orderPnl)}
+                      </div>
+                      <div class="mono" style="font-size: 0.74rem; color: ${isOrderProfit ? 'var(--bull-green)' : 'var(--bear-red)'}; opacity: 0.95;">
+                        ${isOrderProfit ? '+' : ''}${orderPnlPercent.toFixed(2)}%
+                      </div>
+                    ` : (tx.realizedPnL !== undefined ? `
+                      <div class="mono" style="font-weight: 700; color: ${tx.realizedPnL >= 0 ? 'var(--bull-green)' : 'var(--bear-red)'}; font-size: 0.88rem;">
+                        ${tx.realizedPnL >= 0 ? '+' : ''}${portfolioStore.formatMoney(tx.realizedPnL)}
+                      </div>
+                      <div class="mono" style="font-size: 0.74rem; color: ${tx.realizedPnL >= 0 ? 'var(--bull-green)' : 'var(--bear-red)'};">
+                        ${tx.realizedPnLPercent >= 0 ? '+' : ''}${Number(tx.realizedPnLPercent).toFixed(2)}% <span style="font-size: 0.68rem; opacity: 0.8;">(Realized)</span>
+                      </div>
+                    ` : `<span class="mono" style="color: var(--text-muted);">-</span>`)}
+                  </td>
                   <td>
                     <span style="font-size: 0.8rem; color: var(--text-secondary);">
                       ${tx.notes || 'Portfolio trade'}
                     </span>
-                    ${tx.realizedPnL !== undefined ? `
-                      <div style="font-size: 0.75rem; font-family: var(--font-mono); color: ${tx.realizedPnL >= 0 ? 'var(--bull-green)' : 'var(--bear-red)'}; margin-top: 0.15rem;">
-                        Realized: ${tx.realizedPnL >= 0 ? '+' : ''}${portfolioStore.formatMoney(tx.realizedPnL)} (${tx.realizedPnLPercent >= 0 ? '+' : ''}${Number(tx.realizedPnLPercent).toFixed(2)}%)
-                      </div>
-                    ` : ''}
                   </td>
                 </tr>
               `;
@@ -864,6 +895,14 @@ export class StockDetailView {
       <div class="mobile-tx-list">
         ${transactions.map(tx => {
           const isBuy = (tx.type || 'BUY').toUpperCase() === 'BUY';
+          const execPrice = Number(tx.price) || 0;
+          const qty = Number(tx.quantity) || 0;
+          const totalCost = Number(tx.totalAmount) || (qty * execPrice);
+          const orderCurrentVal = qty * currentCmp;
+          const orderPnl = currentCmp > 0 ? (orderCurrentVal - totalCost) : 0;
+          const orderPnlPercent = (currentCmp > 0 && execPrice > 0) ? (((currentCmp - execPrice) / execPrice) * 100) : 0;
+          const isOrderProfit = orderPnl >= 0;
+
           return `
             <div class="mobile-tx-card">
               <div class="mobile-tx-header">
@@ -882,14 +921,19 @@ export class StockDetailView {
                     ${portfolioStore.formatMoney(tx.totalAmount || (tx.quantity * tx.price))}
                   </div>
                   <div class="num-cell sub">Total Amount</div>
+                  ${isBuy && currentCmp > 0 ? `
+                    <div style="font-size: 0.8rem; font-family: var(--font-mono); font-weight: 700; color: ${isOrderProfit ? 'var(--bull-green)' : 'var(--bear-red)'}; margin-top: 0.25rem;">
+                      P&L: ${isOrderProfit ? '+' : ''}${portfolioStore.formatMoney(orderPnl)} (${isOrderProfit ? '+' : ''}${orderPnlPercent.toFixed(2)}%)
+                    </div>
+                  ` : ''}
+                  ${!isBuy && tx.realizedPnL !== undefined ? `
+                    <div style="font-size: 0.8rem; font-family: var(--font-mono); font-weight: 700; color: ${tx.realizedPnL >= 0 ? 'var(--bull-green)' : 'var(--bear-red)'}; margin-top: 0.25rem;">
+                      Realized: ${tx.realizedPnL >= 0 ? '+' : ''}${portfolioStore.formatMoney(tx.realizedPnL)} (${tx.realizedPnLPercent >= 0 ? '+' : ''}${Number(tx.realizedPnLPercent).toFixed(2)}%)
+                    </div>
+                  ` : ''}
                 </div>
               </div>
               ${tx.notes ? `<div class="mobile-tx-notes">${tx.notes}</div>` : ''}
-              ${tx.realizedPnL !== undefined ? `
-                <div style="font-size: 0.75rem; font-family: var(--font-mono); color: ${tx.realizedPnL >= 0 ? 'var(--bull-green)' : 'var(--bear-red)'}; margin-top: 0.25rem;">
-                  Realized P&L: ${tx.realizedPnL >= 0 ? '+' : ''}${portfolioStore.formatMoney(tx.realizedPnL)} (${tx.realizedPnLPercent >= 0 ? '+' : ''}${Number(tx.realizedPnLPercent).toFixed(2)}%)
-                </div>
-              ` : ''}
             </div>
           `;
         }).join('')}

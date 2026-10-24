@@ -53,7 +53,7 @@ export class AddHoldingView {
     this.render();
 
     this.unsubscribe = portfolioStore.subscribe((event) => {
-      if (event.type === 'HOLDING_ADDED' || event.type === 'TRANSACTION_RECORDED' || event.type === 'PORTFOLIO_RESET') {
+      if (event.type === 'HOLDING_ADDED' || event.type === 'TRANSACTION_RECORDED' || event.type === 'PORTFOLIO_RESET' || event.type === 'DATA_CLEARED' || event.type === 'HOLDINGS_CLEARED' || event.type === 'TRANSACTIONS_UPDATED') {
         if (this.mode === 'single') {
           this.updateRecentTransactions();
         }
@@ -336,9 +336,9 @@ export class AddHoldingView {
               <div class="dropzone-icon-box">
                 ${icons.upload}
               </div>
-              <h4 class="dropzone-title">Click to upload or drag & drop your file</h4>
+              <h4 class="dropzone-title">Click to upload or drag & drop your portfolio statement</h4>
               <p class="dropzone-desc">
-                Supports Excel (.xlsx, .xls), CSV (.csv), or JSON (.json) files from Invest Right, Zerodha Kite, Groww, AngelOne, Upstox, or custom spreadsheet.
+                Supports <strong>Zerodha Kite statements (e.g. holdings-*.xlsx)</strong>, Motilal Oswal Invest Right (.csv), Groww, AngelOne, Upstox, Excel workbooks (.xlsx, .xls), CSV, or JSON.
               </p>
               <button type="button" class="btn btn-primary btn-sm" id="btn-browse-bulk-file">
                 Select File from Device
@@ -369,12 +369,17 @@ export class AddHoldingView {
               <div class="preview-file-badge">
                 <span class="file-icon">📊</span>
                 <div>
-                  <div class="preview-filename">
-                    ${this.parsedImport.fileName} 
-                    <span class="profile-chip badge-member" style="margin-left: 0.5rem;">${this.parsedImport.fileType}</span>
+                  <div class="preview-filename" style="display: flex; align-items: center; flex-wrap: wrap; gap: 0.4rem;">
+                    <span>${this.parsedImport.fileName}</span> 
+                    <span class="profile-chip badge-member">${this.parsedImport.fileType}</span>
+                    ${this.parsedImport.broker ? `<span class="profile-chip" style="background: rgba(99, 102, 241, 0.2); color: var(--brand-indigo-light); border: 1px solid rgba(99, 102, 241, 0.4);">🏢 ${this.parsedImport.broker}${this.parsedImport.clientId ? ' (' + this.parsedImport.clientId + ')' : ''}</span>` : ''}
+                    ${this.parsedImport.sheetName ? `<span class="profile-chip" style="background: rgba(16, 185, 129, 0.15); color: var(--bull-green); border: 1px solid rgba(16, 185, 129, 0.3);">📋 Sheet: ${this.parsedImport.sheetName}</span>` : ''}
                   </div>
-                  <div class="preview-meta">
-                    ${this.parsedImport.validItems.length} valid stocks found • Total Invested: ${portfolioStore.formatMoney(this.parsedImport.totalInvested)}
+                  <div class="preview-meta" style="margin-top: 0.35rem;">
+                    <strong>${this.parsedImport.validItems.length} valid stocks found</strong> • Total Invested: <strong>${portfolioStore.formatMoney(this.parsedImport.totalInvested)}</strong>
+                    ${this.parsedImport.totalPresentValue ? ` • Closing Value: <strong style="color: var(--accent-gold);">${portfolioStore.formatMoney(this.parsedImport.totalPresentValue)}</strong>` : ''}
+                    ${this.parsedImport.unrealizedPnL !== undefined && this.parsedImport.totalInvested > 0 ? ` • P&L: <strong style="color: ${this.parsedImport.unrealizedPnL >= 0 ? 'var(--bull-green)' : 'var(--bear-red)'};">${this.parsedImport.unrealizedPnL >= 0 ? '+' : ''}${portfolioStore.formatMoney(this.parsedImport.unrealizedPnL)} (${this.parsedImport.unrealizedPnLPct >= 0 ? '+' : ''}${this.parsedImport.unrealizedPnLPct.toFixed(2)}%)</strong>` : ''}
+                    ${this.parsedImport.statementDate ? ` • As on: <span>${this.parsedImport.statementDate}</span>` : ''}
                   </div>
                 </div>
               </div>

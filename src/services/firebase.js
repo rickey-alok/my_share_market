@@ -253,6 +253,25 @@ class FirebaseService {
     }
   }
 
+  async clearAllUserTransactions(userId) {
+    if (!this.isConfigured || !this.db || !userId) return false;
+    try {
+      const userTxRef = collection(this.db, 'users', userId, 'transactions');
+      const snap = await getDocs(userTxRef);
+      const delPromises = [];
+      snap.forEach(d => {
+        delPromises.push(deleteDoc(d.ref).catch(() => {}));
+        delPromises.push(deleteDoc(doc(this.db, 'transactions', `${userId}_${d.id}`)).catch(() => {}));
+        delPromises.push(deleteDoc(doc(this.db, 'transactions', d.id)).catch(() => {}));
+      });
+      await Promise.all(delPromises);
+      return true;
+    } catch (e) {
+      console.error('Error clearing all user transactions from Firestore:', e);
+      return false;
+    }
+  }
+
   // ==========================================================
   // User Scoped Transactions (/users/{userId}/transactions)
   // ==========================================================

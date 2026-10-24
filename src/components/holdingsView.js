@@ -225,8 +225,10 @@ export class HoldingsView {
         }
 
         const count = portfolioStore.holdings.length;
+        const txCount = portfolioStore.transactions ? portfolioStore.transactions.length : 0;
+        const txInfo = txCount > 0 ? ` and all ${txCount} transaction history & order records` : ' and all order history';
         const confirmed = confirm(
-          `WARNING: This will permanently delete all ${count} holdings from your portfolio and database.\n\nAre you sure you want to proceed?`
+          `WARNING: This will permanently delete all ${count} holdings${txInfo} from your portfolio.\n\nAre you sure you want to proceed?`
         );
 
         if (!confirmed) return;
@@ -235,8 +237,14 @@ export class HoldingsView {
         btnClearAll.textContent = 'Clearing...';
 
         try {
-          await portfolioStore.clearAllHoldings();
-          this.showToast('All holdings removed successfully.', 'info');
+          if (typeof portfolioStore.clearAllHoldings === 'function') {
+            await portfolioStore.clearAllHoldings();
+          } else if (typeof portfolioStore.clearAllData === 'function') {
+            await portfolioStore.clearAllData();
+          } else {
+            throw new Error('Clear holdings method is not available in portfolio store.');
+          }
+          this.showToast('All holdings, transaction history, and orders cleared successfully.', 'info');
         } catch (err) {
           console.error('Error clearing holdings:', err);
           alert('Failed to clear holdings: ' + err.message);

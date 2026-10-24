@@ -66,7 +66,20 @@ const SCRIP_MAP = {
   'TATASTEEL': 'TIS',
   'NTPC': 'NTP',
   'ONGC': 'ONG',
-  'COALINDIA': 'CI29'
+  'COALINDIA': 'CI29',
+  'PTC': 'PTC01', // PTC India Ltd. (Power Trading)
+  'PTCIL': 'PTC02', // PTC Industries Ltd. (Heavy Engineering / Aerospace)
+  'BEL': 'BE03',
+  'IRFC': 'IRF',
+  'RVNL': 'RVN',
+  'SWIGGY': 'SL23',
+  'TATATECH': 'TTL01',
+  'TEJASNET': 'TN',
+  'TTML': 'HTC02',
+  'ADANIENT': 'AE01',
+  'ADANIGREEN': 'ADANI54145',
+  'ATGL': 'ADG01',
+  'RAILTEL': 'RCO01'
 };
 
 class LiveMarketService {
@@ -182,10 +195,49 @@ class LiveMarketService {
       if (sRes.ok) {
         const items = await sRes.json();
         if (Array.isArray(items) && items.length > 0) {
-          const match = items.find(i => 
-            (i.pdt_dis_nm && i.pdt_dis_nm.toUpperCase().includes(cleanSym)) || 
-            (i.sc_id && i.sc_id.toUpperCase() === cleanSym)
-          ) || items[0];
+          // Tier 1: Exact match on ticker symbol, ISIN, or security code in span tokens
+          // Example: "PTC India&nbsp;<span>INE877F01012, PTC, 532524</span>"
+          let match = items.find(i => {
+            if (!i.pdt_dis_nm) return false;
+            const spanMatch = i.pdt_dis_nm.match(/<span>(.*?)<\/span>/i);
+            if (spanMatch && spanMatch[1]) {
+              const tokens = spanMatch[1].split(',').map(s => s.trim().toUpperCase());
+              return tokens.includes(cleanSym);
+            }
+            return false;
+          });
+
+          // Tier 2: Exact match on sc_id or stock_name or name
+          if (!match) {
+            match = items.find(i => 
+              (i.sc_id && i.sc_id.toUpperCase() === cleanSym) ||
+              (i.stock_name && i.stock_name.trim().toUpperCase() === cleanSym) ||
+              (i.name && i.name.trim().toUpperCase() === cleanSym)
+            );
+          }
+
+          // Tier 3: Word boundary prefix match on stock_name or name
+          // E.g., "PTC India" vs "PTC Industries"
+          if (!match) {
+            const boundaryRegex = new RegExp(`^${cleanSym}(?:\\s|&|\\b)`, 'i');
+            match = items.find(i => 
+              (i.stock_name && boundaryRegex.test(i.stock_name.trim())) ||
+              (i.name && boundaryRegex.test(i.name.trim()))
+            );
+          }
+
+          // Tier 4: Substring match if no exact match was found
+          if (!match) {
+            match = items.find(i => 
+              (i.pdt_dis_nm && i.pdt_dis_nm.toUpperCase().includes(cleanSym)) || 
+              (i.stock_name && i.stock_name.toUpperCase().includes(cleanSym))
+            );
+          }
+
+          // Tier 5: Fallback to first item if present
+          if (!match && items.length > 0) {
+            match = items[0];
+          }
 
           if (match && match.sc_id) {
             this.scripCache.set(cleanSym, match.sc_id);

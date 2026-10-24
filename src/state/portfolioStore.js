@@ -645,25 +645,32 @@ class PortfolioStore {
       const newWeightedAvg = ((currentQty * currentAvgPrice) + (quantity * buyPrice)) / newTotalQty;
 
       holdingId = oldHolding.id;
+      const fileCmp = item.cmp !== undefined && !isNaN(parseFloat(item.cmp)) && parseFloat(item.cmp) > 0 ? parseFloat(item.cmp) : null;
+      const filePrevClose = item.prevClose !== undefined && !isNaN(parseFloat(item.prevClose)) && parseFloat(item.prevClose) > 0 ? parseFloat(item.prevClose) : null;
+
       this.holdings[existingIndex] = {
         ...oldHolding,
         quantity: newTotalQty,
         avgPrice: parseFloat(newWeightedAvg.toFixed(2)),
+        isin: item.isin || oldHolding.isin || '',
         // Preserve or update CMP if provided
-        cmp: item.cmp ? parseFloat(item.cmp) : oldHolding.cmp,
-        prevClose: item.prevClose ? parseFloat(item.prevClose) : oldHolding.prevClose,
+        cmp: fileCmp !== null ? fileCmp : oldHolding.cmp,
+        prevClose: filePrevClose !== null ? filePrevClose : oldHolding.prevClose,
         notes: item.notes ? `${oldHolding.notes || ''} | ${item.notes}`.trim() : oldHolding.notes
       };
     } else {
       // Brand new holding
-      holdingId = 'h_' + Date.now();
+      holdingId = 'h_' + Date.now() + '_' + Math.random().toString(36).substr(2, 6);
       const refStock = POPULAR_STOCKS.find(s => s.symbol.toUpperCase() === symbol);
-      const cmp = item.cmp || (refStock ? refStock.cmp : buyPrice);
-      const prevClose = item.prevClose || (refStock ? refStock.prevClose : buyPrice);
+      const fileCmp = item.cmp !== undefined && !isNaN(parseFloat(item.cmp)) && parseFloat(item.cmp) > 0 ? parseFloat(item.cmp) : null;
+      const filePrevClose = item.prevClose !== undefined && !isNaN(parseFloat(item.prevClose)) && parseFloat(item.prevClose) > 0 ? parseFloat(item.prevClose) : null;
+      const cmp = fileCmp !== null ? fileCmp : (refStock ? refStock.cmp : buyPrice);
+      const prevClose = filePrevClose !== null ? filePrevClose : (refStock ? refStock.prevClose : cmp);
 
       const newHolding = {
         id: holdingId,
         symbol: symbol,
+        isin: item.isin || (refStock ? refStock.isin : '') || '',
         name: item.name || (refStock ? refStock.name : symbol),
         exchange: item.exchange || (refStock ? refStock.exchange : 'NSE'),
         sector: item.sector || (refStock ? refStock.sector : 'General / Equity'),
@@ -673,8 +680,8 @@ class PortfolioStore {
         prevClose: parseFloat(prevClose),
         dayHigh: refStock ? refStock.dayHigh : parseFloat(cmp),
         dayLow: refStock ? refStock.dayLow : parseFloat(cmp),
-        week52High: refStock ? refStock.week52High : parseFloat(cmp * 1.25),
-        week52Low: refStock ? refStock.week52Low : parseFloat(cmp * 0.75),
+        week52High: refStock ? refStock.week52High : parseFloat((cmp * 1.25).toFixed(2)),
+        week52Low: refStock ? refStock.week52Low : parseFloat((cmp * 0.75).toFixed(2)),
         buyDate: item.buyDate || new Date().toISOString().split('T')[0],
         notes: item.notes || ''
       };
@@ -683,7 +690,7 @@ class PortfolioStore {
 
     // Record Transaction
     const newTx = {
-      id: 'tx_' + Date.now(),
+      id: 'tx_' + Date.now() + '_' + Math.random().toString(36).substr(2, 6),
       holdingId: holdingId,
       symbol: symbol,
       type: 'BUY',
@@ -1227,10 +1234,13 @@ class PortfolioStore {
       const res = this.addOrUpdateHolding({
         symbol: sym,
         name: item.name,
+        isin: item.isin || '',
         exchange: item.exchange || 'NSE',
         sector: item.sector,
         quantity: qty,
         buyPrice: price,
+        cmp: item.cmp,
+        prevClose: item.prevClose,
         buyDate: item.buyDate || new Date().toISOString().split('T')[0],
         notes: item.notes || 'Bulk imported'
       });
@@ -1261,18 +1271,41 @@ class PortfolioStore {
     this.saveHoldings(this.holdings);
     this.saveTransactions(this.transactions);
 
+    // Explicitly wipe storage keys to remove any cached holdings and transaction history
+    try {
+      localStorage.removeItem(STORAGE_KEY_GUEST_HOLDINGS);
+      localStorage.removeItem(STORAGE_KEY_GUEST_TRANSACTIONS);
+      localStorage.removeItem('apex_portfolio_holdings_v1');
+      localStorage.removeItem('apex_portfolio_txs_v1');
+      const uid = this.getActiveUserId();
+      if (uid && uid !== 'usr_local_guest') {
+        localStorage.removeItem(this.getUserHoldingsKey(uid));
+        localStorage.removeItem(this.getUserTransactionsKey(uid));
+      }
+    } catch (e) {}
+
     if (firebaseService.isConfigured && !this.isInspectingOtherUser) {
       const uid = this.getActiveUserId();
       if (uid && uid !== 'usr_local_guest') {
         try {
-          await firebaseService.clearAllUserHoldings(uid);
+          await Promise.all([
+            firebaseService.clearAllUserHoldings(uid),
+            firebaseService.clearAllUserTransactions(uid)
+          ]);
         } catch (err) {
-          console.error('Failed to clear user holdings from Firestore:', err);
+          console.error('Failed to clear user data from Firestore:', err);
         }
       }
     }
 
     this.notify({ type: 'DATA_CLEARED' });
+    this.notify({ type: 'HOLDINGS_CLEARED' });
+    this.notify({ type: 'TRANSACTIONS_UPDATED' });
+    this.notify({ type: 'PORTFOLIO_RESET' });
+  }
+
+  async clearAllHoldings() {
+    return this.clearAllData();
   }
 
   // Manually push all active holdings to Firestore cloud
