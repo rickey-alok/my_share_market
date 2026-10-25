@@ -11,7 +11,9 @@ const icons = {
   search: `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>`,
   layers: `<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 2 7 12 12 22 7 12 2"></polygon><polyline points="2 17 12 22 22 17"></polyline><polyline points="2 12 12 17 22 12"></polyline></svg>`,
   checkCircle: `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path><polyline points="22 4 12 14.01 9 11.01"></polyline></svg>`,
-  chevronDown: `<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"></polyline></svg>`
+  chevronDown: `<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"></polyline></svg>`,
+  chevronLeft: `<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"></polyline></svg>`,
+  chevronRight: `<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"></polyline></svg>`
 };
 
 export class HoldingsView {
@@ -23,7 +25,7 @@ export class HoldingsView {
     this.selectedSector = 'ALL';
     this.sortBy = 'value-desc';
     this.pageSize = 10;
-    this.visibleCount = 10;
+    this.currentPage = 1;
 
     this.init();
   }
@@ -201,7 +203,7 @@ export class HoldingsView {
     if (searchInput) {
       searchInput.addEventListener('input', (e) => {
         this.searchTerm = e.target.value.toLowerCase().trim();
-        this.visibleCount = this.pageSize;
+        this.currentPage = 1;
         this.renderHoldingsTableAndCards();
       });
     }
@@ -211,7 +213,7 @@ export class HoldingsView {
     if (sectorFilter) {
       sectorFilter.addEventListener('change', (e) => {
         this.selectedSector = e.target.value;
-        this.visibleCount = this.pageSize;
+        this.currentPage = 1;
         this.renderHoldingsTableAndCards();
       });
     }
@@ -221,7 +223,7 @@ export class HoldingsView {
     if (sortFilter) {
       sortFilter.addEventListener('change', (e) => {
         this.sortBy = e.target.value;
-        this.visibleCount = this.pageSize;
+        this.currentPage = 1;
         this.renderHoldingsTableAndCards();
       });
     }
@@ -268,25 +270,18 @@ export class HoldingsView {
 
     // Delegate Table & Card Action Clicks
     this.container.addEventListener('click', async (e) => {
-      // Load More / Pagination buttons
-      const btnLoadMore = e.target.closest('#btn-load-more-holdings');
-      if (btnLoadMore) {
-        this.visibleCount += this.pageSize;
-        this.renderHoldingsTableAndCards();
-        return;
-      }
-
-      const btnShowAll = e.target.closest('#btn-show-all-holdings');
-      if (btnShowAll) {
-        this.visibleCount = 999999;
-        this.renderHoldingsTableAndCards();
-        return;
-      }
-
-      const btnCollapse = e.target.closest('#btn-collapse-holdings');
-      if (btnCollapse) {
-        this.visibleCount = this.pageSize;
-        this.renderHoldingsTableAndCards();
+      // Pagination page navigation click
+      const pageBtn = e.target.closest('[data-page]');
+      if (pageBtn && !pageBtn.disabled) {
+        const targetPage = parseInt(pageBtn.getAttribute('data-page'), 10);
+        if (!isNaN(targetPage) && targetPage >= 1 && targetPage !== this.currentPage) {
+          this.currentPage = targetPage;
+          this.renderHoldingsTableAndCards();
+          const tableWrap = this.container.querySelector('.holdings-table-wrap');
+          if (tableWrap) {
+            tableWrap.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+          }
+        }
         return;
       }
 
@@ -649,11 +644,13 @@ export class HoldingsView {
     }
 
     const totalCount = filtered.length;
-    const displayedHoldings = filtered.slice(0, this.visibleCount);
-    const showingCount = displayedHoldings.length;
-    const hasMore = showingCount < totalCount;
-    const nextBatch = Math.min(this.pageSize, totalCount - showingCount);
-    const progressPct = Math.round((showingCount / totalCount) * 100);
+    const totalPages = Math.max(1, Math.ceil(totalCount / this.pageSize));
+    if (this.currentPage > totalPages) this.currentPage = totalPages;
+    if (this.currentPage < 1) this.currentPage = 1;
+
+    const startIndex = (this.currentPage - 1) * this.pageSize;
+    const endIndex = Math.min(startIndex + this.pageSize, totalCount);
+    const displayedHoldings = filtered.slice(startIndex, endIndex);
 
     // Check if event was a tick or sync to trigger pulse animation on CMP
     const tickSymbol = event.type === 'PRICE_TICK' && event.tick ? event.tick.symbol : null;
@@ -824,39 +821,71 @@ export class HoldingsView {
       `;
     }).join('');
 
-    // Render Progressive Load More / Pagination Bar
+    // Render Page-Based Pagination Bar (Max 10 shares per page)
     if (paginationBar) {
       if (totalCount > this.pageSize) {
-        if (hasMore) {
-          paginationBar.innerHTML = `
-            <div class="pagination-status-text">
-              Showing <strong>${showingCount}</strong> of <strong>${totalCount}</strong> shares (${progressPct}%)
-            </div>
-            <div class="pagination-progress-track">
-              <div class="pagination-progress-fill" style="width: ${progressPct}%;"></div>
-            </div>
-            <div class="pagination-actions-row">
-              <button id="btn-load-more-holdings" class="btn btn-load-more" title="Load next ${nextBatch} shares">
-                ${icons.chevronDown}
-                <span>Load Next ${nextBatch} Shares</span>
-              </button>
-              <button id="btn-show-all-holdings" class="btn-collapse-holdings" title="Show all ${totalCount} shares">
-                Show All (${totalCount})
-              </button>
-            </div>
-          `;
-        } else {
-          paginationBar.innerHTML = `
-            <div class="pagination-status-text">
-              Showing all <strong>${totalCount}</strong> shares
-            </div>
-            <div class="pagination-actions-row">
-              <button id="btn-collapse-holdings" class="btn-collapse-holdings" title="Collapse back to ${this.pageSize} shares">
-                Collapse to ${this.pageSize}
-              </button>
-            </div>
-          `;
+        // Build page buttons array (with ellipsis for large counts)
+        const pages = [];
+        for (let p = 1; p <= totalPages; p++) {
+          if (
+            p === 1 || 
+            p === totalPages || 
+            (p >= this.currentPage - 1 && p <= this.currentPage + 1)
+          ) {
+            pages.push(p);
+          } else if (pages[pages.length - 1] !== '...') {
+            pages.push('...');
+          }
         }
+
+        const pagesHtml = pages.map(p => {
+          if (p === '...') {
+            return `<span class="pagination-ellipsis">…</span>`;
+          }
+          const isActive = p === this.currentPage;
+          return `
+            <button 
+              type="button" 
+              class="pagination-page-pill ${isActive ? 'active' : ''}" 
+              data-page="${p}" 
+              ${isActive ? 'aria-current="page"' : ''}
+              title="Page ${p}"
+            >
+              ${p}
+            </button>
+          `;
+        }).join('');
+
+        paginationBar.innerHTML = `
+          <div class="pagination-status-text">
+            Showing <strong>${startIndex + 1}–${endIndex}</strong> of <strong>${totalCount}</strong> shares (Page ${this.currentPage} of ${totalPages})
+          </div>
+          <div class="pagination-controls-row">
+            <button 
+              type="button" 
+              class="pagination-nav-btn" 
+              data-page="${this.currentPage - 1}" 
+              ${this.currentPage <= 1 ? 'disabled' : ''} 
+              title="Previous 10 Shares"
+            >
+              ${icons.chevronLeft}
+              <span>Prev</span>
+            </button>
+            <div class="pagination-pages-list">
+              ${pagesHtml}
+            </div>
+            <button 
+              type="button" 
+              class="pagination-nav-btn" 
+              data-page="${this.currentPage + 1}" 
+              ${this.currentPage >= totalPages ? 'disabled' : ''} 
+              title="Next 10 Shares"
+            >
+              <span>Next</span>
+              ${icons.chevronRight}
+            </button>
+          </div>
+        `;
       } else {
         paginationBar.innerHTML = `
           <div class="pagination-status-text">
