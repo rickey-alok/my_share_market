@@ -367,15 +367,31 @@ export class HoldingsView {
     if (w52High <= w52Low) w52High = w52Low + (w52Low * 0.1 || 1);
 
     const w52Span = w52High - w52Low;
-    const w52CmpPct = Math.max(3, Math.min(97, ((cmp - w52Low) / w52Span) * 100));
+    const w52CmpPct = Math.max(0, Math.min(100, ((cmp - w52Low) / w52Span) * 100));
     const w52MyPct = ((myPrice - w52Low) / w52Span) * 100;
     const isW52MyBelow = myPrice < w52Low;
     const isW52MyAbove = myPrice > w52High;
-    const w52ClampedMyPct = Math.max(3, Math.min(97, w52MyPct));
-    const w52FillLeft = Math.min(w52CmpPct, w52ClampedMyPct);
-    const w52FillWidth = Math.max(1, Math.abs(w52CmpPct - w52ClampedMyPct));
-
+    const isW52MyOutside = isW52MyBelow || isW52MyAbove;
     const isProfit = cmp >= myPrice;
+
+    // Fill calculation on the 52W line
+    let w52FillLeft = 0;
+    let w52FillWidth = 0;
+    if (isW52MyBelow) {
+      // Below 52W Low: stock has been in profit across the entire 52W range from Low (0%) to CMP
+      w52FillLeft = 0;
+      w52FillWidth = Math.max(1, w52CmpPct);
+    } else if (isW52MyAbove) {
+      // Above 52W High: stock has been in loss across the entire 52W range from CMP to High (100%)
+      w52FillLeft = w52CmpPct;
+      w52FillWidth = Math.max(1, 100 - w52CmpPct);
+    } else {
+      // In range: fill between My Price and CMP
+      const clampedMy = Math.max(0, Math.min(100, w52MyPct));
+      w52FillLeft = Math.min(w52CmpPct, clampedMy);
+      w52FillWidth = Math.max(1, Math.abs(w52CmpPct - clampedMy));
+    }
+    const w52InRailMyPct = Math.max(2, Math.min(98, w52MyPct));
 
     // 3. 14-Period Relative Strength Index (RSI)
     const rsi = calculateStockRSI(h);
@@ -397,88 +413,160 @@ export class HoldingsView {
       rsiClass = 'rsi-bearish';
     }
 
+    const is52wClose = !isW52MyOutside && myPrice > 0 && Math.abs(w52CmpPct - w52InRailMyPct) < 18;
+
+    const getPinLabelTransform = (pct) => {
+      if (pct < 20) return 'translateX(0%)';
+      if (pct > 80) return 'translateX(-100%)';
+      return 'translateX(-50%)';
+    };
+
+    const dayCmpTransform = getPinLabelTransform(dayCmpPct);
+    const w52CmpTransform = getPinLabelTransform(w52CmpPct);
+    const w52MyTransform = getPinLabelTransform(w52InRailMyPct);
+    const rsiTransform = getPinLabelTransform(clampedRsiPct);
+
     return `
       <div class="range-dual-widget" title="${h.symbol}: Day Range, 52-Week Range & RSI (14)">
-        <!-- 1. Day Range Sub-block (Intraday Low to High) -->
-        <div class="range-sub-row">
+        <!-- 1. Day Range Row -->
+        <div class="range-sub-row range-day-row">
           <div class="range-header-line">
-            <div class="range-badge-group">
+            <div class="range-header-left">
               <span class="range-badge badge-day">DAY</span>
             </div>
-            <div class="range-bounds-group">
-              <span class="range-bound-val" title="Today's Low">L: ${portfolioStore.formatMoney(dayLow)}</span>
-              <span class="range-bound-sep">/</span>
-              <span class="range-bound-val" title="Today's High">H: ${portfolioStore.formatMoney(dayHigh)}</span>
+            <div class="range-header-right">
+              <span class="range-live-val val-cmp" title="Current Market Price (CMP): ${portfolioStore.formatMoney(cmp)}">
+                <span class="val-dot dot-cmp"></span>
+                <span class="val-label">CMP</span>
+                <span class="val-num">${portfolioStore.formatMoney(cmp)}</span>
+              </span>
             </div>
           </div>
           <div class="range-bar-track" title="Today's Range: Low ${portfolioStore.formatMoney(dayLow)} — High ${portfolioStore.formatMoney(dayHigh)} | CMP: ${portfolioStore.formatMoney(cmp)}">
-            <div class="range-track-rail">
-              <div class="range-track-fill fill-day-cmp" style="left: 0; width: ${dayCmpPct.toFixed(1)}%;"></div>
+            <div class="range-track-inner">
+              <div class="range-track-rail">
+                <div class="range-track-fill fill-day-cmp" style="left: 0; width: ${dayCmpPct.toFixed(1)}%;"></div>
+              </div>
+              <div class="range-pin pin-cmp" style="left: ${dayCmpPct.toFixed(1)}%;" title="Current Price (CMP): ${portfolioStore.formatMoney(cmp)}">
+                <span class="pin-marker-circle"></span>
+              </div>
             </div>
-            <!-- CMP Circle Pin (Current Market Price on Day Range) -->
-            <div class="range-pin pin-cmp" style="left: ${dayCmpPct.toFixed(1)}%;" title="Current Price (CMP): ${portfolioStore.formatMoney(cmp)}">
-              <span class="pin-marker-circle"></span>
-            </div>
+          </div>
+          <div class="range-bounds-line">
+            <span class="range-bound-val bound-low" title="Today's Low">
+              <span class="bound-tag">L</span>${portfolioStore.formatMoney(dayLow)}
+            </span>
+            <span class="range-bound-val bound-high" title="Today's High">
+              <span class="bound-tag">H</span>${portfolioStore.formatMoney(dayHigh)}
+            </span>
           </div>
         </div>
 
-        <!-- 2. 52-Week Range Sub-block (52W Low/High with My Price & CMP) -->
-        <div class="range-sub-row">
+        <!-- 2. 52-Week Range Row -->
+        <div class="range-sub-row range-52w-row">
           <div class="range-header-line">
-            <div class="range-badge-group">
+            <div class="range-header-left">
               <span class="range-badge badge-52w">52W</span>
-              <span class="range-my-pill ${isProfit ? 'pill-profit' : 'pill-loss'}" title="My Avg Buy Price: ${portfolioStore.formatMoney(myPrice)} ${isW52MyBelow ? '(Below 52W Low)' : (isW52MyAbove ? '(Above 52W High)' : '')}">
-                My: ${portfolioStore.formatMoney(myPrice)}
+              ${myPrice > 0 ? `
+                <span class="range-pill-mini ${isProfit ? 'pill-profit' : 'pill-loss'}" title="My Avg Buy Price: ${portfolioStore.formatMoney(myPrice)} ${isW52MyBelow ? '(Below 52W Low)' : (isW52MyAbove ? '(Above 52W High)' : '')}">
+                  <span class="val-dot"></span>
+                  Avg ${portfolioStore.formatMoney(myPrice)}
+                  ${isW52MyBelow ? '<span class="outside-chevron-mini">◀</span>' : (isW52MyAbove ? '<span class="outside-chevron-mini">▶</span>' : '')}
+                </span>
+              ` : ''}
+            </div>
+            <div class="range-header-right">
+              <span class="range-live-val val-cmp" title="Current Market Price (CMP): ${portfolioStore.formatMoney(cmp)}">
+                <span class="val-dot dot-cmp"></span>
+                <span class="val-label">CMP</span>
+                <span class="val-num">${portfolioStore.formatMoney(cmp)}</span>
               </span>
             </div>
-            <div class="range-bounds-group">
-              <span class="range-bound-val" title="52-Week Low">L: ${portfolioStore.formatMoney(w52Low)}</span>
-              <span class="range-bound-sep">/</span>
-              <span class="range-bound-val" title="52-Week High">H: ${portfolioStore.formatMoney(w52High)}</span>
-            </div>
           </div>
-          <div class="range-bar-track" title="52W Low: ${portfolioStore.formatMoney(w52Low)} | CMP: ${portfolioStore.formatMoney(cmp)} | 52W High: ${portfolioStore.formatMoney(w52High)} | My Price: ${portfolioStore.formatMoney(myPrice)}">
-            <div class="range-track-rail">
-              <div class="range-track-fill ${isProfit ? 'fill-profit' : 'fill-loss'}" style="left: ${w52FillLeft.toFixed(1)}%; width: ${w52FillWidth.toFixed(1)}%;"></div>
+
+          <div class="range-bar-track ${isW52MyBelow && myPrice > 0 ? 'has-outside-left' : ''} ${isW52MyAbove && myPrice > 0 ? 'has-outside-right' : ''}" title="52W Low: ${portfolioStore.formatMoney(w52Low)} | CMP: ${portfolioStore.formatMoney(cmp)} | 52W High: ${portfolioStore.formatMoney(w52High)} | My Price: ${portfolioStore.formatMoney(myPrice)}">
+            ${isW52MyBelow && myPrice > 0 ? `
+              <div class="range-outside-slot slot-left" title="Avg Price (${portfolioStore.formatMoney(myPrice)}) is below 52-Week Low (${portfolioStore.formatMoney(w52Low)})">
+                <div class="range-pin pin-my pin-my-outside pin-my-below ${isProfit ? 'profit-pin' : 'loss-pin'}">
+                  <span class="outside-chevron">◀</span>
+                  <span class="pin-marker-diamond"></span>
+                </div>
+                <div class="outside-connector connector-left ${isProfit ? 'profit' : 'loss'}"></div>
+              </div>
+            ` : ''}
+
+            <div class="range-track-inner">
+              <div class="range-track-rail">
+                <div class="range-track-fill ${isProfit ? 'fill-profit' : 'fill-loss'}" style="left: ${w52FillLeft.toFixed(1)}%; width: ${w52FillWidth.toFixed(1)}%;"></div>
+              </div>
+              ${!isW52MyOutside && myPrice > 0 ? `
+                <div class="range-pin pin-my ${isProfit ? 'profit-pin' : 'loss-pin'}" 
+                     style="left: ${w52InRailMyPct.toFixed(1)}%;" 
+                     title="My Avg Price: ${portfolioStore.formatMoney(myPrice)}">
+                  <span class="pin-marker-diamond"></span>
+                </div>
+              ` : ''}
+              <div class="range-pin pin-cmp" style="left: ${w52CmpPct.toFixed(1)}%;" title="CMP: ${portfolioStore.formatMoney(cmp)}">
+                <span class="pin-marker-circle"></span>
+              </div>
             </div>
-            <!-- CMP Circle Pin -->
-            <div class="range-pin pin-cmp" style="left: ${w52CmpPct.toFixed(1)}%;" title="CMP (Live): ${portfolioStore.formatMoney(cmp)}">
-              <span class="pin-marker-circle"></span>
-            </div>
-            <!-- My Price Diamond Pin -->
-            <div class="range-pin pin-my ${isProfit ? 'profit-pin' : 'loss-pin'}" 
-                 style="left: ${w52ClampedMyPct.toFixed(1)}%;" 
-                 title="My Avg Price: ${portfolioStore.formatMoney(myPrice)} ${isW52MyBelow ? '(Below 52W Low)' : (isW52MyAbove ? '(Above 52W High)' : '')}">
-              <span class="pin-marker-diamond"></span>
-            </div>
+
+            ${isW52MyAbove && myPrice > 0 ? `
+              <div class="range-outside-slot slot-right" title="Avg Price (${portfolioStore.formatMoney(myPrice)}) is above 52-Week High (${portfolioStore.formatMoney(w52High)})">
+                <div class="outside-connector connector-right ${isProfit ? 'profit' : 'loss'}"></div>
+                <div class="range-pin pin-my pin-my-outside pin-my-above ${isProfit ? 'profit-pin' : 'loss-pin'}">
+                  <span class="pin-marker-diamond"></span>
+                  <span class="outside-chevron">▶</span>
+                </div>
+              </div>
+            ` : ''}
+          </div>
+
+          <div class="range-bounds-line">
+            <span class="range-bound-val bound-low" title="52-Week Low">
+              <span class="bound-tag">L</span>${portfolioStore.formatMoney(w52Low)}
+            </span>
+            <span class="range-bound-val bound-high" title="52-Week High">
+              <span class="bound-tag">H</span>${portfolioStore.formatMoney(w52High)}
+            </span>
           </div>
         </div>
 
-        <!-- 3. RSI Sub-block (14-Period Momentum) -->
+        <!-- 3. RSI Row -->
         <div class="range-sub-row range-rsi-row">
           <div class="range-header-line">
-            <div class="range-badge-group">
+            <div class="range-header-left">
               <span class="range-badge badge-rsi">RSI</span>
-              <span class="range-rsi-pill ${rsiClass}" title="RSI (14-Period Momentum): ${rsi.toFixed(1)} (${rsiSentiment})">
-                ${rsi.toFixed(1)} ${rsiSentiment}
+            </div>
+            <div class="range-header-right">
+              <span class="range-rsi-pill ${rsiClass}" title="RSI (14-Period): ${rsi.toFixed(1)} (${rsiSentiment})">
+                <span class="rsi-dot ${rsiClass}"></span>
+                <span class="rsi-num">${rsi.toFixed(1)}</span>
+                <span class="rsi-text">${rsiSentiment}</span>
               </span>
             </div>
-            <div class="range-bounds-group">
-              <span class="range-bound-val" title="Oversold Threshold (<=30)">30 OS</span>
-              <span class="range-bound-sep">/</span>
-              <span class="range-bound-val" title="Overbought Threshold (>=70)">70 OB</span>
+          </div>
+
+          <div class="range-bar-track" title="14-Period RSI: ${rsi.toFixed(1)} | Sentiment: ${rsiSentiment} | Oversold: <=30 | Overbought: >=70">
+            <div class="range-track-inner">
+              <div class="range-track-rail range-track-rail-rsi">
+                <div class="rsi-zone-divider" style="left: 30%;" title="Oversold (30)"></div>
+                <div class="rsi-zone-divider" style="left: 70%;" title="Overbought (70)"></div>
+                <div class="range-track-fill fill-rsi ${rsiClass}" style="left: 0; width: ${clampedRsiPct.toFixed(1)}%;"></div>
+              </div>
+              <div class="range-pin pin-rsi ${rsiClass}" style="left: ${clampedRsiPct.toFixed(1)}%;" title="RSI (14): ${rsi.toFixed(1)} (${rsiSentiment})">
+                <span class="pin-marker-rsi"></span>
+              </div>
             </div>
           </div>
-          <div class="range-bar-track" title="14-Period RSI: ${rsi.toFixed(1)} | Sentiment: ${rsiSentiment} | Oversold: <=30 | Overbought: >=70">
-            <div class="range-track-rail range-track-rail-rsi">
-              <div class="rsi-zone-divider" style="left: 30%;" title="Oversold Threshold (30)"></div>
-              <div class="rsi-zone-divider" style="left: 70%;" title="Overbought Threshold (70)"></div>
-              <div class="range-track-fill fill-rsi ${rsiClass}" style="left: 0; width: ${clampedRsiPct.toFixed(1)}%;"></div>
-            </div>
-            <!-- RSI Pin Marker -->
-            <div class="range-pin pin-rsi ${rsiClass}" style="left: ${clampedRsiPct.toFixed(1)}%;" title="RSI (14): ${rsi.toFixed(1)} (${rsiSentiment})">
-              <span class="pin-marker-rsi"></span>
-            </div>
+
+          <div class="range-bounds-line">
+            <span class="range-bound-val bound-low" title="Oversold Threshold (<=30)">
+              <span class="bound-tag">OS</span>30
+            </span>
+            <span class="range-bound-val bound-high" title="Overbought Threshold (>=70)">
+              <span class="bound-tag">OB</span>70
+            </span>
           </div>
         </div>
       </div>

@@ -4195,7 +4195,7 @@ body::after {
 .range-sub-row {
   display: flex;
   flex-direction: column;
-  gap: 0.35rem;
+  gap: 0.22rem;
 }
 
 .range-header-line {
@@ -4206,6 +4206,155 @@ body::after {
   font-family: var(--font-mono);
   font-size: 0.72rem;
   line-height: 1.2;
+}
+
+.range-header-left {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  flex-shrink: 0;
+}
+
+.range-header-right {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 0.35rem;
+  flex-shrink: 0;
+  text-align: right;
+}
+
+/* Live Metric (CMP) in Header */
+.range-live-val {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  font-family: var(--font-mono);
+  font-size: 0.69rem;
+  line-height: 1;
+}
+
+.range-live-val .val-dot {
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.range-live-val .val-dot.dot-cmp {
+  background: #38bdf8;
+  box-shadow: 0 0 5px rgba(56, 189, 248, 0.8);
+}
+
+.range-live-val .val-label {
+  font-size: 0.62rem;
+  font-weight: 600;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+
+.range-live-val .val-num {
+  font-weight: 700;
+  color: #38bdf8;
+  letter-spacing: -0.01em;
+}
+
+[data-theme="light"] .range-live-val .val-num {
+  color: #0284c7;
+}
+
+/* Mini Pill for Average Buy Price in Header */
+.range-pill-mini {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.28rem;
+  font-family: var(--font-mono);
+  font-size: 0.64rem;
+  font-weight: 600;
+  padding: 0.08rem 0.32rem;
+  border-radius: 3px;
+  line-height: 1;
+  white-space: nowrap;
+}
+
+.range-pill-mini .val-dot {
+  width: 4.5px;
+  height: 4.5px;
+  border-radius: 50%;
+}
+
+.range-pill-mini.pill-profit {
+  background: rgba(16, 185, 129, 0.12);
+  color: var(--bull-green);
+  border: 1px solid rgba(16, 185, 129, 0.25);
+}
+
+.range-pill-mini.pill-profit .val-dot {
+  background: var(--bull-green);
+  box-shadow: 0 0 4px rgba(16, 185, 129, 0.8);
+}
+
+.range-pill-mini.pill-loss {
+  background: rgba(244, 63, 94, 0.12);
+  color: var(--bear-red);
+  border: 1px solid rgba(244, 63, 94, 0.25);
+}
+
+.range-pill-mini.pill-loss .val-dot {
+  background: var(--bear-red);
+  box-shadow: 0 0 4px rgba(244, 63, 94, 0.8);
+}
+
+.outside-chevron-mini {
+  font-size: 0.55rem;
+  font-weight: 800;
+  opacity: 0.9;
+}
+
+.range-bounds-line {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  font-family: var(--font-mono);
+  font-size: 0.67rem;
+  line-height: 1;
+  margin-top: 1px;
+}
+
+.range-bound-val {
+  font-size: 0.67rem;
+  font-family: var(--font-mono);
+  font-weight: 500;
+  color: var(--text-secondary);
+  white-space: nowrap;
+  letter-spacing: -0.01em;
+}
+
+.range-bound-val.bound-low {
+  color: var(--text-muted);
+}
+
+.range-bound-val.bound-high {
+  color: var(--text-muted);
+}
+
+.bound-tag {
+  font-size: 0.58rem;
+  font-weight: 700;
+  color: var(--text-muted);
+  opacity: 0.7;
+  margin-right: 0.2rem;
+  letter-spacing: 0.02em;
+}
+
+[data-theme="light"] .range-bound-val {
+  color: #64748b;
+}
+
+[data-theme="light"] .bound-tag {
+  color: #94a3b8;
 }
 
 .range-badge-group {
@@ -4327,21 +4476,166 @@ body::after {
 .range-bar-track {
   position: relative;
   width: 100%;
-  height: 10px;
+  height: 12px;
   display: flex;
   align-items: center;
   cursor: pointer;
+  box-sizing: border-box;
+}
+
+.range-track-inner {
+  position: relative;
+  flex: 1;
+  height: 100%;
+  margin: 0 4px;
+  display: flex;
+  align-items: center;
+}
+
+.range-bar-track.has-outside-left .range-track-inner {
+  margin-left: 20px;
+}
+
+.range-bar-track.has-outside-right .range-track-inner {
+  margin-right: 20px;
 }
 
 .range-track-rail {
   position: absolute;
   left: 0;
   right: 0;
-  height: 4px;
+  height: 3.5px;
   background: var(--bg-surface-elevated);
   border: 1px solid var(--border-subtle);
   border-radius: var(--radius-full);
   overflow: hidden;
+}
+
+/* Outside Indicator Slots for My Price outside 52W Range */
+.range-outside-slot {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 22px;
+  display: flex;
+  align-items: center;
+  z-index: 5;
+}
+
+.range-outside-slot.slot-left {
+  left: 0;
+  justify-content: flex-start;
+}
+
+.range-outside-slot.slot-right {
+  right: 0;
+  justify-content: flex-end;
+}
+
+/* Outside dashed connector line extending from outside diamond to rail edge */
+.outside-connector {
+  position: absolute;
+  top: 50%;
+  height: 0;
+  border-top: 1.5px dashed;
+  transform: translateY(-50%);
+  pointer-events: none;
+}
+
+.outside-connector.connector-left {
+  left: 14px;
+  width: 8px;
+}
+
+.outside-connector.connector-right {
+  right: 14px;
+  width: 8px;
+}
+
+.outside-connector.profit {
+  border-color: var(--bull-green);
+  opacity: 0.85;
+}
+
+.outside-connector.loss {
+  border-color: var(--bear-red);
+  opacity: 0.85;
+}
+
+/* Outside Pin Marker & Chevron */
+.range-pin.pin-my-outside {
+  position: relative;
+  top: auto;
+  left: auto !important;
+  right: auto !important;
+  transform: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  cursor: pointer;
+  z-index: 6;
+}
+
+.range-pin.pin-my-outside:hover {
+  transform: scale(1.25);
+}
+
+.outside-chevron {
+  font-size: 0.58rem;
+  font-weight: 800;
+  line-height: 1;
+}
+
+.pin-my-outside.profit-pin .outside-chevron {
+  color: var(--bull-green);
+  text-shadow: 0 0 4px rgba(16, 185, 129, 0.7);
+}
+
+.pin-my-outside.loss-pin .outside-chevron {
+  color: var(--bear-red);
+  text-shadow: 0 0 4px rgba(244, 63, 94, 0.7);
+}
+
+/* Subtle pulse for outside indicator diamond */
+.pin-my-outside .pin-marker-diamond {
+  animation: pulseOutsideDiamond 2.5s infinite ease-in-out;
+}
+
+@keyframes pulseOutsideDiamond {
+  0%, 100% {
+    transform: rotate(45deg) scale(1);
+    box-shadow: 0 0 6px rgba(16, 185, 129, 0.6);
+  }
+  50% {
+    transform: rotate(45deg) scale(1.15);
+    box-shadow: 0 0 12px rgba(16, 185, 129, 1);
+  }
+}
+
+.pin-my-outside.loss-pin .pin-marker-diamond {
+  animation-name: pulseOutsideDiamondLoss;
+}
+
+@keyframes pulseOutsideDiamondLoss {
+  0%, 100% {
+    transform: rotate(45deg) scale(1);
+    box-shadow: 0 0 6px rgba(244, 63, 94, 0.6);
+  }
+  50% {
+    transform: rotate(45deg) scale(1.15);
+    box-shadow: 0 0 12px rgba(244, 63, 94, 1);
+  }
+}
+
+/* Header My Price Pill with outside indicator styling */
+.range-my-pill.pill-outside-below {
+  border-left: 2px solid var(--bull-green);
+  background: rgba(16, 185, 129, 0.16);
+}
+
+.range-my-pill.pill-outside-above {
+  border-right: 2px solid var(--bear-red);
+  background: rgba(244, 63, 94, 0.16);
 }
 
 [data-theme="light"] .range-track-rail {
