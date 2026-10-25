@@ -10,7 +10,8 @@ const icons = {
   trash2: `<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path><line x1="10" y1="11" x2="10" y2="17"></line><line x1="14" y1="11" x2="14" y2="17"></line></svg>`,
   search: `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>`,
   layers: `<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 2 7 12 12 22 7 12 2"></polygon><polyline points="2 17 12 22 22 17"></polyline><polyline points="2 12 12 17 22 12"></polyline></svg>`,
-  checkCircle: `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path><polyline points="22 4 12 14.01 9 11.01"></polyline></svg>`
+  checkCircle: `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path><polyline points="22 4 12 14.01 9 11.01"></polyline></svg>`,
+  chevronDown: `<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"></polyline></svg>`
 };
 
 export class HoldingsView {
@@ -21,6 +22,8 @@ export class HoldingsView {
     this.searchTerm = '';
     this.selectedSector = 'ALL';
     this.sortBy = 'value-desc';
+    this.pageSize = 10;
+    this.visibleCount = 10;
 
     this.init();
   }
@@ -126,6 +129,11 @@ export class HoldingsView {
         <div class="mobile-holdings-list" id="holdings-page-mobile-list">
           <!-- Dynamically injected -->
         </div>
+
+        <!-- Progressive Pagination / Load More Bar -->
+        <div class="holdings-pagination-bar" id="holdings-pagination-bar">
+          <!-- Dynamically injected -->
+        </div>
       </div>
     `;
   }
@@ -193,6 +201,7 @@ export class HoldingsView {
     if (searchInput) {
       searchInput.addEventListener('input', (e) => {
         this.searchTerm = e.target.value.toLowerCase().trim();
+        this.visibleCount = this.pageSize;
         this.renderHoldingsTableAndCards();
       });
     }
@@ -202,6 +211,7 @@ export class HoldingsView {
     if (sectorFilter) {
       sectorFilter.addEventListener('change', (e) => {
         this.selectedSector = e.target.value;
+        this.visibleCount = this.pageSize;
         this.renderHoldingsTableAndCards();
       });
     }
@@ -211,6 +221,7 @@ export class HoldingsView {
     if (sortFilter) {
       sortFilter.addEventListener('change', (e) => {
         this.sortBy = e.target.value;
+        this.visibleCount = this.pageSize;
         this.renderHoldingsTableAndCards();
       });
     }
@@ -257,6 +268,28 @@ export class HoldingsView {
 
     // Delegate Table & Card Action Clicks
     this.container.addEventListener('click', async (e) => {
+      // Load More / Pagination buttons
+      const btnLoadMore = e.target.closest('#btn-load-more-holdings');
+      if (btnLoadMore) {
+        this.visibleCount += this.pageSize;
+        this.renderHoldingsTableAndCards();
+        return;
+      }
+
+      const btnShowAll = e.target.closest('#btn-show-all-holdings');
+      if (btnShowAll) {
+        this.visibleCount = 999999;
+        this.renderHoldingsTableAndCards();
+        return;
+      }
+
+      const btnCollapse = e.target.closest('#btn-collapse-holdings');
+      if (btnCollapse) {
+        this.visibleCount = this.pageSize;
+        this.renderHoldingsTableAndCards();
+        return;
+      }
+
       // Delete holding
       const deleteBtn = e.target.closest('[data-action="delete-holding"]');
       if (deleteBtn) {
@@ -576,6 +609,7 @@ export class HoldingsView {
   renderHoldingsTableAndCards(metrics = portfolioStore.getPortfolioMetrics(), event = {}) {
     const tbody = this.container.querySelector('#holdings-page-tbody');
     const mobileList = this.container.querySelector('#holdings-page-mobile-list');
+    const paginationBar = this.container.querySelector('#holdings-pagination-bar');
     if (!tbody || !mobileList) return;
 
     // Filter
@@ -610,16 +644,24 @@ export class HoldingsView {
       `;
       tbody.innerHTML = `<tr><td colspan="12">${emptyHtml}</td></tr>`;
       mobileList.innerHTML = emptyHtml;
+      if (paginationBar) paginationBar.innerHTML = '';
       return;
     }
+
+    const totalCount = filtered.length;
+    const displayedHoldings = filtered.slice(0, this.visibleCount);
+    const showingCount = displayedHoldings.length;
+    const hasMore = showingCount < totalCount;
+    const nextBatch = Math.min(this.pageSize, totalCount - showingCount);
+    const progressPct = Math.round((showingCount / totalCount) * 100);
 
     // Check if event was a tick or sync to trigger pulse animation on CMP
     const tickSymbol = event.type === 'PRICE_TICK' && event.tick ? event.tick.symbol : null;
     const tickDirection = event.type === 'PRICE_TICK' && event.tick ? event.tick.direction : null;
     const isMarketSynced = event.type === 'MARKET_QUOTES_UPDATED';
 
-    // Render Desktop Rows
-    tbody.innerHTML = filtered.map(h => {
+    // Render Desktop Rows (paginated)
+    tbody.innerHTML = displayedHoldings.map(h => {
       const isProfit = h.pnl >= 0;
       const isDayProfit = h.dayPnL >= 0;
       const isTicking = tickSymbol === h.symbol;
@@ -701,8 +743,8 @@ export class HoldingsView {
       `;
     }).join('');
 
-    // Render Mobile Cards
-    mobileList.innerHTML = filtered.map(h => {
+    // Render Mobile Cards (paginated)
+    mobileList.innerHTML = displayedHoldings.map(h => {
       const isProfit = h.pnl >= 0;
       const isDayProfit = h.dayPnL >= 0;
       const isTicking = tickSymbol === h.symbol;
@@ -781,6 +823,48 @@ export class HoldingsView {
         </div>
       `;
     }).join('');
+
+    // Render Progressive Load More / Pagination Bar
+    if (paginationBar) {
+      if (totalCount > this.pageSize) {
+        if (hasMore) {
+          paginationBar.innerHTML = `
+            <div class="pagination-status-text">
+              Showing <strong>${showingCount}</strong> of <strong>${totalCount}</strong> shares (${progressPct}%)
+            </div>
+            <div class="pagination-progress-track">
+              <div class="pagination-progress-fill" style="width: ${progressPct}%;"></div>
+            </div>
+            <div class="pagination-actions-row">
+              <button id="btn-load-more-holdings" class="btn btn-load-more" title="Load next ${nextBatch} shares">
+                ${icons.chevronDown}
+                <span>Load Next ${nextBatch} Shares</span>
+              </button>
+              <button id="btn-show-all-holdings" class="btn-collapse-holdings" title="Show all ${totalCount} shares">
+                Show All (${totalCount})
+              </button>
+            </div>
+          `;
+        } else {
+          paginationBar.innerHTML = `
+            <div class="pagination-status-text">
+              Showing all <strong>${totalCount}</strong> shares
+            </div>
+            <div class="pagination-actions-row">
+              <button id="btn-collapse-holdings" class="btn-collapse-holdings" title="Collapse back to ${this.pageSize} shares">
+                Collapse to ${this.pageSize}
+              </button>
+            </div>
+          `;
+        }
+      } else {
+        paginationBar.innerHTML = `
+          <div class="pagination-status-text">
+            Showing all <strong>${totalCount}</strong> shares
+          </div>
+        `;
+      }
+    }
   }
 
   showToast(message, type = 'success') {
