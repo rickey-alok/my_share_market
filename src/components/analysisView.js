@@ -84,8 +84,8 @@ export class AnalysisView {
           </div>
         </div>
 
-        <!-- 3 KPI Cards for FII / DII -->
-        <div class="fii-dii-kpi-grid" id="fii-dii-kpis-container">
+        <!-- Compact FII / DII Institutional Flow Cards Container -->
+        <div class="fii-dii-kpi-container fii-dii-kpi-grid" id="fii-dii-kpis-container">
           <!-- Dynamically populated -->
         </div>
 
@@ -290,49 +290,62 @@ export class AnalysisView {
       const isCombinedNetPositive = metrics.combinedNet >= 0;
 
       kpiContainer.innerHTML = `
-        <!-- FII Net KPI -->
-        <div class="analysis-kpi-card ${isFiiNetPositive ? 'bull' : 'bear'}">
-          <div class="kpi-header">
-            <span class="kpi-title">FII / FPI Net Investment</span>
-            <span class="fii-tag">Foreign</span>
+        <!-- Combined FII & DII Split Card (with vertical bar divider) -->
+        <div class="analysis-kpi-card fii-dii-split-card">
+          <!-- Left Side: FII / FPI Net Investment -->
+          <div class="fii-dii-split-col fii-col">
+            <div class="split-side-header">
+              <span class="kpi-title">FII / FPI NET INVESTMENT</span>
+              <span class="fii-tag">Foreign</span>
+            </div>
+            <div class="kpi-value ${isFiiNetPositive ? 'kpi-val-bull' : 'kpi-val-bear'}">
+              ${isFiiNetPositive ? '+' : ''}₹ ${metrics.totalFiiNet.toLocaleString('en-IN', { maximumFractionDigits: 1 })} Cr
+            </div>
+            <div class="kpi-breakdown-row">
+              <span>Buy: ₹ ${(metrics.totalFiiBuy).toLocaleString('en-IN')} Cr</span>
+              <span>Sell: ₹ ${(metrics.totalFiiSell).toLocaleString('en-IN')} Cr</span>
+            </div>
           </div>
-          <div class="kpi-value" style="color: ${isFiiNetPositive ? 'var(--bull-green)' : 'var(--bear-red)'}; font-size: 1.55rem;">
-            ${isFiiNetPositive ? '+' : ''}₹ ${metrics.totalFiiNet.toLocaleString('en-IN', { maximumFractionDigits: 1 })} Cr
-          </div>
-          <div class="kpi-breakdown-row">
-            <span>Buy: ₹ ${(metrics.totalFiiBuy).toLocaleString('en-IN')} Cr</span>
-            <span>Sell: ₹ ${(metrics.totalFiiSell).toLocaleString('en-IN')} Cr</span>
+
+          <!-- Vertical Divider Bar -->
+          <div class="fii-dii-vdivider" aria-hidden="true"></div>
+
+          <!-- Right Side: DII Net Investment -->
+          <div class="fii-dii-split-col dii-col">
+            <div class="split-side-header">
+              <span class="kpi-title">DII NET INVESTMENT</span>
+              <span class="dii-tag">Domestic</span>
+            </div>
+            <div class="kpi-value ${isDiiNetPositive ? 'kpi-val-bull' : 'kpi-val-bear'}">
+              ${isDiiNetPositive ? '+' : ''}₹ ${metrics.totalDiiNet.toLocaleString('en-IN', { maximumFractionDigits: 1 })} Cr
+            </div>
+            <div class="kpi-breakdown-row">
+              <span>Buy: ₹ ${(metrics.totalDiiBuy).toLocaleString('en-IN')} Cr</span>
+              <span>Sell: ₹ ${(metrics.totalDiiSell).toLocaleString('en-IN')} Cr</span>
+            </div>
           </div>
         </div>
 
-        <!-- DII Net KPI -->
-        <div class="analysis-kpi-card ${isDiiNetPositive ? 'bull' : 'bear'}">
-          <div class="kpi-header">
-            <span class="kpi-title">DII Net Investment</span>
-            <span class="dii-tag">Domestic</span>
-          </div>
-          <div class="kpi-value" style="color: ${isDiiNetPositive ? 'var(--bull-green)' : 'var(--bear-red)'}; font-size: 1.55rem;">
-            ${isDiiNetPositive ? '+' : ''}₹ ${metrics.totalDiiNet.toLocaleString('en-IN', { maximumFractionDigits: 1 })} Cr
-          </div>
-          <div class="kpi-breakdown-row">
-            <span>Buy: ₹ ${(metrics.totalDiiBuy).toLocaleString('en-IN')} Cr</span>
-            <span>Sell: ₹ ${(metrics.totalDiiSell).toLocaleString('en-IN')} Cr</span>
-          </div>
-        </div>
-
-        <!-- Combined Institutional Flow -->
-        <div class="analysis-kpi-card ${isCombinedNetPositive ? 'bull' : 'bear'}">
-          <div class="kpi-header">
-            <span class="kpi-title">Combined Net Flow</span>
-            <span class="kpi-title-sub">${metrics.periodName}</span>
-          </div>
-          <div class="kpi-value" style="color: ${isCombinedNetPositive ? 'var(--bull-green)' : 'var(--bear-red)'}; font-size: 1.55rem;">
-            ${isCombinedNetPositive ? '+' : ''}₹ ${metrics.combinedNet.toLocaleString('en-IN', { maximumFractionDigits: 1 })} Cr
-          </div>
-          <div class="kpi-footer">
-            <span class="kpi-subtext" style="color: var(--text-primary); font-weight: 600;">
-              ${isCombinedNetPositive ? 'Strong buying support across domestic & foreign institutions' : 'Net institutional distribution during this period'}
-            </span>
+        <!-- Combined Institutional Flow (Placed below FII/DII card) -->
+        <div class="analysis-kpi-card combined-net-card ${isCombinedNetPositive ? 'bull' : 'bear'}">
+          <div class="combined-net-inner">
+            <div class="combined-net-meta">
+              <div class="combined-net-header">
+                <span class="kpi-title">COMBINED NET FLOW</span>
+                <span class="kpi-title-sub">${metrics.periodName}</span>
+              </div>
+              <div class="combined-net-subtext">
+                ${isCombinedNetPositive ? 'Strong buying support across domestic & foreign institutions' : 'Net institutional distribution during this period'}
+              </div>
+            </div>
+            <div class="combined-net-val-box">
+              <div class="kpi-value ${isCombinedNetPositive ? 'kpi-val-bull' : 'kpi-val-bear'}">
+                ${isCombinedNetPositive ? '+' : ''}₹ ${metrics.combinedNet.toLocaleString('en-IN', { maximumFractionDigits: 1 })} Cr
+              </div>
+              <span class="badge-sentiment ${isCombinedNetPositive ? 'bull' : 'bear'} combined-net-pill">
+                ${isCombinedNetPositive ? '▲ Net Inflow' : '▼ Net Outflow'}
+              </span>
+            </div>
           </div>
         </div>
       `;
