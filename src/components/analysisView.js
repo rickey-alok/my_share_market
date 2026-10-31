@@ -9,7 +9,15 @@ export class AnalysisView {
     this.container = containerElement;
     this.onNavigateToStockDetail = onNavigateToStockDetail;
 
-    // View State
+    // View State & Tab Navigation ('fii-dii' | 'indices' | 'holdings')
+    this.activeTab = 'fii-dii';
+    try {
+      const saved = localStorage.getItem('apna_share_analysis_active_tab');
+      if (saved && ['fii-dii', 'indices', 'holdings'].includes(saved)) {
+        this.activeTab = saved;
+      }
+    } catch (e) {}
+
     this.fiiDiiTimeframe = 'week';
     this.indexTimeframe = 'week';
     this.selectedIndex = 'nifty';
@@ -58,126 +66,162 @@ export class AnalysisView {
         </div>
       </div>
 
-      <!-- Section 1: FII & DII Institutional Inflow / Outflow -->
-      <div class="analysis-card mb-6">
-        <div class="card-header-with-actions">
-          <div class="card-title-row" style="margin-bottom: 0;">
-            <h2 class="card-title">${icons.barChart2} Institutional Flow (FII vs DII)</h2>
-            <span class="badge-sentiment" id="fii-dii-sentiment-badge">Bullish Accumulation</span>
-          </div>
-          <!-- Timeframe Filter for FII/DII with Icon-only Refresh Button -->
-          <div class="fii-dii-controls-wrapper">
-            <div class="filter-pills-group" id="fii-dii-timeframe-pills">
-              <button type="button" class="filter-pill" data-timeframe="day">1D</button>
-              <button type="button" class="filter-pill active" data-timeframe="week">1W</button>
-              <button type="button" class="filter-pill" data-timeframe="month">1M</button>
-              <button type="button" class="filter-pill" data-timeframe="year">1Y</button>
-              <button type="button" class="filter-pill" data-timeframe="3year">3Y</button>
-              <button type="button" class="filter-pill" data-timeframe="5year">5Y</button>
+      <!-- 3-Button Analysis Section Selector at the top -->
+      <div class="analysis-tabs-nav" id="analysis-section-tabs" role="tablist">
+        <button type="button" class="analysis-tab-btn ${this.activeTab === 'fii-dii' ? 'active' : ''}" data-tab="fii-dii" role="tab" aria-selected="${this.activeTab === 'fii-dii'}">
+          ${icons.barChart2}
+          <span>FII vs DII Data</span>
+        </button>
+        <button type="button" class="analysis-tab-btn ${this.activeTab === 'indices' ? 'active' : ''}" data-tab="indices" role="tab" aria-selected="${this.activeTab === 'indices'}">
+          ${icons.lineChart}
+          <span>Benchmark & Sectoral Indices</span>
+        </button>
+        <button type="button" class="analysis-tab-btn ${this.activeTab === 'holdings' ? 'active' : ''}" data-tab="holdings" role="tab" aria-selected="${this.activeTab === 'holdings'}">
+          ${icons.layers}
+          <span>Holdings & Price Positions</span>
+        </button>
+      </div>
+
+      <!-- Tab Pane 1: FII & DII Institutional Inflow / Outflow -->
+      <div class="analysis-tab-pane ${this.activeTab === 'fii-dii' ? 'active' : ''}" id="tab-pane-fii-dii" style="${this.activeTab === 'fii-dii' ? '' : 'display: none;'}">
+        <div class="analysis-card mb-6">
+          <div class="card-header-with-actions">
+            <div class="card-title-row" style="margin-bottom: 0;">
+              <h2 class="card-title">${icons.barChart2} Institutional Flow (FII vs DII)</h2>
+              <span class="badge-sentiment" id="fii-dii-sentiment-badge">Bullish Accumulation</span>
             </div>
-            <!-- Icon-only Refresh for FII / DII Flow Data -->
-            <button type="button" id="btn-analysis-sync" class="fii-dii-refresh-btn" title="Refresh FII / DII Data" aria-label="Refresh FII and DII Data">
-              ${icons.refreshCw}
-            </button>
+            <!-- Timeframe Filter for FII/DII with Icon-only Refresh Button -->
+            <div class="fii-dii-controls-wrapper">
+              <div class="filter-pills-group" id="fii-dii-timeframe-pills">
+                <button type="button" class="filter-pill" data-timeframe="day">1D</button>
+                <button type="button" class="filter-pill active" data-timeframe="week">1W</button>
+                <button type="button" class="filter-pill" data-timeframe="month">1M</button>
+                <button type="button" class="filter-pill" data-timeframe="year">1Y</button>
+                <button type="button" class="filter-pill" data-timeframe="3year">3Y</button>
+                <button type="button" class="filter-pill" data-timeframe="5year">5Y</button>
+              </div>
+              <!-- Icon-only Refresh for FII / DII Flow Data -->
+              <button type="button" id="btn-analysis-sync" class="fii-dii-refresh-btn" title="Refresh FII / DII Data" aria-label="Refresh FII and DII Data">
+                ${icons.refreshCw}
+              </button>
+            </div>
           </div>
-        </div>
 
-        <!-- Compact FII / DII Institutional Flow Cards Container -->
-        <div class="fii-dii-kpi-container fii-dii-kpi-grid" id="fii-dii-kpis-container">
-          <!-- Dynamically populated -->
-        </div>
+          <!-- Compact FII / DII Institutional Flow Cards Container -->
+          <div class="fii-dii-kpi-container fii-dii-kpi-grid" id="fii-dii-kpis-container">
+            <!-- Dynamically populated -->
+          </div>
 
-        <!-- FII / DII Net Bar Chart -->
-        <div class="chart-wrapper-analysis">
-          <canvas id="fii-dii-chart"></canvas>
+          <!-- FII / DII Net Bar Chart -->
+          <div class="chart-wrapper-analysis">
+            <canvas id="fii-dii-chart"></canvas>
+          </div>
         </div>
       </div>
 
-      <!-- Section 2: Major Benchmark & Sectoral Indices with High/Low Pointer -->
-      <div class="analysis-card mb-6">
-        <div class="card-header-with-actions" style="margin-bottom: 0.65rem;">
-          <div class="card-title-row" style="margin-bottom: 0;">
-            <h2 class="card-title">${icons.lineChart} Benchmark & Sectoral Indices</h2>
-          </div>
-          <!-- Timeframe Filter for Index with Sync Button -->
-          <div class="fii-dii-controls-wrapper">
-            <div class="filter-pills-group" id="index-timeframe-pills">
-              <button type="button" class="filter-pill" data-timeframe="day">1D</button>
-              <button type="button" class="filter-pill active" data-timeframe="week">1W</button>
-              <button type="button" class="filter-pill" data-timeframe="month">1M</button>
-              <button type="button" class="filter-pill" data-timeframe="year">1Y</button>
-              <button type="button" class="filter-pill" data-timeframe="3year">3Y</button>
-              <button type="button" class="filter-pill" data-timeframe="5year">5Y</button>
+      <!-- Tab Pane 2: Major Benchmark & Sectoral Indices with High/Low Pointer -->
+      <div class="analysis-tab-pane ${this.activeTab === 'indices' ? 'active' : ''}" id="tab-pane-indices" style="${this.activeTab === 'indices' ? '' : 'display: none;'}">
+        <div class="analysis-card mb-6">
+          <div class="card-header-with-actions" style="margin-bottom: 0.65rem;">
+            <div class="card-title-row" style="margin-bottom: 0;">
+              <h2 class="card-title">${icons.lineChart} Benchmark & Sectoral Indices</h2>
             </div>
-            <!-- Sync Button for Indices -->
-            <button type="button" id="btn-index-sync" class="fii-dii-refresh-btn" title="Refresh Indices Live Data" aria-label="Refresh Indices Live Data">
-              ${icons.refreshCw}
-            </button>
+            <!-- Timeframe Filter for Index with Sync Button -->
+            <div class="fii-dii-controls-wrapper">
+              <div class="filter-pills-group" id="index-timeframe-pills">
+                <button type="button" class="filter-pill" data-timeframe="day">1D</button>
+                <button type="button" class="filter-pill active" data-timeframe="week">1W</button>
+                <button type="button" class="filter-pill" data-timeframe="month">1M</button>
+                <button type="button" class="filter-pill" data-timeframe="year">1Y</button>
+                <button type="button" class="filter-pill" data-timeframe="3year">3Y</button>
+                <button type="button" class="filter-pill" data-timeframe="5year">5Y</button>
+              </div>
+              <!-- Sync Button for Indices -->
+              <button type="button" id="btn-index-sync" class="fii-dii-refresh-btn" title="Refresh Indices Live Data" aria-label="Refresh Indices Live Data">
+                ${icons.refreshCw}
+              </button>
+            </div>
           </div>
-        </div>
 
-        <!-- Scrollable Index Selector Chips -->
-        <div class="index-chips-scroll" id="index-switch-toggle" role="tablist">
-          <button type="button" class="index-chip active" data-index="nifty">NIFTY 50</button>
-          <button type="button" class="index-chip" data-index="sensex">SENSEX</button>
-          <button type="button" class="index-chip" data-index="bank_nifty">BANK NIFTY</button>
-          <button type="button" class="index-chip" data-index="nifty_it">NIFTY IT</button>
-          <button type="button" class="index-chip" data-index="nifty_auto">NIFTY AUTO</button>
-          <button type="button" class="index-chip" data-index="nifty_fmcg">NIFTY FMCG</button>
-          <button type="button" class="index-chip" data-index="nifty_chemical">CHEMICALS</button>
-          <button type="button" class="index-chip" data-index="nifty_pharma">PHARMA</button>
-          <button type="button" class="index-chip" data-index="nifty_metal">METAL</button>
-          <button type="button" class="index-chip" data-index="nifty_midcap">MIDCAP 100</button>
-        </div>
+          <!-- Scrollable Index Selector Chips -->
+          <div class="index-chips-scroll" id="index-switch-toggle" role="tablist">
+            <button type="button" class="index-chip active" data-index="nifty">NIFTY 50</button>
+            <button type="button" class="index-chip" data-index="sensex">SENSEX</button>
+            <button type="button" class="index-chip" data-index="bank_nifty">BANK NIFTY</button>
+            <button type="button" class="index-chip" data-index="nifty_it">NIFTY IT</button>
+            <button type="button" class="index-chip" data-index="nifty_auto">NIFTY AUTO</button>
+            <button type="button" class="index-chip" data-index="nifty_fmcg">NIFTY FMCG</button>
+            <button type="button" class="index-chip" data-index="nifty_chemical">CHEMICALS</button>
+            <button type="button" class="index-chip" data-index="nifty_pharma">PHARMA</button>
+            <button type="button" class="index-chip" data-index="nifty_metal">METAL</button>
+            <button type="button" class="index-chip" data-index="nifty_midcap">MIDCAP 100</button>
+          </div>
 
-        <!-- Index Level Summary & High-Low Range Bar -->
-        <div class="index-summary-box" id="index-summary-container">
-          <!-- Dynamically populated -->
-        </div>
+          <!-- Index Level Summary & High-Low Range Bar -->
+          <div class="index-summary-box" id="index-summary-container">
+            <!-- Dynamically populated -->
+          </div>
 
-        <!-- Index Chart -->
-        <div class="chart-wrapper-analysis">
-          <canvas id="index-chart"></canvas>
+          <!-- Index Chart -->
+          <div class="chart-wrapper-analysis">
+            <canvas id="index-chart"></canvas>
+          </div>
         </div>
       </div>
 
-      <!-- Section 3: User Held Stock Auto-Analysis & 52-Week High/Low Pointer Bar -->
-      <div class="analysis-card" id="stock-analysis-card">
-        <div class="card-header-with-actions">
-          <div class="card-title-row" style="margin-bottom: 0;">
-            <h2 class="card-title">${icons.layers} Your Holdings Range & Price Position</h2>
-          </div>
-          <!-- Timeframe Filter for Stock with Sync Button -->
-          <div class="fii-dii-controls-wrapper">
-            <div class="filter-pills-group" id="stock-timeframe-pills">
-              <button type="button" class="filter-pill" data-timeframe="day">1D</button>
-              <button type="button" class="filter-pill" data-timeframe="week">1W</button>
-              <button type="button" class="filter-pill active" data-timeframe="month">1M</button>
-              <button type="button" class="filter-pill" data-timeframe="year">1Y</button>
-              <button type="button" class="filter-pill" data-timeframe="3year">3Y</button>
-              <button type="button" class="filter-pill" data-timeframe="5year">5Y</button>
+      <!-- Tab Pane 3: User Held Stock Auto-Analysis & 52-Week High/Low Pointer Bar -->
+      <div class="analysis-tab-pane ${this.activeTab === 'holdings' ? 'active' : ''}" id="tab-pane-holdings" style="${this.activeTab === 'holdings' ? '' : 'display: none;'}">
+        <div class="analysis-card" id="stock-analysis-card">
+          <div class="card-header-with-actions">
+            <div class="card-title-row" style="margin-bottom: 0;">
+              <h2 class="card-title">${icons.layers} Your Holdings Range & Price Position</h2>
             </div>
-            <!-- Sync Button for Holdings -->
-            <button type="button" id="btn-stock-sync" class="fii-dii-refresh-btn" title="Refresh Live Holdings Quotes" aria-label="Refresh Live Holdings Quotes">
-              ${icons.refreshCw}
-            </button>
+            <!-- Timeframe Filter for Stock with Sync Button -->
+            <div class="fii-dii-controls-wrapper">
+              <div class="filter-pills-group" id="stock-timeframe-pills">
+                <button type="button" class="filter-pill" data-timeframe="day">1D</button>
+                <button type="button" class="filter-pill" data-timeframe="week">1W</button>
+                <button type="button" class="filter-pill active" data-timeframe="month">1M</button>
+                <button type="button" class="filter-pill" data-timeframe="year">1Y</button>
+                <button type="button" class="filter-pill" data-timeframe="3year">3Y</button>
+                <button type="button" class="filter-pill" data-timeframe="5year">5Y</button>
+              </div>
+              <!-- Sync Button for Holdings -->
+              <button type="button" id="btn-stock-sync" class="fii-dii-refresh-btn" title="Refresh Live Holdings Quotes" aria-label="Refresh Live Holdings Quotes">
+                ${icons.refreshCw}
+              </button>
+            </div>
           </div>
-        </div>
 
-        <!-- Stock Selector Pills (Auto-populated from User's Holdings) -->
-        <div class="holdings-stock-selector" id="holdings-stock-selector">
-          <!-- Dynamically populated from portfolioStore.holdings -->
-        </div>
+          <!-- Stock Selector Pills (Auto-populated from User's Holdings) -->
+          <div class="holdings-stock-selector" id="holdings-stock-selector">
+            <!-- Dynamically populated from portfolioStore.holdings -->
+          </div>
 
-        <!-- Stock Detail & High-Low Pointer Gauge -->
-        <div id="stock-analysis-content">
-          <!-- Dynamically populated -->
+          <!-- Stock Detail & High-Low Pointer Gauge -->
+          <div id="stock-analysis-content">
+            <!-- Dynamically populated -->
+          </div>
         </div>
       </div>
     `;
   }
 
   attachEventListeners() {
+    // Top 3-Button Selector Navigation (FII/DII vs Indices vs Holdings)
+    const tabNav = this.container.querySelector('#analysis-section-tabs');
+    if (tabNav) {
+      tabNav.addEventListener('click', (e) => {
+        const btn = e.target.closest('.analysis-tab-btn');
+        if (btn) {
+          const tabKey = btn.getAttribute('data-tab');
+          if (tabKey && tabKey !== this.activeTab) {
+            this.switchTab(tabKey);
+          }
+        }
+      });
+    }
+
     // Reusable helper to wire sync/refresh icon buttons with spinning animation and tooltips
     const setupSyncButton = (btnId, successMsg, defaultTooltip, onSync) => {
       const btn = this.container.querySelector(btnId);
@@ -301,11 +345,54 @@ export class AnalysisView {
     this.updateAll();
   }
 
+  // Switch between the 3 top sections: 'fii-dii', 'indices', or 'holdings'
+  switchTab(tabKey) {
+    if (!['fii-dii', 'indices', 'holdings'].includes(tabKey)) return;
+    this.activeTab = tabKey;
+    try {
+      localStorage.setItem('apna_share_analysis_active_tab', tabKey);
+    } catch (e) {}
+
+    // Update tab button styles and ARIA states
+    const tabBtns = this.container.querySelectorAll('#analysis-section-tabs .analysis-tab-btn');
+    tabBtns.forEach(btn => {
+      const isActive = btn.getAttribute('data-tab') === tabKey;
+      btn.classList.toggle('active', isActive);
+      btn.setAttribute('aria-selected', isActive ? 'true' : 'false');
+    });
+
+    // Toggle tab pane visibility
+    const panes = this.container.querySelectorAll('.analysis-tab-pane');
+    panes.forEach(pane => {
+      const isTarget = pane.id === `tab-pane-${tabKey}`;
+      pane.style.display = isTarget ? 'block' : 'none';
+      pane.classList.toggle('active', isTarget);
+    });
+
+    // Re-render and resize charts on active pane reveal
+    if (tabKey === 'fii-dii') {
+      this.renderFiiDiiSection();
+      requestAnimationFrame(() => {
+        if (this.fiiDiiChart) this.fiiDiiChart.resize();
+      });
+    } else if (tabKey === 'indices') {
+      this.renderIndexSection();
+      requestAnimationFrame(() => {
+        if (this.indexChart) this.indexChart.resize();
+      });
+    } else if (tabKey === 'holdings') {
+      this.updateStockSelector();
+      this.renderStockAnalysis();
+      requestAnimationFrame(() => {
+        if (this.stockChart) this.stockChart.resize();
+        if (this.volumeChart) this.volumeChart.resize();
+        if (this.rsiChart) this.rsiChart.resize();
+      });
+    }
+  }
+
   updateAll() {
-    this.renderFiiDiiSection();
-    this.renderIndexSection();
-    this.updateStockSelector();
-    this.renderStockAnalysis();
+    this.switchTab(this.activeTab);
   }
 
   // 1. Render FII / DII Institutional Flow Section
