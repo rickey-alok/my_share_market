@@ -75,6 +75,7 @@ export class AnalysisView {
           </div>
           <!-- Timeframe Filter for FII/DII -->
           <div class="filter-pills-group" id="fii-dii-timeframe-pills">
+            <button type="button" class="filter-pill" data-timeframe="day">1D</button>
             <button type="button" class="filter-pill active" data-timeframe="week">1W</button>
             <button type="button" class="filter-pill" data-timeframe="month">1M</button>
             <button type="button" class="filter-pill" data-timeframe="year">1Y</button>
@@ -108,6 +109,7 @@ export class AnalysisView {
             </div>
             <!-- Timeframe Filter -->
             <div class="filter-pills-group" id="index-timeframe-pills">
+              <button type="button" class="filter-pill" data-timeframe="day">1D</button>
               <button type="button" class="filter-pill active" data-timeframe="week">1W</button>
               <button type="button" class="filter-pill" data-timeframe="month">1M</button>
               <button type="button" class="filter-pill" data-timeframe="year">1Y</button>
@@ -137,6 +139,7 @@ export class AnalysisView {
           <div style="display: flex; gap: 0.75rem; flex-wrap: wrap; align-items: center;">
             <!-- Timeframe Filter for Stock -->
             <div class="filter-pills-group" id="stock-timeframe-pills">
+              <button type="button" class="filter-pill" data-timeframe="day">1D</button>
               <button type="button" class="filter-pill" data-timeframe="week">1W</button>
               <button type="button" class="filter-pill active" data-timeframe="month">1M</button>
               <button type="button" class="filter-pill" data-timeframe="year">1Y</button>
@@ -425,6 +428,7 @@ export class AnalysisView {
       const pointerPositionPct = Math.min(96, Math.max(4, ((current - low) / rangeSpan) * 100));
 
       const tfLabel = {
+        day: '1D',
         week: '1W',
         month: '1M',
         year: '1Y',
@@ -434,7 +438,10 @@ export class AnalysisView {
 
       let indexLowTitle = 'Period Low';
       let indexHighTitle = 'Period High';
-      if (this.indexTimeframe === 'year') {
+      if (this.indexTimeframe === 'day') {
+        indexLowTitle = "Day's Low";
+        indexHighTitle = "Day's High";
+      } else if (this.indexTimeframe === 'year') {
         indexLowTitle = '52-Week Low';
         indexHighTitle = '52-Week High';
       } else if (this.indexTimeframe === '3year') {
@@ -834,7 +841,10 @@ export class AnalysisView {
 
     let lowTitle = 'Period Low';
     let highTitle = 'Period High';
-    if (this.stockTimeframe === 'year') {
+    if (this.stockTimeframe === 'day') {
+      lowTitle = "Day's Low";
+      highTitle = "Day's High";
+    } else if (this.stockTimeframe === 'year') {
       lowTitle = '52-Week Low';
       highTitle = '52-Week High';
     } else if (this.stockTimeframe === '3year') {

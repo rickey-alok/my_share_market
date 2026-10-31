@@ -46,6 +46,16 @@ export function getLatestTradingDaysLabels(count = 5) {
 }
 
 export const FII_DII_DATA = {
+  day: {
+    periodName: "Today's Intraday Flow (1-Day Session)",
+    labels: ['9:30 AM', '10:30 AM', '11:30 AM', '12:30 PM', '1:30 PM', '2:30 PM', '3:30 PM'],
+    fiiNet: [120.4, 215.8, -85.2, 140.5, 310.2, -65.4, 251.35],
+    diiNet: [410.2, 530.5, 380.1, 490.8, 620.4, 385.2, 418.16],
+    fiiGrossBuy: [1850, 2100, 1920, 2250, 2380, 1945, 2000],
+    fiiGrossSell: [1729.6, 1884.2, 2005.2, 2109.5, 2069.8, 2010.4, 1748.65],
+    diiGrossBuy: [2510, 2850, 2640, 2820, 2980, 2690, 2742],
+    diiGrossSell: [2099.8, 2319.5, 2259.9, 2329.2, 2359.6, 2304.8, 2323.84]
+  },
   week: {
     periodName: 'Latest 5 Trading Days',
     get labels() {
@@ -108,7 +118,55 @@ export const FII_DII_DATA = {
 export function getFiiDiiMetrics(timeframe = 'week') {
   let data;
 
-  if (timeframe === 'week') {
+  if (timeframe === 'day') {
+    let liveTodayData = null;
+    try {
+      if (typeof localStorage !== 'undefined') {
+        const cached = localStorage.getItem('apna_share_fii_dii_latest_v1');
+        if (cached) liveTodayData = JSON.parse(cached);
+      }
+    } catch (e) {}
+
+    const todayFiiNet = liveTodayData?.fiiNet !== undefined ? Number(liveTodayData.fiiNet) : 887.65;
+    const todayDiiNet = liveTodayData?.diiNet !== undefined ? Number(liveTodayData.diiNet) : 3235.36;
+    const todayFiiBuy = liveTodayData?.fiiBuy || 14445;
+    const todayFiiSell = liveTodayData?.fiiSell || 13558;
+    const todayDiiBuy = liveTodayData?.diiBuy || 19232;
+    const todayDiiSell = liveTodayData?.diiSell || 15997;
+
+    const labels = ['9:30 AM', '10:30 AM', '11:30 AM', '12:30 PM', '1:30 PM', '2:30 PM', '3:30 PM'];
+    const weights = [0.14, 0.18, 0.10, 0.15, 0.22, 0.08, 0.13];
+
+    const fiiNet = weights.map((w, idx) => {
+      if (idx === weights.length - 1) {
+        const sumPrev = weights.slice(0, -1).reduce((s, w2) => s + parseFloat((todayFiiNet * w2).toFixed(2)), 0);
+        return parseFloat((todayFiiNet - sumPrev).toFixed(2));
+      }
+      return parseFloat((todayFiiNet * w).toFixed(2));
+    });
+
+    const diiNet = weights.map((w, idx) => {
+      if (idx === weights.length - 1) {
+        const sumPrev = weights.slice(0, -1).reduce((s, w2) => s + parseFloat((todayDiiNet * w2).toFixed(2)), 0);
+        return parseFloat((todayDiiNet - sumPrev).toFixed(2));
+      }
+      return parseFloat((todayDiiNet * w).toFixed(2));
+    });
+
+    const latestDays = getLatestTradingDaysLabels(1);
+    const dateStr = latestDays[0] || 'Today';
+
+    data = {
+      periodName: `Today's Intraday Flow (${dateStr})`,
+      labels,
+      fiiNet,
+      diiNet,
+      fiiGrossBuy: weights.map(w => Math.round(todayFiiBuy * w)),
+      fiiGrossSell: weights.map(w => Math.round(todayFiiSell * w)),
+      diiGrossBuy: weights.map(w => Math.round(todayDiiBuy * w)),
+      diiGrossSell: weights.map(w => Math.round(todayDiiSell * w))
+    };
+  } else if (timeframe === 'week') {
     const labels = getLatestTradingDaysLabels(5);
     const startDate = labels[0];
     const endDate = labels[labels.length - 1];
@@ -180,6 +238,25 @@ export function getFiiDiiMetrics(timeframe = 'week') {
 
 // Major Benchmark Indices Historical Trajectories (NIFTY 50 and SENSEX)
 export const INDICES_DATA = {
+  day: {
+    labels: ['9:15 AM', '10:00 AM', '11:00 AM', '12:00 PM', '1:00 PM', '2:00 PM', '3:00 PM', '3:30 PM'],
+    nifty: {
+      name: 'NIFTY 50',
+      current: 25124.60,
+      points: [24985.20, 25035.40, 25012.10, 25068.80, 25095.40, 25078.20, 25142.50, 25124.60],
+      low: 24965.10,
+      high: 25155.80,
+      changePct: 0.56
+    },
+    sensex: {
+      name: 'SENSEX',
+      current: 82045.10,
+      points: [81580.40, 81750.20, 81680.50, 81880.30, 81990.10, 81920.60, 82110.40, 82045.10],
+      low: 81510.20,
+      high: 82145.60,
+      changePct: 0.57
+    }
+  },
   week: {
     get labels() {
       return getLatestTradingDaysLabels(5);
@@ -284,6 +361,7 @@ export const SECTOR_INDUSTRY_MAP = {
   'Energy & Petrochemicals': {
     name: 'NIFTY OIL & GAS',
     trends: {
+      day: [12390, 12415, 12410, 12430, 12445, 12435, 12455, 12450],
       week: [12310, 12380, 12420, 12400, 12450],
       month: [11980, 12120, 12250, 12380, 12450],
       year: [10240, 10580, 10920, 11450, 11800, 12150, 12450],
@@ -294,6 +372,7 @@ export const SECTOR_INDUSTRY_MAP = {
   'Information Technology': {
     name: 'NIFTY IT',
     trends: {
+      day: [42120, 42180, 42150, 42200, 42240, 42210, 42190, 42180],
       week: [42400, 42320, 42150, 42080, 42180],
       month: [41200, 41650, 42300, 42500, 42180],
       year: [31200, 33500, 35400, 37800, 39500, 41200, 42180],
@@ -304,6 +383,7 @@ export const SECTOR_INDUSTRY_MAP = {
   'Banking & Financials': {
     name: 'BANK NIFTY',
     trends: {
+      day: [51650, 51720, 51690, 51760, 51810, 51790, 51860, 51840],
       week: [51250, 51420, 51680, 51590, 51840],
       month: [50120, 50650, 51200, 51600, 51840],
       year: [43600, 45200, 46800, 48500, 49800, 51200, 51840],
@@ -314,6 +394,7 @@ export const SECTOR_INDUSTRY_MAP = {
   'Automobile': {
     name: 'NIFTY AUTO',
     trends: {
+      day: [26200, 26260, 26230, 26290, 26320, 26310, 26360, 26340],
       week: [25980, 26120, 26250, 26190, 26340],
       month: [25100, 25480, 25850, 26150, 26340],
       year: [16800, 18500, 20400, 22800, 24500, 25800, 26340],
@@ -324,6 +405,7 @@ export const SECTOR_INDUSTRY_MAP = {
   'Consumer Goods (FMCG)': {
     name: 'NIFTY FMCG',
     trends: {
+      day: [61380, 61410, 61400, 61430, 61445, 61435, 61460, 61450],
       week: [61200, 61350, 61400, 61380, 61450],
       month: [60200, 60600, 60950, 61250, 61450],
       year: [52400, 54100, 55800, 57400, 59200, 60800, 61450],
@@ -334,6 +416,7 @@ export const SECTOR_INDUSTRY_MAP = {
   'Healthcare & Pharmaceuticals': {
     name: 'NIFTY PHARMA',
     trends: {
+      day: [22790, 22820, 22810, 22840, 22855, 22845, 22860, 22850],
       week: [22600, 22710, 22780, 22810, 22850],
       month: [21900, 22180, 22450, 22700, 22850],
       year: [15400, 16800, 18200, 19600, 21200, 22400, 22850],
@@ -344,6 +427,7 @@ export const SECTOR_INDUSTRY_MAP = {
   'Infrastructure & Capital Goods': {
     name: 'NIFTY INFRA',
     trends: {
+      day: [9080, 9100, 9090, 9110, 9125, 9115, 9130, 9120],
       week: [9020, 9060, 9090, 9080, 9120],
       month: [8750, 8880, 8990, 9080, 9120],
       year: [6200, 6800, 7400, 8100, 8650, 8950, 9120],
@@ -354,6 +438,7 @@ export const SECTOR_INDUSTRY_MAP = {
   'Telecommunications': {
     name: 'NIFTY TELECOM',
     trends: {
+      day: [1830, 1835, 1833, 1837, 1842, 1838, 1843, 1840],
       week: [1815, 1825, 1832, 1835, 1840],
       month: [1750, 1780, 1805, 1825, 1840],
       year: [1240, 1360, 1480, 1610, 1720, 1810, 1840],
@@ -364,6 +449,7 @@ export const SECTOR_INDUSTRY_MAP = {
   'New Age / Consumer Tech': {
     name: 'NIFTY SERVICES',
     trends: {
+      day: [31080, 31140, 31110, 31170, 31210, 31180, 31220, 31200],
       week: [30800, 30950, 31100, 31050, 31200],
       month: [29800, 30200, 30650, 31000, 31200],
       year: [24500, 25800, 27200, 28600, 29900, 30800, 31200],
@@ -374,6 +460,7 @@ export const SECTOR_INDUSTRY_MAP = {
   'Metal & Mining': {
     name: 'NIFTY METAL',
     trends: {
+      day: [9810, 9835, 9825, 9845, 9855, 9840, 9860, 9850],
       week: [9720, 9780, 9840, 9810, 9850],
       month: [9450, 9580, 9710, 9820, 9850],
       year: [7100, 7650, 8200, 8750, 9300, 9720, 9850],
@@ -396,6 +483,7 @@ export function getIndustryForHolding(holding) {
   return {
     name: 'NIFTY 500',
     trends: {
+      day: [23380, 23415, 23400, 23430, 23445, 23435, 23460, 23450],
       week: [23150, 23280, 23390, 23350, 23450],
       month: [22600, 22900, 23150, 23380, 23450],
       year: [19200, 20100, 21200, 22100, 22800, 23200, 23450],
@@ -409,6 +497,7 @@ const BENCHMARK_MAP = {
   nifty: {
     name: 'NIFTY 50',
     trends: {
+      day: [24985.20, 25035.40, 25012.10, 25068.80, 25095.40, 25078.20, 25142.50, 25124.60],
       week: [24890.20, 24965.40, 25040.10, 25010.80, 25124.60],
       month: [24410.50, 24680.20, 24850.10, 25040.30, 25124.60],
       year: [21950.00, 22800.00, 23600.00, 24450.00, 25300.00, 24850.00, 25124.60],
@@ -419,6 +508,7 @@ const BENCHMARK_MAP = {
   sensex: {
     name: 'SENSEX',
     trends: {
+      day: [81580.40, 81750.20, 81680.50, 81880.30, 81990.10, 81920.60, 82110.40, 82045.10],
       week: [81280.40, 81520.10, 81790.60, 81680.20, 82045.10],
       month: [79820.00, 80410.20, 81290.40, 81840.60, 82045.10],
       year: [72400.00, 75450.00, 77200.00, 80210.00, 82850.00, 81400.00, 82045.10],
@@ -444,7 +534,14 @@ export function getStockAnalysisData(holding, timeframe = 'week') {
   let lowSpread = 0.04;
   let highSpread = 0.05;
 
-  if (timeframe === 'week') {
+  if (timeframe === 'day') {
+    labels = ['9:15 AM', '10:00 AM', '11:00 AM', '12:00 PM', '1:00 PM', '2:00 PM', '3:00 PM', '3:30 PM'];
+    const dLow = Number(holding.dayLow) || (cmp * 0.988);
+    const dHigh = Number(holding.dayHigh) || (cmp * 1.012);
+    lowSpread = Math.max(0.006, Math.min(0.035, (cmp - dLow) / cmp));
+    highSpread = Math.max(0.006, Math.min(0.035, (dHigh - cmp) / cmp));
+    deltaFactors = [-0.007, 0.002, -0.003, 0.004, 0.001, 0.005, 0.003, 0];
+  } else if (timeframe === 'week') {
     labels = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri'];
     deltaFactors = [-0.015, -0.008, 0.004, -0.002, 0];
     lowSpread = 0.025;
