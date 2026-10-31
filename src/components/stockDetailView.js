@@ -4,6 +4,11 @@ import { POPULAR_STOCKS } from '../data/stocksDatabase.js';
 
 const icons = {
   arrowLeft: `<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="19" y1="12" x2="5" y2="12"></line><polyline points="12 19 5 12 12 5"></polyline></svg>`,
+  arrowRight: `<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="5" y1="12" x2="19" y2="12"></line><polyline points="12 5 19 12 12 19"></polyline></svg>`,
+  chevronLeft: `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"></polyline></svg>`,
+  chevronRight: `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"></polyline></svg>`,
+  layers: `<svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 2 7 12 12 22 7 12 2"></polygon><polyline points="2 17 12 22 22 17"></polyline><polyline points="2 12 12 17 22 12"></polyline></svg>`,
+  swipe: `<svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="8 4 4 8 8 12"></polyline><polyline points="16 12 20 16 16 20"></polyline><line x1="4" y1="8" x2="18" y2="8"></line><line x1="20" y1="16" x2="6" y2="16"></line></svg>`,
   plus: `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>`,
   trash: `<svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>`,
   history: `<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 14 14"></polyline></svg>`,
@@ -14,13 +19,17 @@ const icons = {
 };
 
 export class StockDetailView {
-  constructor(container, onNavigateBack, onNavigateToAddHolding) {
+  constructor(container, onNavigateBack, onNavigateToAddHolding, onNavigateToStock) {
     this.container = container;
     this.onNavigateBack = onNavigateBack;
     this.onNavigateToAddHolding = onNavigateToAddHolding;
+    this.onNavigateToStock = onNavigateToStock;
     this.currentSymbol = null;
     this.renderedSymbol = null;
     this.tradeMode = 'BUY'; // 'BUY' or 'SELL'
+    this.isTransitioning = false;
+    this.pendingSlideDirection = null;
+    this.keyboardListenerAttached = false;
 
     // Listen to store updates with surgical targeted DOM updates
     this.unsubscribe = portfolioStore.subscribe((event) => {
@@ -46,10 +55,108 @@ export class StockDetailView {
     });
   }
 
-  setStock(symbol) {
+  getUserHoldingsList() {
+    const metrics = portfolioStore.getPortfolioMetrics();
+    if (metrics && Array.isArray(metrics.holdings) && metrics.holdings.length > 0) {
+      return metrics.holdings;
+    }
+    return portfolioStore.holdings || [];
+  }
+
+  getAdjacentHoldings(currentSymbol) {
+    const holdings = this.getUserHoldingsList();
+    if (!holdings || holdings.length === 0) {
+      return { prevHolding: null, nextHolding: null, currentIndex: -1, total: 0, holdings: [] };
+    }
+    const cleanSym = (currentSymbol || '').toUpperCase().trim();
+    let currentIndex = holdings.findIndex(h => h.symbol.toUpperCase().trim() === cleanSym);
+    const total = holdings.length;
+
+    if (currentIndex === -1) {
+      return { prevHolding: holdings[0] || null, nextHolding: holdings[0] || null, currentIndex: -1, total, holdings };
+    }
+
+    if (total === 1) {
+      return { prevHolding: holdings[0], nextHolding: holdings[0], currentIndex: 0, total: 1, holdings };
+    }
+
+    const prevIndex = (currentIndex - 1 + total) % total;
+    const nextIndex = (currentIndex + 1) % total;
+
+    return {
+      prevHolding: holdings[prevIndex],
+      nextHolding: holdings[nextIndex],
+      currentIndex,
+      total,
+      holdings
+    };
+  }
+
+  slideToNext() {
+    if (this.isTransitioning) return;
+    const { nextHolding, total } = this.getAdjacentHoldings(this.currentSymbol);
+    if (!nextHolding || total <= 1 || nextHolding.symbol === this.currentSymbol) return;
+    this.triggerSlideTransition(nextHolding.symbol, 'left');
+  }
+
+  slideToPrev() {
+    if (this.isTransitioning) return;
+    const { prevHolding, total } = this.getAdjacentHoldings(this.currentSymbol);
+    if (!prevHolding || total <= 1 || prevHolding.symbol === this.currentSymbol) return;
+    this.triggerSlideTransition(prevHolding.symbol, 'right');
+  }
+
+  slideToSymbol(targetSymbol) {
+    if (this.isTransitioning || !targetSymbol) return;
+    const cleanTarget = targetSymbol.toUpperCase().trim();
+    if (cleanTarget === this.currentSymbol) return;
+
+    const { holdings, currentIndex } = this.getAdjacentHoldings(this.currentSymbol);
+    const targetIndex = holdings.findIndex(h => h.symbol.toUpperCase().trim() === cleanTarget);
+    const direction = targetIndex >= currentIndex ? 'left' : 'right';
+    this.triggerSlideTransition(cleanTarget, direction);
+  }
+
+  triggerSlideTransition(targetSymbol, direction) {
+    if (this.isTransitioning) return;
+    this.isTransitioning = true;
+
+    const pageEl = this.container.querySelector('.stock-detail-page');
+    const outClass = direction === 'left' ? 'anim-slide-out-left' : 'anim-slide-out-right';
+
+    if (pageEl) {
+      pageEl.classList.add(outClass);
+
+      setTimeout(() => {
+        this.pendingSlideDirection = direction;
+        if (this.onNavigateToStock) {
+          this.onNavigateToStock(targetSymbol);
+        } else {
+          window.location.hash = `#/stock/${targetSymbol}`;
+        }
+        if (this.currentSymbol !== targetSymbol) {
+          this.setStock(targetSymbol, direction);
+        }
+        this.isTransitioning = false;
+      }, 150);
+    } else {
+      this.pendingSlideDirection = direction;
+      if (this.onNavigateToStock) {
+        this.onNavigateToStock(targetSymbol);
+      } else {
+        window.location.hash = `#/stock/${targetSymbol}`;
+      }
+      this.isTransitioning = false;
+    }
+  }
+
+  setStock(symbol, direction = null) {
     if (!symbol) return;
     const cleanSym = symbol.toUpperCase().trim();
     this.currentSymbol = cleanSym;
+
+    const slideDir = direction || this.pendingSlideDirection;
+    this.pendingSlideDirection = null;
 
     const holding = portfolioStore.getHoldingBySymbol(this.currentSymbol);
     if (!holding) {
@@ -57,9 +164,9 @@ export class StockDetailView {
       return;
     }
 
-    // Render skeleton if navigating to a different stock
-    if (this.renderedSymbol !== cleanSym) {
-      this.renderFullSkeleton(holding);
+    // Render skeleton if navigating to a different stock or slide animation requested
+    if (this.renderedSymbol !== cleanSym || slideDir) {
+      this.renderFullSkeleton(holding, slideDir);
       this.renderedSymbol = cleanSym;
     } else {
       this.updateFinancialMetrics();
@@ -68,24 +175,102 @@ export class StockDetailView {
     }
   }
 
-  renderFullSkeleton(holding) {
+  renderSlideNavigatorHtml(enrichedHolding) {
+    const { prevHolding, nextHolding, currentIndex, total, holdings } = this.getAdjacentHoldings(this.currentSymbol);
+    if (total === 0) return '';
+
+    const positionText = currentIndex !== -1 ? `Holding ${currentIndex + 1} of ${total}` : `${total} Total Holdings`;
+    const isSingle = total <= 1;
+
+    return `
+      <div class="stock-slide-navigator" id="stock-slide-navigator">
+        <div class="slide-nav-header">
+          <div class="slide-nav-info">
+            <span class="slide-mode-badge">${icons.layers} Holdings Carousel</span>
+            <span class="slide-position-pill">${positionText}</span>
+            <span class="slide-gesture-hint">${icons.swipe} Slide or Swipe ⟵ ⟶ to browse stocks</span>
+          </div>
+
+          <div class="slide-nav-actions">
+            <button type="button" class="slide-btn prev ${isSingle ? 'disabled' : ''}" id="btn-slide-prev" title="Previous Holding (Swipe Right or Left Arrow)" ${isSingle ? 'disabled' : ''}>
+              ${icons.chevronLeft}
+              <span class="btn-text">Prev: <strong>${prevHolding ? prevHolding.symbol : '—'}</strong></span>
+            </button>
+            <button type="button" class="slide-btn next ${isSingle ? 'disabled' : ''}" id="btn-slide-next" title="Next Holding (Swipe Left or Right Arrow)" ${isSingle ? 'disabled' : ''}>
+              <span class="btn-text">Next: <strong>${nextHolding ? nextHolding.symbol : '—'}</strong></span>
+              ${icons.chevronRight}
+            </button>
+          </div>
+        </div>
+
+        <!-- Scrollable Holdings Chips Strip -->
+        <div class="slide-chips-track-wrapper">
+          <div class="slide-chips-track" id="slide-chips-track">
+            ${holdings.map((h, idx) => {
+              const isActive = h.symbol.toUpperCase().trim() === enrichedHolding.symbol.toUpperCase().trim();
+              const isProf = (h.pnl || 0) >= 0;
+              const pnlSign = isProf ? '+' : '';
+              return `
+                <button type="button" 
+                  class="slide-holding-chip ${isActive ? 'active' : ''}" 
+                  data-symbol="${h.symbol}" 
+                  data-index="${idx}"
+                  title="Switch to ${h.name} (${h.symbol})"
+                >
+                  <span class="chip-sym-dot ${isActive ? 'active-pulse' : ''}"></span>
+                  <span class="chip-sym">${h.symbol}</span>
+                  <span class="chip-mini-pnl ${isProf ? 'bull' : 'bear'}">
+                    ${pnlSign}${(h.pnlPercent || 0).toFixed(1)}%
+                  </span>
+                </button>
+              `;
+            }).join('')}
+          </div>
+        </div>
+      </div>
+    `;
+  }
+
+  renderBottomSlideBarHtml(enrichedHolding) {
+    const { prevHolding, nextHolding, currentIndex, total } = this.getAdjacentHoldings(this.currentSymbol);
+    if (total <= 1) return '';
+
+    return `
+      <div class="stock-slide-bottom-bar">
+        <button type="button" class="btn btn-outline btn-sm slide-btn-bottom prev" id="btn-bottom-slide-prev" title="Previous holding (${prevHolding ? prevHolding.symbol : ''})">
+          ${icons.chevronLeft} Prev: ${prevHolding ? prevHolding.symbol : '—'}
+        </button>
+        <div class="bottom-slide-meta">
+          <span class="bottom-pos-pill">Holding ${currentIndex !== -1 ? currentIndex + 1 : 1} of ${total}</span>
+          <span class="bottom-hint">Swipe ⟵ ⟶ on screen to flip</span>
+        </div>
+        <button type="button" class="btn btn-outline btn-sm slide-btn-bottom next" id="btn-bottom-slide-next" title="Next holding (${nextHolding ? nextHolding.symbol : ''})">
+          Next: ${nextHolding ? nextHolding.symbol : '—'} ${icons.chevronRight}
+        </button>
+      </div>
+    `;
+  }
+
+  renderFullSkeleton(holding, slideDir = null) {
     const transactions = portfolioStore.getTransactionsForStock(this.currentSymbol);
     const metrics = portfolioStore.getPortfolioMetrics();
     const enrichedHolding = metrics.holdings.find(h => h.symbol === this.currentSymbol) || holding;
 
     const isProfit = (enrichedHolding.pnl || 0) >= 0;
     const isDayProfit = (enrichedHolding.dayPnL || 0) >= 0;
+    const slideInClass = slideDir === 'left' ? 'anim-slide-in-right' : (slideDir === 'right' ? 'anim-slide-in-left' : '');
+    const { prevHolding, nextHolding, total } = this.getAdjacentHoldings(this.currentSymbol);
 
     this.container.innerHTML = `
-      <div class="stock-detail-page">
+      <div class="stock-detail-page ${slideInClass}" id="stock-detail-page">
         <!-- Top Navigation / Breadcrumb Bar -->
         <div class="detail-header-nav">
           <button type="button" class="btn btn-outline btn-sm" id="btn-back-to-dashboard">
-            ${icons.arrowLeft} Back to Dashboard
+            ${icons.arrowLeft} Back to Holdings
           </button>
           
           <div class="detail-breadcrumbs">
-            <span class="crumb-link" id="crumb-dashboard">Dashboard</span>
+            <span class="crumb-link" id="crumb-dashboard">Holdings</span>
             <span class="crumb-sep">/</span>
             <span class="crumb-current">${enrichedHolding.name} (${enrichedHolding.symbol})</span>
           </div>
@@ -103,8 +288,19 @@ export class StockDetailView {
           </div>
         </div>
 
-        <!-- Stock Hero Banner -->
-        <div class="stock-hero-card">
+        <!-- Stock Slide Navigator (Holdings Carousel / Swipe Switcher) -->
+        ${this.renderSlideNavigatorHtml(enrichedHolding)}
+
+        <!-- Stock Hero Banner (with desktop floating slide chevrons) -->
+        <div class="stock-hero-card" id="stock-hero-card">
+          ${total > 1 ? `
+            <button type="button" class="hero-float-nav prev" id="hero-nav-prev" title="Previous holding (${prevHolding ? prevHolding.symbol : ''})">
+              ${icons.chevronLeft}
+            </button>
+            <button type="button" class="hero-float-nav next" id="hero-nav-next" title="Next holding (${nextHolding ? nextHolding.symbol : ''})">
+              ${icons.chevronRight}
+            </button>
+          ` : ''}
           <div class="stock-hero-left">
             <div class="stock-hero-identity">
               <div class="stock-symbol-chip large">${enrichedHolding.symbol.substring(0, 3)}</div>
@@ -279,8 +475,20 @@ export class StockDetailView {
             </form>
           </div>
         </div>
+
+        <!-- Bottom Slide Navigation Bar -->
+        ${this.renderBottomSlideBarHtml(enrichedHolding)}
       </div>
     `;
+
+    if (slideInClass) {
+      setTimeout(() => {
+        const pageEl = this.container.querySelector('.stock-detail-page');
+        if (pageEl) {
+          pageEl.classList.remove('anim-slide-in-right', 'anim-slide-in-left');
+        }
+      }, 260);
+    }
 
     this.attachEvents(enrichedHolding);
     this.updateTransactionTable();
@@ -288,7 +496,7 @@ export class StockDetailView {
   }
 
   attachEvents(holding) {
-    // Back to dashboard
+    // Back to holdings/dashboard
     const btnBack = this.container.querySelector('#btn-back-to-dashboard');
     const crumbDashboard = this.container.querySelector('#crumb-dashboard');
     const handleBack = () => {
@@ -296,6 +504,117 @@ export class StockDetailView {
     };
     if (btnBack) btnBack.addEventListener('click', handleBack);
     if (crumbDashboard) crumbDashboard.addEventListener('click', handleBack);
+
+    // Slide Navigation Buttons (Header, Hero & Bottom)
+    const btnSlidePrev = this.container.querySelector('#btn-slide-prev');
+    const btnSlideNext = this.container.querySelector('#btn-slide-next');
+    const heroNavPrev = this.container.querySelector('#hero-nav-prev');
+    const heroNavNext = this.container.querySelector('#hero-nav-next');
+    const btnBottomPrev = this.container.querySelector('#btn-bottom-slide-prev');
+    const btnBottomNext = this.container.querySelector('#btn-bottom-slide-next');
+
+    const handlePrev = (e) => {
+      e?.preventDefault?.();
+      e?.stopPropagation?.();
+      this.slideToPrev();
+    };
+    const handleNext = (e) => {
+      e?.preventDefault?.();
+      e?.stopPropagation?.();
+      this.slideToNext();
+    };
+
+    if (btnSlidePrev) btnSlidePrev.addEventListener('click', handlePrev);
+    if (btnSlideNext) btnSlideNext.addEventListener('click', handleNext);
+    if (heroNavPrev) heroNavPrev.addEventListener('click', handlePrev);
+    if (heroNavNext) heroNavNext.addEventListener('click', handleNext);
+    if (btnBottomPrev) btnBottomPrev.addEventListener('click', handlePrev);
+    if (btnBottomNext) btnBottomNext.addEventListener('click', handleNext);
+
+    // Holding Chips in the carousel track
+    const chips = this.container.querySelectorAll('.slide-holding-chip');
+    chips.forEach(chip => {
+      chip.addEventListener('click', () => {
+        const targetSym = chip.getAttribute('data-symbol');
+        if (targetSym) {
+          this.slideToSymbol(targetSym);
+        }
+      });
+    });
+
+    // Auto-scroll active chip into center view in the track
+    setTimeout(() => {
+      const activeChip = this.container.querySelector('.slide-holding-chip.active');
+      if (activeChip) {
+        activeChip.scrollIntoView({ behavior: 'smooth', inline: 'center', block: 'nearest' });
+      }
+    }, 50);
+
+    // Touch Swipe Gestures on .stock-detail-page (Slide Left / Right to flip stocks)
+    const pageEl = this.container.querySelector('.stock-detail-page');
+    if (pageEl) {
+      let touchStartX = 0;
+      let touchStartY = 0;
+      let touchEndX = 0;
+      let touchEndY = 0;
+      let isTouching = false;
+
+      pageEl.addEventListener('touchstart', (e) => {
+        if (e.touches.length !== 1) return;
+        const target = e.target;
+        if (target && ['INPUT', 'TEXTAREA', 'SELECT'].includes(target.tagName)) {
+          isTouching = false;
+          return;
+        }
+        touchStartX = e.touches[0].clientX;
+        touchStartY = e.touches[0].clientY;
+        touchEndX = touchStartX;
+        touchEndY = touchStartY;
+        isTouching = true;
+      }, { passive: true });
+
+      pageEl.addEventListener('touchmove', (e) => {
+        if (!isTouching || e.touches.length !== 1) return;
+        touchEndX = e.touches[0].clientX;
+        touchEndY = e.touches[0].clientY;
+      }, { passive: true });
+
+      pageEl.addEventListener('touchend', () => {
+        if (!isTouching) return;
+        isTouching = false;
+
+        const deltaX = touchEndX - touchStartX;
+        const deltaY = touchEndY - touchStartY;
+
+        // Ensure horizontal swipe is dominant and exceeds 45px
+        if (Math.abs(deltaX) >= 45 && Math.abs(deltaX) > Math.abs(deltaY) * 1.5) {
+          if (deltaX < 0) {
+            this.slideToNext();
+          } else {
+            this.slideToPrev();
+          }
+        }
+      }, { passive: true });
+    }
+
+    // Attach global keyboard ArrowLeft / ArrowRight listener once
+    if (!this.keyboardListenerAttached) {
+      this.keyboardListenerAttached = true;
+      this.handleKeyDown = (e) => {
+        if (!this.container.classList.contains('active')) return;
+        const activeTag = document.activeElement ? document.activeElement.tagName.toUpperCase() : '';
+        if (['INPUT', 'TEXTAREA', 'SELECT'].includes(activeTag)) return;
+
+        if (e.key === 'ArrowLeft') {
+          e.preventDefault();
+          this.slideToPrev();
+        } else if (e.key === 'ArrowRight') {
+          e.preventDefault();
+          this.slideToNext();
+        }
+      };
+      window.addEventListener('keydown', this.handleKeyDown);
+    }
 
     // Edit CMP Button
     const btnEditCmp = this.container.querySelector('#btn-edit-cmp');
@@ -964,6 +1283,9 @@ export class StockDetailView {
   destroy() {
     if (this.unsubscribe) {
       this.unsubscribe();
+    }
+    if (this.handleKeyDown) {
+      window.removeEventListener('keydown', this.handleKeyDown);
     }
   }
 }

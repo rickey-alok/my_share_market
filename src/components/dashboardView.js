@@ -41,7 +41,7 @@ export class DashboardView {
           <p class="page-subtitle">Executive wealth overview, asset allocation, and market performance</p>
         </div>
         <div class="page-header-actions">
-          <button id="btn-auto-refresh-toggle" class="btn btn-outline btn-sm ${liveMarketService.isAutoRefreshActive ? 'active-pulse' : ''}" title="Toggle 30s Auto Refresh during market hours" style="gap: 6px;">
+          <button id="btn-auto-refresh-toggle" class="btn btn-outline btn-sm ${liveMarketService.isAutoRefreshActive ? 'active-pulse' : ''}" title="Toggle 30s Auto Refresh during market hours">
             <span class="live-dot ${liveMarketService.isAutoRefreshActive ? 'pulse-green' : 'dim'}" style="font-size: 0.75rem;">●</span>
             <span id="auto-refresh-label">Auto-Sync: ${liveMarketService.isAutoRefreshActive ? 'ON' : 'OFF'}</span>
           </button>
@@ -261,87 +261,92 @@ export class DashboardView {
 
     const isTotalProfit = metrics.totalPnL >= 0;
     const isDayProfit = metrics.totalDayPnL >= 0;
+    const isRealizedProfit = (metrics.totalRealizedPnL || 0) >= 0;
 
     kpiContainer.innerHTML = `
-      <!-- Total Portfolio Value -->
-      <div class="kpi-card accent-portfolio">
-        <div class="kpi-header">
-          <span class="kpi-title">Current Portfolio Value</span>
-          <div class="kpi-icon-pill" style="color: var(--brand-indigo-light);">${icons.sparkles}</div>
-        </div>
-        <div class="kpi-value">${portfolioStore.formatMoney(metrics.totalCurrentValue)}</div>
-        <div class="kpi-footer">
-          <span class="return-badge ${isTotalProfit ? 'bull' : 'bear'}">
-            ${isTotalProfit ? icons.arrowUpRight : icons.arrowDownRight}
-            ${isTotalProfit ? '+' : ''}${metrics.totalPnLPercent.toFixed(2)}%
-          </span>
-          <span class="kpi-subtext">all-time net return</span>
-        </div>
-      </div>
-
-      <!-- Total Invested Amount -->
-      <div class="kpi-card accent-invested">
-        <div class="kpi-header">
-          <span class="kpi-title">Total Invested</span>
-          <div class="kpi-icon-pill" style="color: #60a5fa;">${icons.wallet}</div>
-        </div>
-        <div class="kpi-value">${portfolioStore.formatMoney(metrics.totalInvested)}</div>
-        <div class="kpi-footer">
-          <span class="kpi-subtext" style="font-family: var(--font-mono); font-weight: 600;">
-            ${metrics.totalHoldingsCount} Assets (${metrics.totalSharesCount.toLocaleString()} Shares)
-          </span>
-        </div>
-      </div>
-
-      <!-- Total All-Time Profit/Loss -->
-      <div class="kpi-card accent-pnl">
-        <div class="kpi-header">
-          <span class="kpi-title">Total Profit / Loss</span>
-          <div class="kpi-icon-pill" style="color: ${isTotalProfit ? 'var(--bull-green)' : 'var(--bear-red)'};">
-            ${isTotalProfit ? icons.trendingUp : icons.trendingDown}
+      <!-- Card 1: Combined Portfolio Capital & Valuation (Invested on Left, Current Value on Right) -->
+      <div class="kpi-card kpi-card-dual accent-portfolio">
+        <!-- Left Side: Total Invested -->
+        <div class="kpi-dual-col">
+          <div class="kpi-mini-header">
+            <span class="kpi-mini-title">${icons.wallet} Total Invested</span>
+          </div>
+          <div class="kpi-mini-value">${portfolioStore.formatMoney(metrics.totalInvested)}</div>
+          <div class="kpi-mini-footer">
+            <span class="kpi-mini-subtext">${metrics.totalHoldingsCount} Assets (${metrics.totalSharesCount.toLocaleString()} Shares)</span>
           </div>
         </div>
-        <div class="kpi-value ${isTotalProfit ? 'bull' : 'bear'}">
-          ${isTotalProfit ? '+' : ''}${portfolioStore.formatMoney(metrics.totalPnL)}
-        </div>
-        <div class="kpi-footer">
-          <span class="return-badge ${isTotalProfit ? 'bull' : 'bear'}">
-            ${isTotalProfit ? '+' : ''}${metrics.totalPnLPercent.toFixed(2)}%
-          </span>
-          <span class="kpi-subtext">absolute P&L</span>
-        </div>
-      </div>
 
-      <!-- Today's Gain/Loss -->
-      <div class="kpi-card accent-day">
-        <div class="kpi-header">
-          <span class="kpi-title">Today's P&L</span>
-          <div class="kpi-icon-pill" style="color: ${isDayProfit ? 'var(--bull-green)' : 'var(--bear-red)'};">
-            ${isDayProfit ? icons.arrowUpRight : icons.arrowDownRight}
+        <div class="kpi-dual-divider"></div>
+
+        <!-- Right Side: Current Portfolio Value -->
+        <div class="kpi-dual-col">
+          <div class="kpi-mini-header">
+            <span class="kpi-mini-title">${icons.sparkles} Current Value</span>
+            <span class="kpi-live-indicator"><span class="kpi-live-dot"></span>Live</span>
+          </div>
+          <div class="kpi-mini-value">${portfolioStore.formatMoney(metrics.totalCurrentValue)}</div>
+          <div class="kpi-mini-footer">
+            <span class="return-badge-sm ${isTotalProfit ? 'bull' : 'bear'}">
+              ${isTotalProfit ? icons.arrowUpRight : icons.arrowDownRight}
+              ${isTotalProfit ? '+' : ''}${metrics.totalPnLPercent.toFixed(2)}% net
+            </span>
           </div>
         </div>
-        <div class="kpi-value ${isDayProfit ? 'bull' : 'bear'}">
-          ${isDayProfit ? '+' : ''}${portfolioStore.formatMoney(metrics.totalDayPnL)}
+      </div>
+
+      <!-- Card 2: Combined Unrealized P&L (Total P&L on Left, Today's Movement on Right) -->
+      <div class="kpi-card kpi-card-dual accent-pnl ${isTotalProfit ? 'bull' : 'bear'}">
+        <!-- Left Side: Total P&L -->
+        <div class="kpi-dual-col">
+          <div class="kpi-mini-header">
+            <span class="kpi-mini-title">${isTotalProfit ? icons.trendingUp : icons.trendingDown} Total P&L</span>
+          </div>
+          <div class="kpi-mini-value ${isTotalProfit ? 'bull' : 'bear'}">
+            ${isTotalProfit ? '+' : ''}${portfolioStore.formatMoney(metrics.totalPnL)}
+          </div>
+          <div class="kpi-mini-footer">
+            <span class="return-badge-sm ${isTotalProfit ? 'bull' : 'bear'}">
+              ${isTotalProfit ? '+' : ''}${metrics.totalPnLPercent.toFixed(2)}% all-time
+            </span>
+          </div>
         </div>
-        <div class="kpi-footer">
-          <span class="return-badge ${isDayProfit ? 'bull' : 'bear'}">
-            ${isDayProfit ? '+' : ''}${metrics.totalDayPnLPercent.toFixed(2)}%
-          </span>
-          <span class="kpi-subtext">session movement</span>
+
+        <div class="kpi-dual-divider"></div>
+
+        <!-- Right Side: Today's P&L -->
+        <div class="kpi-dual-col">
+          <div class="kpi-mini-header">
+            <span class="kpi-mini-title">${isDayProfit ? icons.arrowUpRight : icons.arrowDownRight} Today's P&L</span>
+          </div>
+          <div class="kpi-mini-value ${isDayProfit ? 'bull' : 'bear'}">
+            ${isDayProfit ? '+' : ''}${portfolioStore.formatMoney(metrics.totalDayPnL)}
+          </div>
+          <div class="kpi-mini-footer">
+            <span class="return-badge-sm ${isDayProfit ? 'bull' : 'bear'}">
+              ${isDayProfit ? '+' : ''}${metrics.totalDayPnLPercent.toFixed(2)}% session
+            </span>
+          </div>
         </div>
       </div>
 
-      <!-- Realized P&L / Returns -->
-      <div class="kpi-card accent-performance">
-        <div class="kpi-header">
-          <span class="kpi-title">Realized Profits</span>
-          <div class="kpi-icon-pill" style="color: #a855f7;">${icons.pieChart}</div>
-        </div>
-        <div class="kpi-value ${metrics.totalRealizedPnL >= 0 ? 'bull' : 'bear'}">
-          ${metrics.totalRealizedPnL >= 0 ? '+' : ''}${portfolioStore.formatMoney(metrics.totalRealizedPnL)}
-        </div>
-        <div class="kpi-footer">
-          <span class="kpi-subtext">booked exit profits</span>
+      <!-- Card 3: Dedicated Realized Profit Card -->
+      <div class="kpi-card kpi-card-realized accent-performance">
+        <div class="kpi-realized-content">
+          <div class="kpi-realized-meta">
+            <div class="kpi-mini-header">
+              <span class="kpi-mini-title" style="color: #a855f7;">${icons.pieChart} Realized Profits</span>
+              <span class="kpi-subtext-pill">Booked</span>
+            </div>
+            <div class="kpi-mini-footer">
+              <span class="kpi-mini-subtext">
+                ${metrics.totalRealizedPnL !== 0 ? 'Closed trades exit gains' : 'No booked sales yet'}
+              </span>
+            </div>
+          </div>
+          <div class="kpi-mini-value ${isRealizedProfit ? 'bull' : 'bear'}">
+            ${isRealizedProfit ? '+' : ''}${portfolioStore.formatMoney(metrics.totalRealizedPnL)}
+          </div>
         </div>
       </div>
     `;

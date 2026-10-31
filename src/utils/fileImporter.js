@@ -169,10 +169,17 @@ export function normalizeRow(row, metadata = {}) {
   // If file provided LTP/Previous Closing Price, prioritize it, otherwise fallback to database CMP or buyPrice
   const cmp = (!isNaN(fileCmp) && fileCmp > 0) ? fileCmp : (refStock ? refStock.cmp : buyPrice);
   const prevClose = (!isNaN(filePrevClose) && filePrevClose > 0) ? filePrevClose : (refStock ? refStock.prevClose : cmp);
-  const dayHigh = refStock ? refStock.dayHigh : cmp;
-  const dayLow = refStock ? refStock.dayLow : cmp;
-  const week52High = refStock ? refStock.week52High : parseFloat((cmp * 1.25).toFixed(2));
-  const week52Low = refStock ? refStock.week52Low : parseFloat((cmp * 0.75).toFixed(2));
+  let dayHigh = refStock ? refStock.dayHigh : cmp;
+  let dayLow = refStock ? refStock.dayLow : cmp;
+  let week52High = refStock ? refStock.week52High : parseFloat((cmp * 1.25).toFixed(2));
+  let week52Low = refStock ? refStock.week52Low : parseFloat((cmp * 0.75).toFixed(2));
+
+  if (cmp > 0) {
+    dayHigh = Math.max(dayHigh, cmp);
+    dayLow = Math.min(dayLow, cmp);
+    week52High = Math.max(week52High, dayHigh, cmp);
+    week52Low = Math.min(week52Low, dayLow, cmp);
+  }
 
   // Determine Company Name
   let name = symbol;

@@ -508,17 +508,50 @@ class PortfolioStore {
       const sym = (h.symbol || '').toUpperCase().trim();
       const ref = POPULAR_STOCKS.find(s => s.symbol.toUpperCase() === sym);
       if (ref && ref.cmp) {
-        const needsRange = !h.dayHigh || !h.dayLow || !h.week52High || !h.week52Low;
-        if (Math.abs(h.cmp - ref.cmp) > 2 || needsRange) {
+        const isRangeInvalid = !h.dayHigh || !h.dayLow || !h.week52High || !h.week52Low ||
+                               h.dayHigh < h.cmp || h.dayLow > h.cmp ||
+                               h.week52High < h.cmp || h.week52Low > h.cmp;
+        if (Math.abs(h.cmp - ref.cmp) > 2 || isRangeInvalid) {
           changed = true;
+          const targetCmp = (Math.abs(h.cmp - ref.cmp) > 2) ? ref.cmp : h.cmp;
+          let dHigh = ref.dayHigh || h.dayHigh || targetCmp;
+          let dLow = ref.dayLow || h.dayLow || targetCmp;
+          let wHigh = ref.week52High || h.week52High || (targetCmp * 1.25);
+          let wLow = ref.week52Low || h.week52Low || (targetCmp * 0.75);
+
+          dHigh = Math.max(dHigh, targetCmp);
+          dLow = Math.min(dLow, targetCmp);
+          wHigh = Math.max(wHigh, dHigh, targetCmp);
+          wLow = Math.min(wLow, dLow, targetCmp);
+
           return {
             ...h,
-            cmp: ref.cmp,
-            prevClose: ref.prevClose || h.prevClose,
-            dayHigh: ref.dayHigh || h.dayHigh || ref.cmp,
-            dayLow: ref.dayLow || h.dayLow || ref.cmp,
-            week52High: ref.week52High || h.week52High,
-            week52Low: ref.week52Low || h.week52Low
+            cmp: targetCmp,
+            prevClose: ref.prevClose || h.prevClose || targetCmp,
+            dayHigh: parseFloat(dHigh.toFixed(2)),
+            dayLow: parseFloat(dLow.toFixed(2)),
+            week52High: parseFloat(wHigh.toFixed(2)),
+            week52Low: parseFloat(wLow.toFixed(2))
+          };
+        }
+      } else if (h.cmp > 0) {
+        let dHigh = Number(h.dayHigh) || (h.cmp * 1.015);
+        let dLow = Number(h.dayLow) || (h.cmp * 0.985);
+        let wHigh = Number(h.week52High) || (h.cmp * 1.25);
+        let wLow = Number(h.week52Low) || (h.cmp * 0.75);
+
+        if (dHigh < h.cmp || dLow > h.cmp || wHigh < h.cmp || wLow > h.cmp) {
+          changed = true;
+          dHigh = Math.max(dHigh, h.cmp);
+          dLow = Math.min(dLow, h.cmp);
+          wHigh = Math.max(wHigh, dHigh, h.cmp);
+          wLow = Math.min(wLow, dLow, h.cmp);
+          return {
+            ...h,
+            dayHigh: parseFloat(dHigh.toFixed(2)),
+            dayLow: parseFloat(dLow.toFixed(2)),
+            week52High: parseFloat(wHigh.toFixed(2)),
+            week52Low: parseFloat(wLow.toFixed(2))
           };
         }
       }
@@ -553,6 +586,10 @@ class PortfolioStore {
     if (holding) {
       holding.cmp = parsedCmp;
       if (newPrevClose) holding.prevClose = parseFloat(newPrevClose);
+      if (holding.dayHigh !== undefined) holding.dayHigh = Math.max(Number(holding.dayHigh) || parsedCmp, parsedCmp);
+      if (holding.dayLow !== undefined) holding.dayLow = Math.min(Number(holding.dayLow) || parsedCmp, parsedCmp);
+      if (holding.week52High !== undefined) holding.week52High = Math.max(Number(holding.week52High) || parsedCmp, parsedCmp);
+      if (holding.week52Low !== undefined) holding.week52Low = Math.min(Number(holding.week52Low) || parsedCmp, parsedCmp);
       this.saveHoldings(this.holdings);
 
       if (firebaseService.isConfigured && !this.isInspectingOtherUser) {
@@ -567,6 +604,10 @@ class PortfolioStore {
     if (ref) {
       ref.cmp = parsedCmp;
       if (newPrevClose) ref.prevClose = parseFloat(newPrevClose);
+      if (ref.dayHigh !== undefined) ref.dayHigh = Math.max(Number(ref.dayHigh) || parsedCmp, parsedCmp);
+      if (ref.dayLow !== undefined) ref.dayLow = Math.min(Number(ref.dayLow) || parsedCmp, parsedCmp);
+      if (ref.week52High !== undefined) ref.week52High = Math.max(Number(ref.week52High) || parsedCmp, parsedCmp);
+      if (ref.week52Low !== undefined) ref.week52Low = Math.min(Number(ref.week52Low) || parsedCmp, parsedCmp);
     }
 
     this.notify({ type: 'CMP_UPDATED', symbol: sym, cmp: parsedCmp });
@@ -648,14 +689,28 @@ class PortfolioStore {
       const fileCmp = item.cmp !== undefined && !isNaN(parseFloat(item.cmp)) && parseFloat(item.cmp) > 0 ? parseFloat(item.cmp) : null;
       const filePrevClose = item.prevClose !== undefined && !isNaN(parseFloat(item.prevClose)) && parseFloat(item.prevClose) > 0 ? parseFloat(item.prevClose) : null;
 
+      const finalCmp = fileCmp !== null ? fileCmp : oldHolding.cmp;
+      let dHigh = Number(oldHolding.dayHigh) || finalCmp;
+      let dLow = Number(oldHolding.dayLow) || finalCmp;
+      let wHigh = Number(oldHolding.week52High) || (finalCmp * 1.25);
+      let wLow = Number(oldHolding.week52Low) || (finalCmp * 0.75);
+      dHigh = Math.max(dHigh, finalCmp);
+      dLow = Math.min(dLow, finalCmp);
+      wHigh = Math.max(wHigh, dHigh, finalCmp);
+      wLow = Math.min(wLow, dLow, finalCmp);
+
       this.holdings[existingIndex] = {
         ...oldHolding,
         quantity: newTotalQty,
         avgPrice: parseFloat(newWeightedAvg.toFixed(2)),
         isin: item.isin || oldHolding.isin || '',
         // Preserve or update CMP if provided
-        cmp: fileCmp !== null ? fileCmp : oldHolding.cmp,
+        cmp: finalCmp,
         prevClose: filePrevClose !== null ? filePrevClose : oldHolding.prevClose,
+        dayHigh: parseFloat(dHigh.toFixed(2)),
+        dayLow: parseFloat(dLow.toFixed(2)),
+        week52High: parseFloat(wHigh.toFixed(2)),
+        week52Low: parseFloat(wLow.toFixed(2)),
         notes: item.notes ? `${oldHolding.notes || ''} | ${item.notes}`.trim() : oldHolding.notes
       };
     } else {
@@ -666,6 +721,16 @@ class PortfolioStore {
       const filePrevClose = item.prevClose !== undefined && !isNaN(parseFloat(item.prevClose)) && parseFloat(item.prevClose) > 0 ? parseFloat(item.prevClose) : null;
       const cmp = fileCmp !== null ? fileCmp : (refStock ? refStock.cmp : buyPrice);
       const prevClose = filePrevClose !== null ? filePrevClose : (refStock ? refStock.prevClose : cmp);
+      const fCmp = parseFloat(cmp);
+
+      let dHigh = refStock ? refStock.dayHigh : fCmp;
+      let dLow = refStock ? refStock.dayLow : fCmp;
+      let wHigh = refStock ? refStock.week52High : parseFloat((fCmp * 1.25).toFixed(2));
+      let wLow = refStock ? refStock.week52Low : parseFloat((fCmp * 0.75).toFixed(2));
+      dHigh = Math.max(dHigh, fCmp);
+      dLow = Math.min(dLow, fCmp);
+      wHigh = Math.max(wHigh, dHigh, fCmp);
+      wLow = Math.min(wLow, dLow, fCmp);
 
       const newHolding = {
         id: holdingId,
@@ -676,12 +741,12 @@ class PortfolioStore {
         sector: item.sector || (refStock ? refStock.sector : 'General / Equity'),
         quantity: quantity,
         avgPrice: buyPrice,
-        cmp: parseFloat(cmp),
+        cmp: fCmp,
         prevClose: parseFloat(prevClose),
-        dayHigh: refStock ? refStock.dayHigh : parseFloat(cmp),
-        dayLow: refStock ? refStock.dayLow : parseFloat(cmp),
-        week52High: refStock ? refStock.week52High : parseFloat((cmp * 1.25).toFixed(2)),
-        week52Low: refStock ? refStock.week52Low : parseFloat((cmp * 0.75).toFixed(2)),
+        dayHigh: parseFloat(dHigh.toFixed(2)),
+        dayLow: parseFloat(dLow.toFixed(2)),
+        week52High: parseFloat(wHigh.toFixed(2)),
+        week52Low: parseFloat(wLow.toFixed(2)),
         buyDate: item.buyDate || new Date().toISOString().split('T')[0],
         notes: item.notes || ''
       };
@@ -964,10 +1029,20 @@ class PortfolioStore {
 
       // Day & 52-Week Range indicators
       const refStock = POPULAR_STOCKS.find(s => s.symbol.toUpperCase() === (h.symbol || '').toUpperCase().trim());
-      const dayHigh = Number(h.dayHigh) || Number(h.high) || Number(refStock?.dayHigh) || (Math.max(h.cmp, prevClose) * 1.015);
-      const dayLow = Number(h.dayLow) || Number(h.low) || Number(refStock?.dayLow) || (Math.min(h.cmp, prevClose) * 0.985);
-      const week52High = Number(h.week52High) || Number(refStock?.week52High) || (h.cmp * 1.25);
-      const week52Low = Number(h.week52Low) || Number(refStock?.week52Low) || (h.cmp * 0.75);
+      let dayHigh = Number(h.dayHigh) || Number(h.high) || Number(refStock?.dayHigh) || (Math.max(h.cmp, prevClose) * 1.015);
+      let dayLow = Number(h.dayLow) || Number(h.low) || Number(refStock?.dayLow) || (Math.min(h.cmp, prevClose) * 0.985);
+      let week52High = Number(h.week52High) || Number(refStock?.week52High) || (h.cmp * 1.25);
+      let week52Low = Number(h.week52Low) || Number(refStock?.week52Low) || (h.cmp * 0.75);
+
+      // Financial market invariants: Day High >= CMP, Day Low <= CMP, 52W High bounds Day High & CMP
+      if (h.cmp > 0) {
+        dayHigh = Math.max(dayHigh, h.cmp);
+        dayLow = Math.min(dayLow, h.cmp);
+        week52High = Math.max(week52High, dayHigh, h.cmp);
+        week52Low = Math.min(week52Low, dayLow, h.cmp);
+      }
+      if (dayHigh <= dayLow) dayHigh = dayLow + (dayLow * 0.02 || 1);
+      if (week52High <= week52Low) week52High = week52Low + (week52Low * 0.05 || 1);
 
       return {
         ...h,
@@ -1070,6 +1145,10 @@ class PortfolioStore {
 
       if (oldPrice !== newPrice) {
         target.cmp = newPrice;
+        if (target.dayHigh !== undefined) target.dayHigh = Math.max(Number(target.dayHigh) || newPrice, newPrice);
+        if (target.dayLow !== undefined) target.dayLow = Math.min(Number(target.dayLow) || newPrice, newPrice);
+        if (target.week52High !== undefined) target.week52High = Math.max(Number(target.week52High) || newPrice, newPrice);
+        if (target.week52Low !== undefined) target.week52Low = Math.min(Number(target.week52Low) || newPrice, newPrice);
         this.lastTickSymbol = {
           symbol: target.symbol,
           direction: newPrice > oldPrice ? 'up' : 'down',
@@ -1119,14 +1198,25 @@ class PortfolioStore {
           if (Math.abs(h.cmp - quote.cmp) > 0.01) {
             updatedCount++;
           }
+          const cmp = quote.cmp;
+          let dHigh = Number(quote.dayHigh || quote.high || h.dayHigh || cmp);
+          let dLow = Number(quote.dayLow || quote.low || h.dayLow || cmp);
+          let wHigh = Number(quote.week52High || h.week52High || (cmp * 1.25));
+          let wLow = Number(quote.week52Low || h.week52Low || (cmp * 0.75));
+
+          dHigh = Math.max(dHigh, cmp);
+          dLow = Math.min(dLow, cmp);
+          wHigh = Math.max(wHigh, dHigh, cmp);
+          wLow = Math.min(wLow, dLow, cmp);
+
           return {
             ...h,
-            cmp: quote.cmp,
-            prevClose: quote.prevClose || h.prevClose || quote.cmp,
-            dayHigh: quote.dayHigh || quote.high || h.dayHigh,
-            dayLow: quote.dayLow || quote.low || h.dayLow,
-            week52High: quote.week52High || h.week52High,
-            week52Low: quote.week52Low || h.week52Low
+            cmp: cmp,
+            prevClose: quote.prevClose || h.prevClose || cmp,
+            dayHigh: parseFloat(dHigh.toFixed(2)),
+            dayLow: parseFloat(dLow.toFixed(2)),
+            week52High: parseFloat(wHigh.toFixed(2)),
+            week52Low: parseFloat(wLow.toFixed(2))
           };
         }
         return h;

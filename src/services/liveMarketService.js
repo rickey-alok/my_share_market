@@ -280,10 +280,17 @@ class LiveMarketService {
             const dayChange = parseFloat(d.pricechange || (cmp - prevClose).toFixed(2));
             const dayChangePercent = parseFloat(d.pricepercentchange || (prevClose > 0 ? (((cmp - prevClose) / prevClose) * 100).toFixed(2) : '0'));
 
-            const dayHigh = parseFloat(d.HP || cmp);
-            const dayLow = parseFloat(d.LP || cmp);
-            const week52High = parseFloat(d['52H'] || d.fiftyTwoHigh || 0);
-            const week52Low = parseFloat(d['52L'] || d.fiftyTwoLow || 0);
+            let dayHigh = parseFloat(d.HP || cmp);
+            let dayLow = parseFloat(d.LP || cmp);
+            let week52High = parseFloat(d['52H'] || d.fiftyTwoHigh || 0);
+            let week52Low = parseFloat(d['52L'] || d.fiftyTwoLow || 0);
+
+            if (cmp > 0) {
+              dayHigh = Math.max(dayHigh, cmp);
+              dayLow = Math.min(dayLow, cmp);
+              if (week52High > 0) week52High = Math.max(week52High, dayHigh, cmp);
+              if (week52Low > 0) week52Low = Math.min(week52Low, dayLow, cmp);
+            }
 
             return {
               symbol: cleanSym,
@@ -367,10 +374,17 @@ class LiveMarketService {
               const dayChange = price - prevClose;
               const dayChangePercent = prevClose > 0 ? (dayChange / prevClose) * 100 : 0;
 
-              const dayHigh = parseFloat(meta.regularMarketDayHigh || price);
-              const dayLow = parseFloat(meta.regularMarketDayLow || price);
-              const week52High = parseFloat(meta.fiftyTwoWeekHigh || 0);
-              const week52Low = parseFloat(meta.fiftyTwoWeekLow || 0);
+              let dayHigh = parseFloat(meta.regularMarketDayHigh || price);
+              let dayLow = parseFloat(meta.regularMarketDayLow || price);
+              let week52High = parseFloat(meta.fiftyTwoWeekHigh || 0);
+              let week52Low = parseFloat(meta.fiftyTwoWeekLow || 0);
+
+              if (price > 0) {
+                dayHigh = Math.max(dayHigh, price);
+                dayLow = Math.min(dayLow, price);
+                if (week52High > 0) week52High = Math.max(week52High, dayHigh, price);
+                if (week52Low > 0) week52Low = Math.min(week52Low, dayLow, price);
+              }
 
               quote = {
                 symbol: cleanSym,
@@ -394,18 +408,30 @@ class LiveMarketService {
               const price = parseFloat(data.price || data.cmp);
               const prevClose = parseFloat(data.prevClose || price);
               const refStock = POPULAR_STOCKS.find(s => s.symbol.toUpperCase() === cleanSym);
+              let dHigh = Number(refStock?.dayHigh) || price;
+              let dLow = Number(refStock?.dayLow) || price;
+              let w52High = Number(refStock?.week52High) || (price * 1.25);
+              let w52Low = Number(refStock?.week52Low) || (price * 0.75);
+
+              if (price > 0) {
+                dHigh = Math.max(dHigh, price);
+                dLow = Math.min(dLow, price);
+                w52High = Math.max(w52High, dHigh, price);
+                w52Low = Math.min(w52Low, dLow, price);
+              }
+
               quote = {
                 symbol: cleanSym,
                 cmp: price,
                 prevClose: prevClose,
                 dayChange: parseFloat((price - prevClose).toFixed(2)),
                 dayChangePercent: prevClose > 0 ? parseFloat((((price - prevClose) / prevClose) * 100).toFixed(2)) : 0,
-                high: refStock?.dayHigh || price,
-                low: refStock?.dayLow || price,
-                dayHigh: refStock?.dayHigh || price,
-                dayLow: refStock?.dayLow || price,
-                week52High: refStock?.week52High || 0,
-                week52Low: refStock?.week52Low || 0,
+                high: parseFloat(dHigh.toFixed(2)),
+                low: parseFloat(dLow.toFixed(2)),
+                dayHigh: parseFloat(dHigh.toFixed(2)),
+                dayLow: parseFloat(dLow.toFixed(2)),
+                week52High: parseFloat(w52High.toFixed(2)),
+                week52Low: parseFloat(w52Low.toFixed(2)),
                 source: 'LIVE_EXCHANGE',
                 timestamp: Date.now()
               };
@@ -420,18 +446,30 @@ class LiveMarketService {
     if (!quote) {
       const ref = POPULAR_STOCKS.find(s => s.symbol.toUpperCase() === cleanSym);
       if (ref) {
+        let dHigh = Number(ref.dayHigh) || ref.cmp;
+        let dLow = Number(ref.dayLow) || ref.cmp;
+        let w52High = Number(ref.week52High) || (ref.cmp * 1.25);
+        let w52Low = Number(ref.week52Low) || (ref.cmp * 0.75);
+
+        if (ref.cmp > 0) {
+          dHigh = Math.max(dHigh, ref.cmp);
+          dLow = Math.min(dLow, ref.cmp);
+          w52High = Math.max(w52High, dHigh, ref.cmp);
+          w52Low = Math.min(w52Low, dLow, ref.cmp);
+        }
+
         quote = {
           symbol: cleanSym,
           cmp: ref.cmp,
           prevClose: ref.prevClose || ref.cmp,
           dayChange: parseFloat((ref.cmp - (ref.prevClose || ref.cmp)).toFixed(2)),
           dayChangePercent: ref.dayChangePercent || 0,
-          high: ref.dayHigh || ref.cmp,
-          low: ref.dayLow || ref.cmp,
-          dayHigh: ref.dayHigh || ref.cmp,
-          dayLow: ref.dayLow || ref.cmp,
-          week52High: ref.week52High || (ref.cmp * 1.25),
-          week52Low: ref.week52Low || (ref.cmp * 0.75),
+          high: parseFloat(dHigh.toFixed(2)),
+          low: parseFloat(dLow.toFixed(2)),
+          dayHigh: parseFloat(dHigh.toFixed(2)),
+          dayLow: parseFloat(dLow.toFixed(2)),
+          week52High: parseFloat(w52High.toFixed(2)),
+          week52Low: parseFloat(w52Low.toFixed(2)),
           source: 'DATABASE_REFERENCE',
           timestamp: Date.now()
         };

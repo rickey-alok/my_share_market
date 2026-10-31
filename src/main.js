@@ -63,7 +63,8 @@ class App {
     this.stockDetailView = new StockDetailView(
       stockDetailContainer,
       () => this.navigateTo('holdings'),
-      (prefillData) => this.navigateTo('add-holding', prefillData)
+      (prefillData) => this.navigateTo('add-holding', prefillData),
+      (symbol) => this.navigateTo('stock', { symbol })
     );
 
     if (analysisContainer) {

@@ -4,17 +4,7 @@ import { authService } from '../services/authService.js';
 import { liveMarketService } from '../services/liveMarketService.js';
 import { SECTORS, calculateStockRSI } from '../data/stocksDatabase.js';
 
-const icons = {
-  refreshCw: `<svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 0 0-9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"></path><path d="M3 3v5h5"></path><path d="M3 12a9 9 0 0 0 9 9 9.75 9.75 0 0 0 6.74-2.74L21 16"></path><path d="M16 21h5v-5"></path></svg>`,
-  plus: `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>`,
-  trash2: `<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path><line x1="10" y1="11" x2="10" y2="17"></line><line x1="14" y1="11" x2="14" y2="17"></line></svg>`,
-  search: `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>`,
-  layers: `<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 2 7 12 12 22 7 12 2"></polygon><polyline points="2 17 12 22 22 17"></polyline><polyline points="2 12 12 17 22 12"></polyline></svg>`,
-  checkCircle: `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path><polyline points="22 4 12 14.01 9 11.01"></polyline></svg>`,
-  chevronDown: `<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"></polyline></svg>`,
-  chevronLeft: `<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"></polyline></svg>`,
-  chevronRight: `<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"></polyline></svg>`
-};
+import { icons } from '../utils/icons.js';
 
 export class HoldingsView {
   constructor(container, onNavigateToAddHolding, onNavigateToStockDetail) {
@@ -53,7 +43,7 @@ export class HoldingsView {
           <p class="page-subtitle">Real-time market valuation, average buy prices, live CMP, and profit/loss breakdown</p>
         </div>
         <div class="page-header-actions">
-          <button id="btn-holdings-auto-refresh" class="btn btn-outline btn-sm ${liveMarketService.isAutoRefreshActive ? 'active-pulse' : ''}" title="Toggle 30s Auto Refresh during market hours" style="gap: 6px;">
+          <button id="btn-holdings-auto-refresh" class="btn btn-outline btn-sm ${liveMarketService.isAutoRefreshActive ? 'active-pulse' : ''}" title="Toggle 30s Auto Refresh during market hours">
             <span class="live-dot ${liveMarketService.isAutoRefreshActive ? 'pulse-green' : 'dim'}" style="font-size: 0.75rem;">●</span>
             <span id="holdings-auto-refresh-label">Auto-Sync: ${liveMarketService.isAutoRefreshActive ? 'ON' : 'OFF'}</span>
           </button>
@@ -68,37 +58,39 @@ export class HoldingsView {
         </div>
       </div>
 
-      <!-- Quick Summary Pills -->
-      <div class="holdings-summary-banner" id="holdings-summary-banner">
-        <!-- Dynamically injected -->
-      </div>
-
       <!-- Holdings Container -->
       <div class="holdings-container">
         <div class="holdings-toolbar">
-          <div class="toolbar-left">
+          <!-- Row 1: Large Search Input + Clear All Button -->
+          <div class="holdings-toolbar-row holdings-toolbar-primary">
             <div class="search-input-box">
               ${icons.search}
-              <input type="text" id="holdings-page-search" class="search-input" placeholder="Search by symbol or company...">
+              <input type="text" id="holdings-page-search" class="search-input" placeholder="Search stocks by symbol, company...">
             </div>
-            <select id="holdings-page-sector-filter" class="filter-select">
-              <option value="ALL">All Sectors</option>
-              ${SECTORS.map(s => `<option value="${s}">${s}</option>`).join('')}
-            </select>
-          </div>
-          <div class="toolbar-right" style="display: flex; gap: 0.5rem; align-items: center;">
-            <select id="holdings-page-sort-filter" class="filter-select">
-              <option value="value-desc">Sort by: Highest Value</option>
-              <option value="value-asc">Sort by: Lowest Value</option>
-              <option value="pnl-desc">Sort by: Highest Profit %</option>
-              <option value="pnl-asc">Sort by: Lowest Profit %</option>
-              <option value="day-desc">Sort by: Top Day Gainers</option>
-              <option value="symbol-asc">Sort by: Symbol A-Z</option>
-            </select>
-            <button id="btn-holdings-clear-all" class="btn btn-outline btn-sm" style="color: var(--bear-red); border-color: rgba(239, 68, 68, 0.35); font-size: 0.8rem; padding: 0.35rem 0.65rem;" title="Delete all shares from portfolio and database">
+            <button id="btn-holdings-clear-all" class="btn btn-outline btn-clear-all" title="Delete all shares from portfolio and database">
               ${icons.trash2}
               <span>Clear All</span>
             </button>
+          </div>
+
+          <!-- Row 2: Filter by Sector + Sort by -->
+          <div class="holdings-toolbar-row holdings-toolbar-secondary">
+            <div class="filter-select-wrapper">
+              <select id="holdings-page-sector-filter" class="filter-select">
+                <option value="ALL">All Sectors</option>
+                ${SECTORS.map(s => `<option value="${s}">${s}</option>`).join('')}
+              </select>
+            </div>
+            <div class="filter-select-wrapper">
+              <select id="holdings-page-sort-filter" class="filter-select">
+                <option value="value-desc">Sort by: Highest Value</option>
+                <option value="value-asc">Sort by: Lowest Value</option>
+                <option value="pnl-desc">Sort by: Highest Profit %</option>
+                <option value="pnl-asc">Sort by: Lowest Profit %</option>
+                <option value="day-desc">Sort by: Top Day Gainers</option>
+                <option value="symbol-asc">Sort by: Symbol A-Z</option>
+              </select>
+            </div>
           </div>
         </div>
 
@@ -323,7 +315,6 @@ export class HoldingsView {
   update(event = {}) {
     const metrics = portfolioStore.getPortfolioMetrics();
     this.renderHeaderCount(metrics);
-    this.renderSummaryBanner(metrics);
     this.renderHoldingsTableAndCards(metrics, event);
   }
 
@@ -334,43 +325,6 @@ export class HoldingsView {
     }
   }
 
-  renderSummaryBanner(metrics) {
-    const banner = this.container.querySelector('#holdings-summary-banner');
-    if (!banner) return;
-
-    if (metrics.totalHoldingsCount === 0) {
-      banner.style.display = 'none';
-      return;
-    }
-
-    banner.style.display = 'flex';
-    const isTotalProfit = metrics.totalPnL >= 0;
-    const isDayProfit = metrics.totalDayPnL >= 0;
-
-    banner.innerHTML = `
-      <div class="summary-pill-item">
-        <span class="pill-label">Total Value</span>
-        <span class="pill-val">${portfolioStore.formatMoney(metrics.totalCurrentValue)}</span>
-      </div>
-      <div class="summary-pill-item">
-        <span class="pill-label">Total Invested</span>
-        <span class="pill-val">${portfolioStore.formatMoney(metrics.totalInvested)}</span>
-      </div>
-      <div class="summary-pill-item">
-        <span class="pill-label">Total P&L</span>
-        <span class="pill-val ${isTotalProfit ? 'bull' : 'bear'}">
-          ${isTotalProfit ? '+' : ''}${portfolioStore.formatMoney(metrics.totalPnL)} (${isTotalProfit ? '+' : ''}${metrics.totalPnLPercent.toFixed(2)}%)
-        </span>
-      </div>
-      <div class="summary-pill-item">
-        <span class="pill-label">Day's P&L</span>
-        <span class="pill-val ${isDayProfit ? 'bull' : 'bear'}">
-          ${isDayProfit ? '+' : ''}${portfolioStore.formatMoney(metrics.totalDayPnL)} (${isDayProfit ? '+' : ''}${metrics.totalDayPnLPercent.toFixed(2)}%)
-        </span>
-      </div>
-    `;
-  }
-
   renderRangeIndicator(h) {
     const cmp = Number(h.cmp) || 0;
     const myPrice = Number(h.avgPrice) || 0;
@@ -378,6 +332,12 @@ export class HoldingsView {
     // Day Range
     let dayLow = Number(h.dayLow) || Number(h.low) || (cmp * 0.985);
     let dayHigh = Number(h.dayHigh) || Number(h.high) || (cmp * 1.015);
+
+    // Enforce market invariants: Day High must be >= CMP, Day Low must be <= CMP
+    if (cmp > 0) {
+      dayHigh = Math.max(dayHigh, cmp);
+      dayLow = Math.min(dayLow, cmp);
+    }
     if (dayHigh <= dayLow) dayHigh = dayLow + (dayLow * 0.02 || 1);
 
     const daySpan = dayHigh - dayLow;
@@ -392,6 +352,12 @@ export class HoldingsView {
     // 52-Week Range
     let w52Low = Number(h.week52Low) || (cmp * 0.75);
     let w52High = Number(h.week52High) || (cmp * 1.25);
+
+    // Enforce market invariants: 52W High must bound Day High & CMP, 52W Low must bound Day Low & CMP
+    if (cmp > 0) {
+      w52High = Math.max(w52High, dayHigh, cmp);
+      w52Low = Math.min(w52Low, dayLow, cmp);
+    }
     if (w52High <= w52Low) w52High = w52Low + (w52Low * 0.1 || 1);
 
     const w52Span = w52High - w52Low;
@@ -762,12 +728,12 @@ export class HoldingsView {
                 <span class="stock-full-name">${h.name}</span>
               </div>
             </div>
-            <div style="text-align: right;">
-              <div class="num-cell cmp-cell ${tickClass}" style="font-size: 1.05rem;">
+            <div class="mobile-price-block">
+              <div class="num-cell cmp-cell ${tickClass}">
                 ${portfolioStore.formatMoney(h.cmp)}
               </div>
-              <div style="font-size: 0.75rem; font-family: var(--font-mono); color: ${isDayProfit ? 'var(--bull-green)' : 'var(--bear-red)'};">
-                ${isDayProfit ? '+' : ''}${h.dayChangePercent.toFixed(2)}%
+              <div class="mobile-day-pill ${isDayProfit ? 'bull' : 'bear'}">
+                ${isDayProfit ? '▲ +' : '▼ '}${Math.abs(h.dayChangePercent).toFixed(2)}%
               </div>
             </div>
           </div>
@@ -784,10 +750,24 @@ export class HoldingsView {
             <div class="mobile-metric-item">
               <span class="mobile-metric-label">Total Invested</span>
               <span class="mobile-metric-value">${portfolioStore.formatMoney(h.invested)}</span>
+              ${h.weight ? `<span class="mobile-metric-subtext">${h.weight.toFixed(1)}% Weight</span>` : ''}
             </div>
             <div class="mobile-metric-item">
               <span class="mobile-metric-label">Current Value</span>
-              <span class="mobile-metric-value" style="color: var(--text-primary);">${portfolioStore.formatMoney(h.current)}</span>
+              <span class="mobile-metric-value val-highlight">${portfolioStore.formatMoney(h.current)}</span>
+            </div>
+          </div>
+
+          <!-- Dedicated Full-Width Total P&L Strip -->
+          <div class="mobile-pnl-strip ${isProfit ? 'bull' : 'bear'}">
+            <div class="pnl-strip-left">
+              <span class="pnl-strip-label">Total Unrealized Returns</span>
+              <span class="pnl-strip-value">${isProfit ? '+' : ''}${portfolioStore.formatMoney(h.pnl)}</span>
+            </div>
+            <div class="pnl-strip-right">
+              <span class="pnl-strip-pill">
+                ${isProfit ? '▲ +' : '▼ '}${Math.abs(h.pnlPercent).toFixed(2)}%
+              </span>
             </div>
           </div>
 
@@ -795,27 +775,18 @@ export class HoldingsView {
           <div class="mobile-range-card-section">
             <div class="mobile-range-title">
               <span>Day, 52-Week & RSI Ranges</span>
-              <span class="range-pin-legend">
-                <span class="legend-chip legend-cmp">● CMP</span>
-                <span class="legend-chip legend-my">◆ My Avg</span>
-                <span class="legend-chip legend-rsi">● RSI</span>
-              </span>
             </div>
             ${this.renderRangeIndicator(h)}
           </div>
 
           <div class="mobile-card-bottom">
-            <div class="return-badge ${isProfit ? 'bull' : 'bear'}">
-              P&L: ${isProfit ? '+' : ''}${portfolioStore.formatMoney(h.pnl)} (${isProfit ? '+' : ''}${h.pnlPercent.toFixed(2)}%)
-            </div>
-            <div class="table-actions">
-              <button class="btn btn-outline btn-sm" data-action="buy-more" data-symbol="${h.symbol}" title="Open Average Price Calculator (${h.symbol})">
-                ${icons.plus} Average Calculator
-              </button>
-              <button class="icon-action-btn delete-btn" data-action="delete-holding" data-id="${h.id}" data-symbol="${h.symbol}">
-                ${icons.trash2}
-              </button>
-            </div>
+            <button class="btn btn-outline btn-avg-calc" data-action="buy-more" data-symbol="${h.symbol}" title="Open Average Price Calculator (${h.symbol})">
+              ${icons.calculator || icons.plus}
+              <span>Average Calculator</span>
+            </button>
+            <button class="icon-action-btn delete-btn" data-action="delete-holding" data-id="${h.id}" data-symbol="${h.symbol}" title="Delete ${h.symbol}">
+              ${icons.trash2}
+            </button>
           </div>
         </div>
       `;
