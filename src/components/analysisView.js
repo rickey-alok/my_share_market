@@ -17,11 +17,9 @@ export class AnalysisView {
     this.selectedSymbol = null;
     this.slideDirection = null; // 'next' or 'prev' for smooth slide animation
 
-    // Technical Indicator / Overlay States (all 4 requested features)
+    // Technical Indicator States
     this.showVolume = true;
     this.showRsi = true;
-    this.showBenchmark = true;
-    this.showIndustry = true;
 
     // Chart instances
     this.fiiDiiChart = null;
@@ -238,15 +236,13 @@ export class AnalysisView {
       });
     });
 
-    // Delegate Technical Indicator & Overlay Toggles (Volume, RSI, Benchmark, Industry)
+    // Delegate Technical Indicator Toggles (Volume, RSI)
     this.container.addEventListener('click', (e) => {
       const btn = e.target.closest('[data-indicator]');
       if (btn) {
         const indicator = btn.getAttribute('data-indicator');
         if (indicator === 'volume') this.showVolume = !this.showVolume;
         else if (indicator === 'rsi') this.showRsi = !this.showRsi;
-        else if (indicator === 'benchmark') this.showBenchmark = !this.showBenchmark;
-        else if (indicator === 'industry') this.showIndustry = !this.showIndustry;
         this.renderStockAnalysis();
       }
     });
@@ -951,11 +947,12 @@ export class AnalysisView {
       </div>
 
       <!-- Chart Layers & Technical Indicators Toolbar -->
+      <!-- Chart Technical Indicators Toolbar -->
       <div class="chart-indicators-panel">
         <div class="indicators-header-row">
           <span class="indicators-panel-title">
             ${icons.layers}
-            <span>Chart Overlays & Technical Indicators</span>
+            <span>Technical Indicators</span>
           </span>
           <span class="indicators-panel-hint">Click options to toggle on/off</span>
         </div>
@@ -973,20 +970,6 @@ export class AnalysisView {
             <span class="indicator-chip-dot rsi"></span>
             <span>RSI (14)</span>
             ${this.showRsi ? '<span class="chip-status-check">✓</span>' : ''}
-          </button>
-
-          <!-- 3. Nifty / Benchmark Toggle -->
-          <button type="button" class="indicator-chip ${this.showBenchmark ? 'active' : ''}" data-indicator="benchmark" title="Overlay NIFTY 50 Benchmark Line on Main Chart">
-            <span class="indicator-chip-dot benchmark"></span>
-            <span>NIFTY 50</span>
-            ${this.showBenchmark ? '<span class="chip-status-check">✓</span>' : ''}
-          </button>
-
-          <!-- 4. Industry Specific Toggle -->
-          <button type="button" class="indicator-chip ${this.showIndustry ? 'active' : ''}" data-indicator="industry" title="Overlay Industry Specific Index on Main Chart">
-            <span class="indicator-chip-dot industry"></span>
-            <span>Industry (${data.industry.name})</span>
-            ${this.showIndustry ? '<span class="chip-status-check">✓</span>' : ''}
           </button>
         </div>
       </div>
@@ -1087,41 +1070,6 @@ export class AnalysisView {
         }
       ];
 
-      let hasRightAxis = false;
-
-      if (this.showBenchmark) {
-        hasRightAxis = true;
-        datasets.push({
-          label: `${data.benchmark.name} Benchmark`,
-          data: data.benchmark.points,
-          borderColor: '#f59e0b',
-          backgroundColor: 'transparent',
-          borderWidth: 2,
-          borderDash: [4, 4],
-          pointRadius: 3,
-          pointBackgroundColor: '#f59e0b',
-          fill: false,
-          tension: 0.3,
-          yAxisID: 'yRight'
-        });
-      }
-
-      if (this.showIndustry) {
-        hasRightAxis = true;
-        datasets.push({
-          label: `${data.industry.name} (Industry)`,
-          data: data.industry.points,
-          borderColor: '#ec4899',
-          backgroundColor: 'transparent',
-          borderWidth: 2,
-          pointRadius: 3,
-          pointBackgroundColor: '#ec4899',
-          fill: false,
-          tension: 0.3,
-          yAxisID: 'yRight'
-        });
-      }
-
       this.stockChart = new Chart(ctx, {
         type: 'line',
         data: {
@@ -1143,12 +1091,7 @@ export class AnalysisView {
             },
             tooltip: {
               callbacks: {
-                label: (item) => {
-                  if (item.dataset.yAxisID === 'yRight') {
-                    return ` ${item.dataset.label}: ${item.raw.toLocaleString('en-IN')} pts`;
-                  }
-                  return ` ${item.dataset.label}: ${portfolioStore.formatMoney(item.raw)}`;
-                }
+                label: (item) => ` ${item.dataset.label}: ${portfolioStore.formatMoney(item.raw)}`
               }
             }
           },
@@ -1165,18 +1108,7 @@ export class AnalysisView {
                 font: { family: "'JetBrains Mono', monospace", size: 11 },
                 callback: (val) => portfolioStore.formatMoney(val)
               }
-            },
-            ...(hasRightAxis ? {
-              yRight: {
-                position: 'right',
-                grid: { display: false },
-                ticks: {
-                  color: '#f59e0b',
-                  font: { family: "'JetBrains Mono', monospace", size: 10 },
-                  callback: (val) => val.toLocaleString('en-IN')
-                }
-              }
-            } : {})
+            }
           }
         }
       });
