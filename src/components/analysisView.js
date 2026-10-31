@@ -99,14 +99,20 @@ export class AnalysisView {
           <div class="card-title-row" style="margin-bottom: 0;">
             <h2 class="card-title">${icons.lineChart} Benchmark & Sectoral Indices</h2>
           </div>
-          <!-- Timeframe Filter -->
-          <div class="filter-pills-group" id="index-timeframe-pills">
-            <button type="button" class="filter-pill" data-timeframe="day">1D</button>
-            <button type="button" class="filter-pill active" data-timeframe="week">1W</button>
-            <button type="button" class="filter-pill" data-timeframe="month">1M</button>
-            <button type="button" class="filter-pill" data-timeframe="year">1Y</button>
-            <button type="button" class="filter-pill" data-timeframe="3year">3Y</button>
-            <button type="button" class="filter-pill" data-timeframe="5year">5Y</button>
+          <!-- Timeframe Filter for Index with Sync Button -->
+          <div class="fii-dii-controls-wrapper">
+            <div class="filter-pills-group" id="index-timeframe-pills">
+              <button type="button" class="filter-pill" data-timeframe="day">1D</button>
+              <button type="button" class="filter-pill active" data-timeframe="week">1W</button>
+              <button type="button" class="filter-pill" data-timeframe="month">1M</button>
+              <button type="button" class="filter-pill" data-timeframe="year">1Y</button>
+              <button type="button" class="filter-pill" data-timeframe="3year">3Y</button>
+              <button type="button" class="filter-pill" data-timeframe="5year">5Y</button>
+            </div>
+            <!-- Sync Button for Indices -->
+            <button type="button" id="btn-index-sync" class="fii-dii-refresh-btn" title="Refresh Indices Live Data" aria-label="Refresh Indices Live Data">
+              ${icons.refreshCw}
+            </button>
           </div>
         </div>
 
@@ -141,8 +147,8 @@ export class AnalysisView {
           <div class="card-title-row" style="margin-bottom: 0;">
             <h2 class="card-title">${icons.layers} Your Holdings Range & Price Position</h2>
           </div>
-          <div style="display: flex; gap: 0.75rem; flex-wrap: wrap; align-items: center;">
-            <!-- Timeframe Filter for Stock -->
+          <!-- Timeframe Filter for Stock with Sync Button -->
+          <div class="fii-dii-controls-wrapper">
             <div class="filter-pills-group" id="stock-timeframe-pills">
               <button type="button" class="filter-pill" data-timeframe="day">1D</button>
               <button type="button" class="filter-pill" data-timeframe="week">1W</button>
@@ -151,6 +157,10 @@ export class AnalysisView {
               <button type="button" class="filter-pill" data-timeframe="3year">3Y</button>
               <button type="button" class="filter-pill" data-timeframe="5year">5Y</button>
             </div>
+            <!-- Sync Button for Holdings -->
+            <button type="button" id="btn-stock-sync" class="fii-dii-refresh-btn" title="Refresh Live Holdings Quotes" aria-label="Refresh Live Holdings Quotes">
+              ${icons.refreshCw}
+            </button>
           </div>
         </div>
 
@@ -168,29 +178,45 @@ export class AnalysisView {
   }
 
   attachEventListeners() {
-    // FII & DII Refresh Icon Button
-    const btnRefresh = this.container.querySelector('#btn-analysis-sync');
-    if (btnRefresh) {
-      btnRefresh.addEventListener('click', async () => {
-        btnRefresh.classList.add('rotating');
-        btnRefresh.disabled = true;
-        btnRefresh.setAttribute('title', 'Refreshing FII & DII data...');
+    // Reusable helper to wire sync/refresh icon buttons with spinning animation and tooltips
+    const setupSyncButton = (btnId, successMsg, defaultTooltip, onSync) => {
+      const btn = this.container.querySelector(btnId);
+      if (!btn) return;
+      btn.addEventListener('click', async () => {
+        btn.classList.add('rotating');
+        btn.disabled = true;
+        btn.setAttribute('title', 'Syncing live market data...');
         try {
           await portfolioStore.refreshMarketQuotes(false);
-          this.updateAll();
-          btnRefresh.setAttribute('title', 'FII & DII Data Synced!');
+          if (onSync) onSync();
+          else this.updateAll();
+          btn.setAttribute('title', successMsg);
         } catch (err) {
-          console.error('Failed to sync FII/DII data:', err);
-          btnRefresh.setAttribute('title', 'Refresh failed. Click to retry.');
+          console.error(`Sync error on ${btnId}:`, err);
+          btn.setAttribute('title', 'Sync failed. Click to retry.');
         } finally {
-          btnRefresh.classList.remove('rotating');
-          btnRefresh.disabled = false;
+          btn.classList.remove('rotating');
+          btn.disabled = false;
           setTimeout(() => {
-            btnRefresh.setAttribute('title', 'Refresh FII / DII Data');
+            btn.setAttribute('title', defaultTooltip);
           }, 2500);
         }
       });
-    }
+    };
+
+    // 1. FII / DII sync button
+    setupSyncButton('#btn-analysis-sync', 'FII & DII Flow Synced!', 'Refresh FII / DII Data');
+
+    // 2. Benchmark & Sectoral Indices sync button
+    setupSyncButton('#btn-index-sync', 'Indices Data Synced!', 'Refresh Indices Live Data', () => {
+      this.renderIndexSection();
+    });
+
+    // 3. User Holdings Range & Price sync button
+    setupSyncButton('#btn-stock-sync', 'Holdings Quotes Synced!', 'Refresh Live Holdings Quotes', () => {
+      this.updateStockSelector();
+      this.renderStockAnalysis();
+    });
 
     // FII/DII Timeframe Pills
     const fiiPills = this.container.querySelectorAll('#fii-dii-timeframe-pills .filter-pill');
