@@ -58,12 +58,6 @@ export class AnalysisView {
           <h1 class="page-title">Market & Holdings Analysis</h1>
           <p class="page-subtitle">FII / DII institutional flow sentiment, benchmark indices, and portfolio range positions</p>
         </div>
-        <div class="page-header-actions">
-          <button id="btn-analysis-sync" class="btn btn-outline btn-sm" title="Refresh Live Market Data">
-            ${icons.refreshCw}
-            <span>Refresh Analysis</span>
-          </button>
-        </div>
       </div>
 
       <!-- Section 1: FII & DII Institutional Inflow / Outflow -->
@@ -73,14 +67,20 @@ export class AnalysisView {
             <h2 class="card-title">${icons.barChart2} Institutional Flow (FII vs DII)</h2>
             <span class="badge-sentiment" id="fii-dii-sentiment-badge">Bullish Accumulation</span>
           </div>
-          <!-- Timeframe Filter for FII/DII -->
-          <div class="filter-pills-group" id="fii-dii-timeframe-pills">
-            <button type="button" class="filter-pill" data-timeframe="day">1D</button>
-            <button type="button" class="filter-pill active" data-timeframe="week">1W</button>
-            <button type="button" class="filter-pill" data-timeframe="month">1M</button>
-            <button type="button" class="filter-pill" data-timeframe="year">1Y</button>
-            <button type="button" class="filter-pill" data-timeframe="3year">3Y</button>
-            <button type="button" class="filter-pill" data-timeframe="5year">5Y</button>
+          <!-- Timeframe Filter for FII/DII with Icon-only Refresh Button -->
+          <div class="fii-dii-controls-wrapper">
+            <div class="filter-pills-group" id="fii-dii-timeframe-pills">
+              <button type="button" class="filter-pill" data-timeframe="day">1D</button>
+              <button type="button" class="filter-pill active" data-timeframe="week">1W</button>
+              <button type="button" class="filter-pill" data-timeframe="month">1M</button>
+              <button type="button" class="filter-pill" data-timeframe="year">1Y</button>
+              <button type="button" class="filter-pill" data-timeframe="3year">3Y</button>
+              <button type="button" class="filter-pill" data-timeframe="5year">5Y</button>
+            </div>
+            <!-- Icon-only Refresh for FII / DII Flow Data -->
+            <button type="button" id="btn-analysis-sync" class="fii-dii-refresh-btn" title="Refresh FII / DII Data" aria-label="Refresh FII and DII Data">
+              ${icons.refreshCw}
+            </button>
           </div>
         </div>
 
@@ -163,19 +163,26 @@ export class AnalysisView {
   }
 
   attachEventListeners() {
-    // Refresh button
+    // FII & DII Refresh Icon Button
     const btnRefresh = this.container.querySelector('#btn-analysis-sync');
     if (btnRefresh) {
       btnRefresh.addEventListener('click', async () => {
         btnRefresh.classList.add('rotating');
-        const span = btnRefresh.querySelector('span');
-        if (span) span.textContent = 'Updating...';
-        await portfolioStore.refreshMarketQuotes(false);
-        this.updateAll();
-        btnRefresh.classList.remove('rotating');
-        if (span) {
-          span.textContent = 'Analysis Synced!';
-          setTimeout(() => { span.textContent = 'Refresh Analysis'; }, 2500);
+        btnRefresh.disabled = true;
+        btnRefresh.setAttribute('title', 'Refreshing FII & DII data...');
+        try {
+          await portfolioStore.refreshMarketQuotes(false);
+          this.updateAll();
+          btnRefresh.setAttribute('title', 'FII & DII Data Synced!');
+        } catch (err) {
+          console.error('Failed to sync FII/DII data:', err);
+          btnRefresh.setAttribute('title', 'Refresh failed. Click to retry.');
+        } finally {
+          btnRefresh.classList.remove('rotating');
+          btnRefresh.disabled = false;
+          setTimeout(() => {
+            btnRefresh.setAttribute('title', 'Refresh FII / DII Data');
+          }, 2500);
         }
       });
     }
