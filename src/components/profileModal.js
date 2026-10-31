@@ -1,4 +1,4 @@
-// User Profile, Authentication, Portfolio Data & Settings Modal
+// User Profile, Authentication, Account & Settings Modal
 import { authService } from '../services/authService.js';
 import { portfolioStore } from '../state/portfolioStore.js';
 import { firebaseService } from '../services/firebase.js';
@@ -8,7 +8,7 @@ export class ProfileModal {
   constructor(modalContainerId = 'modal-user-profile') {
     this.containerId = modalContainerId;
     this.container = null;
-    this.activeTab = 'profile'; // 'profile', 'data', 'settings'
+    this.activeTab = 'profile'; // 'profile', 'settings'
     this.authMode = 'login';    // 'login', 'signup'
     this.isEditingName = false;
 
@@ -33,13 +33,6 @@ export class ProfileModal {
       }
     });
 
-    // Subscribe to portfolio changes for live data snapshot
-    portfolioStore.subscribe(() => {
-      if (this.isOpen() && this.activeTab === 'data') {
-        this.render();
-      }
-    });
-
     // Close on backdrop click or ESC
     this.container.addEventListener('click', (e) => {
       if (e.target === this.container) {
@@ -59,7 +52,7 @@ export class ProfileModal {
   }
 
   open(initialTab = 'profile') {
-    this.activeTab = initialTab;
+    this.activeTab = initialTab === 'settings' ? 'settings' : 'profile';
     this.isEditingName = false;
     this.render();
     this.container.style.display = 'flex';
@@ -89,7 +82,6 @@ export class ProfileModal {
   render() {
     const user = authService.getUser();
     const prefs = authService.getPreferences();
-    const metrics = portfolioStore.getPortfolioMetrics();
     const initials = this.getInitials(user.displayName);
 
     this.container.innerHTML = `
@@ -108,15 +100,11 @@ export class ProfileModal {
           <button type="button" class="modal-close-btn" id="btn-close-profile-modal" title="Close Modal">&times;</button>
         </div>
 
-        <!-- Navigation Tabs: Profile / Portfolio Data / Settings -->
+        <!-- Navigation Tabs: Account & Logout / Settings -->
         <div class="profile-tabs-bar">
           <button type="button" class="profile-tab-btn ${this.activeTab === 'profile' ? 'active' : ''}" data-tab="profile">
             ${icons.user}
             <span>${user.isGuest ? 'Sign In' : 'Account & Logout'}</span>
-          </button>
-          <button type="button" class="profile-tab-btn ${this.activeTab === 'data' ? 'active' : ''}" data-tab="data">
-            ${icons.barChart2}
-            <span>Portfolio Data (${metrics.totalHoldingsCount})</span>
           </button>
           <button type="button" class="profile-tab-btn ${this.activeTab === 'settings' ? 'active' : ''}" data-tab="settings">
             ${icons.settings}
@@ -126,7 +114,7 @@ export class ProfileModal {
 
         <!-- Modal Body Content -->
         <div class="profile-modal-body">
-          ${this.renderActiveTabContent(user, prefs, metrics, initials)}
+          ${this.renderActiveTabContent(user, prefs, initials)}
         </div>
       </div>
     `;
@@ -134,10 +122,8 @@ export class ProfileModal {
     this.attachEvents();
   }
 
-  renderActiveTabContent(user, prefs, metrics, initials) {
-    if (this.activeTab === 'data') {
-      return this.renderDataTab(metrics);
-    } else if (this.activeTab === 'settings') {
+  renderActiveTabContent(user, prefs, initials) {
+    if (this.activeTab === 'settings') {
       return this.renderSettingsTab(user, prefs);
     }
     return this.renderProfileTab(user, initials);
@@ -273,116 +259,7 @@ export class ProfileModal {
     `;
   }
 
-  // 2. His Data Tab (Portfolio snapshot, statistics, export & restore)
-  renderDataTab(metrics) {
-    const isProfit = metrics.totalPnL >= 0;
-
-    return `
-      <div class="portfolio-data-tab-content">
-        <!-- Live Financial Summary Metrics -->
-        <div class="data-snapshot-grid">
-          <div class="data-stat-card">
-            <span class="stat-label">Total Invested Capital</span>
-            <span class="stat-val mono">${portfolioStore.formatMoney(metrics.totalInvested)}</span>
-            <span class="stat-sub">${metrics.totalSharesCount.toLocaleString()} total shares</span>
-          </div>
-
-          <div class="data-stat-card">
-            <span class="stat-label">Current Portfolio Value</span>
-            <span class="stat-val mono" style="color: var(--brand-indigo-light);">${portfolioStore.formatMoney(metrics.totalCurrentValue)}</span>
-            <span class="stat-sub">${metrics.totalHoldingsCount} stocks held</span>
-          </div>
-
-          <div class="data-stat-card ${isProfit ? 'bull' : 'bear'}">
-            <span class="stat-label">Overall Unrealized P&L</span>
-            <span class="stat-val mono" style="color: ${isProfit ? 'var(--bull-green)' : 'var(--bear-red)'};">
-              ${isProfit ? '+' : ''}${portfolioStore.formatMoney(metrics.totalPnL)}
-            </span>
-            <span class="stat-sub ${isProfit ? 'bull-text' : 'bear-text'}">
-              ${isProfit ? '+' : ''}${metrics.totalPnLPercent.toFixed(2)}% total return
-            </span>
-          </div>
-
-          <div class="data-stat-card">
-            <span class="stat-label">Realized Profit (From Sells)</span>
-            <span class="stat-val mono" style="color: ${metrics.totalRealizedPnL >= 0 ? 'var(--bull-green)' : 'var(--bear-red)'};">
-              ${metrics.totalRealizedPnL >= 0 ? '+' : ''}${portfolioStore.formatMoney(metrics.totalRealizedPnL)}
-            </span>
-            <span class="stat-sub">Booked profit</span>
-          </div>
-        </div>
-
-        <!-- User's Holdings Quick Table -->
-        <div class="data-holdings-box">
-          <div class="data-holdings-header">
-            <span class="data-holdings-title">Active Holdings Snapshot</span>
-            <span class="data-holdings-count">${metrics.holdings.length} Positions</span>
-          </div>
-
-          ${metrics.holdings.length === 0 ? `
-            <div class="empty-data-hint">No holdings found. Add stocks from the Add Holdings page.</div>
-          ` : `
-            <div class="profile-holdings-list">
-              ${metrics.holdings.map(h => {
-                const pnl = h.current - h.invested;
-                const pnlPct = h.invested > 0 ? (pnl / h.invested) * 100 : 0;
-                const isBull = pnl >= 0;
-                return `
-                  <div class="profile-holding-row">
-                    <div class="row-left">
-                      <span class="row-symbol">${h.symbol}</span>
-                      <span class="row-name">${h.name}</span>
-                    </div>
-                    <div class="row-mid">
-                      <span class="mono">${h.quantity} shares</span>
-                      <span class="mono text-muted">@ ₹${h.avgPrice}</span>
-                    </div>
-                    <div class="row-right">
-                      <span class="mono row-val">${portfolioStore.formatMoney(h.current)}</span>
-                      <span class="row-pnl ${isBull ? 'bull' : 'bear'} mono">
-                        ${isBull ? '+' : ''}${pnlPct.toFixed(1)}%
-                      </span>
-                    </div>
-                  </div>
-                `;
-              }).join('')}
-            </div>
-          `}
-        </div>
-
-        <!-- Data Management & Backup Tools -->
-        <div class="data-tools-panel">
-          <h5 class="tools-panel-title">Data Backup & Export</h5>
-          <p class="tools-panel-desc">Export your portfolio data, restore previous backups, or bulk import stocks from Add Holdings.</p>
-
-          <div class="tools-actions-row">
-            <button type="button" class="btn btn-primary btn-sm" id="btn-goto-bulk-import" style="cursor: pointer;">
-              ${icons.upload}
-              <span>Bulk Import Stocks (Add Holdings)</span>
-            </button>
-
-            <button type="button" class="btn btn-outline btn-sm" id="btn-export-json">
-              ${icons.download}
-              <span>Export Portfolio (JSON)</span>
-            </button>
-
-            <label class="btn btn-outline btn-sm" style="cursor: pointer; margin-bottom: 0;">
-              ${icons.upload}
-              <span>Quick Restore (JSON)</span>
-              <input type="file" id="input-import-json" accept=".json" style="display: none;" />
-            </label>
-
-            <button type="button" class="btn btn-outline btn-sm btn-danger-soft" id="btn-reset-demo-stocks">
-              ${icons.refreshCw}
-              <span>Reset to Default Demo Stocks</span>
-            </button>
-          </div>
-        </div>
-      </div>
-    `;
-  }
-
-  // 3. Settings Tab (Preferences, Currency, Exchange, Sound)
+  // 2. Settings Tab (Preferences, Currency, Exchange, Sound)
   renderSettingsTab(user, prefs) {
     return `
       <div class="settings-tab-content">
@@ -673,54 +550,7 @@ export class ProfileModal {
       btnFetchUsers.addEventListener('click', loadUsers);
     }
 
-    // Export JSON
-    const btnExport = this.container.querySelector('#btn-export-json');
-    if (btnExport) {
-      btnExport.addEventListener('click', () => {
-        const data = portfolioStore.exportData();
-        const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = `apna_share_portfolio_${new Date().toISOString().split('T')[0]}.json`;
-        document.body.appendChild(a);
-        a.click();
-        document.body.removeChild(a);
-        URL.revokeObjectURL(url);
-      });
-    }
 
-    // Import JSON
-    const inputImport = this.container.querySelector('#input-import-json');
-    if (inputImport) {
-      inputImport.addEventListener('change', (e) => {
-        const file = e.target.files[0];
-        if (!file) return;
-        const reader = new FileReader();
-        reader.onload = (event) => {
-          try {
-            const parsed = JSON.parse(event.target.result);
-            portfolioStore.importData(parsed);
-            alert(`✅ Portfolio successfully restored! Loaded ${parsed.holdings?.length || 0} holdings.`);
-            this.render();
-          } catch (err) {
-            alert('❌ Failed to import portfolio. Please check file format.');
-          }
-        };
-        reader.readAsText(file);
-      });
-    }
-
-    // Reset Demo Stocks
-    const btnResetStocks = this.container.querySelector('#btn-reset-demo-stocks');
-    if (btnResetStocks) {
-      btnResetStocks.addEventListener('click', () => {
-        if (confirm('Are you sure you want to restore the default initial stock portfolio? Any custom modifications will be reset.')) {
-          portfolioStore.resetToDemo();
-          this.render();
-        }
-      });
-    }
 
     // Settings Form
     const settingsForm = this.container.querySelector('#form-user-settings');
@@ -805,18 +635,6 @@ export class ProfileModal {
       });
     }
 
-    // Shortcut button from Data Tab to Add Holdings Bulk Mode
-    const btnGotoBulk = this.container.querySelector('#btn-goto-bulk-import');
-    if (btnGotoBulk) {
-      btnGotoBulk.addEventListener('click', () => {
-        this.close();
-        if (window.app && window.app.navigateTo) {
-          window.app.navigateTo('add-holding', { mode: 'bulk' });
-        } else {
-          window.location.hash = '#/add-holding?mode=bulk';
-        }
-      });
-    }
   }
 }
 
