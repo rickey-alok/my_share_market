@@ -305,8 +305,8 @@ class LiveMarketService {
               dayLow,
               week52High,
               week52Low,
-              dayVolume: parseFloat(d.VOL || d.totalTradedVolume || d.TTQ || 0),
-              avgVolume: parseFloat(d.avgVolume || d.AVG_VOL || 0),
+              dayVolume: parseFloat(String(d.VOL || d.totalTradedVolume || d.TTQ || 0).replace(/,/g, '')) || 0,
+              avgVolume: parseFloat(String(d.AvgVolQtyTraded_20day || d.DVolAvg20 || d.DVolAvg10 || d.DVolAvg5 || d.avgVolume || d.AVG_VOL || 0).replace(/,/g, '')) || 0,
               open: parseFloat(d.OPN || prevClose),
               marketState: d.market_state || (this.isMarketOpen() ? 'OPEN' : 'CLOSED'),
               lastUpdated: d.lastupd || '',
@@ -476,6 +476,8 @@ class LiveMarketService {
           dayLow: parseFloat(dLow.toFixed(2)),
           week52High: parseFloat(w52High.toFixed(2)),
           week52Low: parseFloat(w52Low.toFixed(2)),
+          dayVolume: ref.dayVolume || 0,
+          avgVolume: ref.avgVolume || 0,
           source: 'DATABASE_REFERENCE',
           timestamp: Date.now()
         };

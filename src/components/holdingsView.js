@@ -574,7 +574,7 @@ export class HoldingsView {
               <span class="range-badge badge-vol">VOL</span>
             </div>
             <div class="range-header-right">
-              <span class="range-vol-pill ${vol.statusClass}" title="Today's Traded Volume: ${vol.dayVolumeFormatted} (${vol.volumeRatio}x of 52W Avg ${vol.avgVolumeFormatted})">
+              <span class="range-vol-pill ${vol.statusClass}" title="Today's Traded Volume: ${vol.dayVolumeFormatted} (${vol.dayVolumeShares} shares) | ${vol.volumeRatio}x of 52W Avg (${vol.avgVolumeShares} shares)">
                 <span class="vol-dot ${vol.statusClass}"></span>
                 <span class="vol-num">${vol.dayVolumeFormatted}</span>
                 <span class="vol-text">${vol.status}</span>
@@ -582,23 +582,23 @@ export class HoldingsView {
             </div>
           </div>
 
-          <div class="range-bar-track" title="Traded Volume: ${vol.dayVolumeFormatted} | 52W Average: ${vol.avgVolumeFormatted} (${vol.volumeRatio}x)">
+          <div class="range-bar-track" title="Traded Volume: ${vol.dayVolumeFormatted} (${vol.dayVolumeShares} shares) | 52W Average: ${vol.avgVolumeFormatted} (${vol.avgVolumeShares} shares) [${vol.volumeRatio}x]">
             <div class="range-track-inner">
               <div class="range-track-rail range-track-rail-vol">
-                <div class="vol-zone-divider" style="left: 50%;" title="52-Week Average Benchmark (1.0x)"></div>
+                <div class="vol-zone-divider" style="left: 50%;" title="52-Week Average Benchmark (1.0x): ${vol.avgVolumeShares} shares"></div>
                 <div class="range-track-fill fill-vol ${vol.statusClass}" style="left: 0; width: ${vol.percent}%;"></div>
               </div>
-              <div class="range-pin pin-vol ${vol.statusClass}" style="left: ${vol.percent}%;" title="Day Volume: ${vol.dayVolumeFormatted} (${vol.status})">
+              <div class="range-pin pin-vol ${vol.statusClass}" style="left: ${vol.percent}%;" title="Day Volume: ${vol.dayVolumeFormatted} (${vol.dayVolumeShares} shares) [${vol.status}]">
                 <span class="pin-marker-vol"></span>
               </div>
             </div>
           </div>
 
           <div class="range-bounds-line">
-            <span class="range-bound-val bound-low" title="Day's Traded Volume">
+            <span class="range-bound-val bound-low" title="Day's Traded Volume: ${vol.dayVolumeShares} shares">
               <span class="bound-tag">Day</span>${vol.dayVolumeFormatted}
             </span>
-            <span class="range-bound-val bound-high" title="52-Week Average Benchmark Volume (1.0x)">
+            <span class="range-bound-val bound-high" title="52-Week Average Benchmark Volume (1.0x): ${vol.avgVolumeShares} shares">
               <span class="bound-tag">52W Avg</span>${vol.avgVolumeFormatted}
             </span>
           </div>

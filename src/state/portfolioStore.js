@@ -24,6 +24,8 @@ const DEFAULT_HOLDINGS = [
     dayHigh: 1201.90,
     week52Low: 1152.20,
     week52High: 1611.80,
+    dayVolume: 14753650,
+    avgVolume: 15184654,
     buyDate: '2025-08-14',
     notes: 'Core conglomerate holding for energy transition'
   },
@@ -41,6 +43,8 @@ const DEFAULT_HOLDINGS = [
     dayHigh: 696.80,
     week52Low: 681.90,
     week52High: 1017.50,
+    dayVolume: 21296902,
+    avgVolume: 31762207,
     buyDate: '2025-09-02',
     notes: 'Private banking titan with merger synergies'
   },
@@ -58,6 +62,8 @@ const DEFAULT_HOLDINGS = [
     dayHigh: 2625.00,
     week52Low: 1976.80,
     week52High: 3350.00,
+    dayVolume: 3016983,
+    avgVolume: 6008350,
     buyDate: '2025-06-20',
     notes: 'Defensive IT cash cow, dividend payer'
   },
@@ -75,6 +81,8 @@ const DEFAULT_HOLDINGS = [
     dayHigh: 412.70,
     week52Low: 306.30,
     week52High: 509.00,
+    dayVolume: 8545866,
+    avgVolume: 6019803,
     buyDate: '2025-04-10',
     notes: 'EV market leadership and commercial vehicle turnaround'
   },
@@ -92,6 +100,8 @@ const DEFAULT_HOLDINGS = [
     dayHigh: 260.30,
     week52Low: 253.15,
     week52High: 426.40,
+    dayVolume: 16297263,
+    avgVolume: 23319612,
     buyDate: '2025-03-15',
     notes: 'FMCG scale and hotel business demerger'
   }
@@ -453,7 +463,7 @@ class PortfolioStore {
     } catch (e) {
       console.error('Failed to load guest holdings from localStorage', e);
     }
-    return [];
+    return JSON.parse(JSON.stringify(DEFAULT_HOLDINGS));
   }
 
   saveGuestHoldings(holdings) {
@@ -511,7 +521,8 @@ class PortfolioStore {
         const isRangeInvalid = !h.dayHigh || !h.dayLow || !h.week52High || !h.week52Low ||
                                h.dayHigh < h.cmp || h.dayLow > h.cmp ||
                                h.week52High < h.cmp || h.week52Low > h.cmp;
-        if (Math.abs(h.cmp - ref.cmp) > 2 || isRangeInvalid) {
+        const isVolumeMissing = (!h.dayVolume || h.dayVolume <= 0) && ref.dayVolume > 0;
+        if (Math.abs(h.cmp - ref.cmp) > 2 || isRangeInvalid || isVolumeMissing) {
           changed = true;
           const targetCmp = (Math.abs(h.cmp - ref.cmp) > 2) ? ref.cmp : h.cmp;
           let dHigh = ref.dayHigh || h.dayHigh || targetCmp;
@@ -531,7 +542,9 @@ class PortfolioStore {
             dayHigh: parseFloat(dHigh.toFixed(2)),
             dayLow: parseFloat(dLow.toFixed(2)),
             week52High: parseFloat(wHigh.toFixed(2)),
-            week52Low: parseFloat(wLow.toFixed(2))
+            week52Low: parseFloat(wLow.toFixed(2)),
+            dayVolume: ref.dayVolume || h.dayVolume,
+            avgVolume: ref.avgVolume || h.avgVolume
           };
         }
       } else if (h.cmp > 0) {
@@ -1044,6 +1057,11 @@ class PortfolioStore {
       if (dayHigh <= dayLow) dayHigh = dayLow + (dayLow * 0.02 || 1);
       if (week52High <= week52Low) week52High = week52Low + (week52Low * 0.05 || 1);
 
+      // Volume resolution: holding -> cached live quote -> popular stocks catalog
+      const cachedQuote = liveMarketService.cache?.get((h.symbol || '').toUpperCase().trim());
+      const dayVolume = Number(h.dayVolume || cachedQuote?.dayVolume || refStock?.dayVolume || 0);
+      const avgVolume = Number(h.avgVolume || cachedQuote?.avgVolume || refStock?.avgVolume || 0);
+
       return {
         ...h,
         invested,
@@ -1056,7 +1074,9 @@ class PortfolioStore {
         dayHigh: parseFloat(dayHigh.toFixed(2)),
         dayLow: parseFloat(dayLow.toFixed(2)),
         week52High: parseFloat(week52High.toFixed(2)),
-        week52Low: parseFloat(week52Low.toFixed(2))
+        week52Low: parseFloat(week52Low.toFixed(2)),
+        dayVolume,
+        avgVolume
       };
     });
 

@@ -14,6 +14,8 @@ export const POPULAR_STOCKS = [
     dayHigh: 1201.90,
     week52Low: 1152.20,
     week52High: 1611.80,
+    dayVolume: 14753650,
+    avgVolume: 15184654,
     peRatio: 24.2,
     marketCap: 'Large Cap'
   },
@@ -29,6 +31,8 @@ export const POPULAR_STOCKS = [
     dayHigh: 2625.00,
     week52Low: 1976.80,
     week52High: 3350.00,
+    dayVolume: 3016983,
+    avgVolume: 6008350,
     peRatio: 28.5,
     marketCap: 'Large Cap'
   },
@@ -44,6 +48,8 @@ export const POPULAR_STOCKS = [
     dayHigh: 696.80,
     week52Low: 681.90,
     week52High: 1017.50,
+    dayVolume: 21296902,
+    avgVolume: 31762207,
     peRatio: 18.1,
     marketCap: 'Large Cap'
   },
@@ -59,6 +65,8 @@ export const POPULAR_STOCKS = [
     dayHigh: 1197.80,
     week52Low: 980.40,
     week52High: 1728.00,
+    dayVolume: 13030713,
+    avgVolume: 16853446,
     peRatio: 24.8,
     marketCap: 'Large Cap'
   },
@@ -74,6 +82,8 @@ export const POPULAR_STOCKS = [
     dayHigh: 412.70,
     week52Low: 306.30,
     week52High: 509.00,
+    dayVolume: 8545866,
+    avgVolume: 6019803,
     peRatio: 9.8,
     marketCap: 'Large Cap'
   },
@@ -89,6 +99,8 @@ export const POPULAR_STOCKS = [
     dayHigh: 412.70,
     week52Low: 306.30,
     week52High: 509.00,
+    dayVolume: 8545866,
+    avgVolume: 6019803,
     peRatio: 9.8,
     marketCap: 'Large Cap'
   },
@@ -104,6 +116,8 @@ export const POPULAR_STOCKS = [
     dayHigh: 1404.50,
     week52Low: 1187.60,
     week52High: 1480.00,
+    dayVolume: 10523907,
+    avgVolume: 12745297,
     peRatio: 17.6,
     marketCap: 'Large Cap'
   },
@@ -119,6 +133,8 @@ export const POPULAR_STOCKS = [
     dayHigh: 260.30,
     week52Low: 253.15,
     week52High: 426.40,
+    dayVolume: 16297263,
+    avgVolume: 23319612,
     peRatio: 26.4,
     marketCap: 'Large Cap'
   },
@@ -134,6 +150,8 @@ export const POPULAR_STOCKS = [
     dayHigh: 1916.90,
     week52Low: 1726.30,
     week52High: 2174.50,
+    dayVolume: 7221873,
+    avgVolume: 9012863,
     peRatio: 46.5,
     marketCap: 'Large Cap'
   },
@@ -149,6 +167,8 @@ export const POPULAR_STOCKS = [
     dayHigh: 3663.90,
     week52Low: 3288.10,
     week52High: 4440.00,
+    dayVolume: 1765873,
+    avgVolume: 2131457,
     peRatio: 30.1,
     marketCap: 'Large Cap'
   },
@@ -164,6 +184,8 @@ export const POPULAR_STOCKS = [
     dayHigh: 1765.40,
     week52Low: 1583.70,
     week52High: 2046.90,
+    dayVolume: 5130218,
+    avgVolume: 1497590,
     peRatio: 36.2,
     marketCap: 'Large Cap'
   },
@@ -179,6 +201,8 @@ export const POPULAR_STOCKS = [
     dayHigh: 949.70,
     week52Low: 787.90,
     week52High: 1176.40,
+    dayVolume: 9334765,
+    avgVolume: 8215073,
     peRatio: 28.4,
     marketCap: 'Large Cap'
   },
@@ -194,6 +218,8 @@ export const POPULAR_STOCKS = [
     dayHigh: 346.50,
     week52Low: 212.60,
     week52High: 350.00,
+    dayVolume: 38678400,
+    avgVolume: 27963871,
     peRatio: 95.4,
     marketCap: 'Large Cap'
   },
@@ -209,6 +235,8 @@ export const POPULAR_STOCKS = [
     dayHigh: 346.50,
     week52Low: 212.60,
     week52High: 350.00,
+    dayVolume: 38678400,
+    avgVolume: 27963871,
     peRatio: 95.4,
     marketCap: 'Large Cap'
   },
@@ -224,6 +252,8 @@ export const POPULAR_STOCKS = [
     dayHigh: 971.40,
     week52Low: 900.95,
     week52High: 1234.70,
+    dayVolume: 7510705,
+    avgVolume: 8976475,
     peRatio: 10.8,
     marketCap: 'Large Cap'
   },
@@ -239,6 +269,8 @@ export const POPULAR_STOCKS = [
     dayHigh: 439.40,
     week52Low: 345.50,
     week52High: 453.10,
+    dayVolume: 20731942,
+    avgVolume: 28284829,
     peRatio: 19.2,
     marketCap: 'Large Cap'
   },
@@ -254,6 +286,8 @@ export const POPULAR_STOCKS = [
     dayHigh: 11258.00,
     week52Low: 10985.00,
     week52High: 17370.00,
+    dayVolume: 280448,
+    avgVolume: 499092,
     peRatio: 25.6,
     marketCap: 'Large Cap'
   },
@@ -269,6 +303,8 @@ export const POPULAR_STOCKS = [
     dayHigh: 197.25,
     week52Low: 156.79,
     week52High: 273.10,
+    dayVolume: 28869751,
+    avgVolume: 22940428,
     peRatio: 21.0,
     marketCap: 'Large Cap'
   },
@@ -284,6 +320,8 @@ export const POPULAR_STOCKS = [
     dayHigh: 4350.00,
     week52Low: 3667.30,
     week52High: 5186.70,
+    dayVolume: 1143254,
+    avgVolume: 795145,
     peRatio: 82.0,
     marketCap: 'Large Cap'
   },
@@ -299,6 +337,8 @@ export const POPULAR_STOCKS = [
     dayHigh: 1467.50,
     week52Low: 1030.00,
     week52High: 1780.10,
+    dayVolume: 4432267,
+    avgVolume: 4901682,
     peRatio: 24.5,
     marketCap: 'Large Cap'
   },
@@ -314,6 +354,8 @@ export const POPULAR_STOCKS = [
     dayHigh: 1223.40,
     week52Low: 1150.30,
     week52High: 1418.30,
+    dayVolume: 3617098,
+    avgVolume: 7519027,
     peRatio: 14.2,
     marketCap: 'Large Cap'
   },
@@ -329,6 +371,8 @@ export const POPULAR_STOCKS = [
     dayHigh: 2307.00,
     week52Low: 2115.00,
     week52High: 2985.70,
+    dayVolume: 1315150,
+    avgVolume: 760948,
     peRatio: 52.0,
     marketCap: 'Large Cap'
   },
@@ -344,6 +388,8 @@ export const POPULAR_STOCKS = [
     dayHigh: 171.35,
     week52Low: 160.06,
     week52High: 224.40,
+    dayVolume: 15613622,
+    avgVolume: 23331708,
     peRatio: 38.0,
     marketCap: 'Large Cap'
   },
@@ -359,6 +405,8 @@ export const POPULAR_STOCKS = [
     dayHigh: 302.80,
     week52Low: 292.05,
     week52High: 414.40,
+    dayVolume: 15452171,
+    avgVolume: 8811694,
     peRatio: 16.0,
     marketCap: 'Large Cap'
   },
@@ -374,6 +422,8 @@ export const POPULAR_STOCKS = [
     dayHigh: 227.50,
     week52Low: 218.53,
     week52High: 307.50,
+    dayVolume: 6249396,
+    avgVolume: 10607082,
     peRatio: 7.2,
     marketCap: 'Large Cap'
   },
@@ -389,6 +439,8 @@ export const POPULAR_STOCKS = [
     dayHigh: 403.35,
     week52Low: 369.60,
     week52High: 491.25,
+    dayVolume: 21081382,
+    avgVolume: 6174803,
     peRatio: 7.8,
     marketCap: 'Large Cap'
   },
@@ -405,6 +457,8 @@ export const POPULAR_STOCKS = [
     dayHigh: 2520.00,
     week52Low: 2100.00,
     week52High: 3743.00,
+    dayVolume: 1035104,
+    avgVolume: 1635631,
     peRatio: 98.4,
     marketCap: 'Large Cap'
   },
@@ -421,6 +475,8 @@ export const POPULAR_STOCKS = [
     dayHigh: 1210.00,
     week52Low: 815.00,
     week52High: 2174.00,
+    dayVolume: 1227063,
+    avgVolume: 2450109,
     peRatio: 120.5,
     marketCap: 'Large Cap'
   },
@@ -437,6 +493,8 @@ export const POPULAR_STOCKS = [
     dayHigh: 545.00,
     week52Low: 500.00,
     week52High: 1259.00,
+    dayVolume: 391076,
+    avgVolume: 548031,
     peRatio: 85.2,
     marketCap: 'Mid Cap'
   },
@@ -453,6 +511,8 @@ export const POPULAR_STOCKS = [
     dayHigh: 236.00,
     week52Low: 180.00,
     week52High: 618.00,
+    dayVolume: 561081,
+    avgVolume: 957955,
     peRatio: 38.6,
     marketCap: 'Small Cap'
   },
@@ -469,6 +529,8 @@ export const POPULAR_STOCKS = [
     dayHigh: 186.00,
     week52Low: 140.00,
     week52High: 647.00,
+    dayVolume: 4511025,
+    avgVolume: 4341771,
     peRatio: 42.1,
     marketCap: 'Mid Cap'
   },
@@ -485,6 +547,8 @@ export const POPULAR_STOCKS = [
     dayHigh: 184.00,
     week52Low: 170.00,
     week52High: 610.00,
+    dayVolume: 30155830,
+    avgVolume: 20389794,
     peRatio: 0.0,
     marketCap: 'Large Cap'
   },
@@ -501,6 +565,8 @@ export const POPULAR_STOCKS = [
     dayHigh: 670.00,
     week52Low: 640.00,
     week52High: 1100.00,
+    dayVolume: 552854,
+    avgVolume: 1145641,
     peRatio: 48.2,
     marketCap: 'Mid Cap'
   },
@@ -517,6 +583,8 @@ export const POPULAR_STOCKS = [
     dayHigh: 420.00,
     week52Low: 390.00,
     week52High: 1434.00,
+    dayVolume: 855975,
+    avgVolume: 1236966,
     peRatio: 55.0,
     marketCap: 'Mid Cap'
   },
@@ -533,6 +601,8 @@ export const POPULAR_STOCKS = [
     dayHigh: 40.00,
     week52Low: 36.00,
     week52High: 109.00,
+    dayVolume: 11365315,
+    avgVolume: 32781024,
     peRatio: 0.0,
     marketCap: 'Small Cap'
   },
@@ -549,6 +619,8 @@ export const POPULAR_STOCKS = [
     dayHigh: 76.50,
     week52Low: 65.00,
     week52High: 229.00,
+    dayVolume: 7306751,
+    avgVolume: 11534368,
     peRatio: 28.0,
     marketCap: 'Large Cap'
   },
@@ -565,6 +637,8 @@ export const POPULAR_STOCKS = [
     dayHigh: 210.00,
     week52Low: 195.00,
     week52High: 394.00,
+    dayVolume: 18240000,
+    avgVolume: 22500000,
     peRatio: 90.0,
     marketCap: 'Large Cap'
   },
@@ -581,6 +655,8 @@ export const POPULAR_STOCKS = [
     dayHigh: 2290.00,
     week52Low: 2100.00,
     week52High: 4500.00,
+    dayVolume: 420000,
+    avgVolume: 510000,
     peRatio: 36.0,
     marketCap: 'Large Cap'
   },
@@ -597,6 +673,8 @@ export const POPULAR_STOCKS = [
     dayHigh: 1640.00,
     week52Low: 310.00,
     week52High: 1750.00,
+    dayVolume: 4890000,
+    avgVolume: 5200000,
     peRatio: 0.0,
     marketCap: 'Mid Cap'
   },
@@ -613,6 +691,8 @@ export const POPULAR_STOCKS = [
     dayHigh: 7150.00,
     week52Low: 3500.00,
     week52High: 7200.00,
+    dayVolume: 512000,
+    avgVolume: 620000,
     peRatio: 34.0,
     marketCap: 'Large Cap'
   },
@@ -629,6 +709,8 @@ export const POPULAR_STOCKS = [
     dayHigh: 395.00,
     week52Low: 360.00,
     week52High: 585.00,
+    dayVolume: 2450000,
+    avgVolume: 2890000,
     peRatio: 18.0,
     marketCap: 'Mid Cap'
   },
@@ -645,6 +727,8 @@ export const POPULAR_STOCKS = [
     dayHigh: 25400.00,
     week52Low: 24000.00,
     week52High: 30000.00,
+    dayVolume: 12500,
+    avgVolume: 15800,
     peRatio: 44.0,
     marketCap: 'Large Cap'
   },
@@ -661,6 +745,8 @@ export const POPULAR_STOCKS = [
     dayHigh: 140.96,
     week52Low: 132.80,
     week52High: 229.51,
+    dayVolume: 1910357,
+    avgVolume: 1455306,
     peRatio: 10.88,
     marketCap: 'Small Cap'
   },
@@ -677,6 +763,8 @@ export const POPULAR_STOCKS = [
     dayHigh: 24000.00,
     week52Low: 12000.00,
     week52High: 25000.00,
+    dayVolume: 24219,
+    avgVolume: 30395,
     peRatio: 120.0,
     marketCap: 'Mid Cap'
   }
@@ -744,6 +832,8 @@ export function calculateStockVolumeMetrics(h) {
       percent: 50,
       dayVolumeFormatted: '0',
       avgVolumeFormatted: '0',
+      dayVolumeShares: '0',
+      avgVolumeShares: '0',
       status: 'Normal',
       statusClass: 'vol-normal'
     };
@@ -755,7 +845,17 @@ export function calculateStockVolumeMetrics(h) {
   let dayVolume = Number(h.dayVolume || h.volume || 0);
   let avgVolume = Number(h.avgVolume || h.averageDailyVolume || 0);
 
-  // If real volume not provided, generate realistic volume calibrated by market cap and price
+  // If real volume not provided directly on holding, check catalog reference
+  if (!dayVolume || dayVolume <= 0) {
+    const sym = (h.symbol || '').toUpperCase().trim();
+    const refStock = POPULAR_STOCKS.find(s => s.symbol.toUpperCase() === sym);
+    if (refStock && refStock.dayVolume) {
+      dayVolume = Number(refStock.dayVolume);
+      avgVolume = avgVolume > 0 ? avgVolume : Number(refStock.avgVolume || Math.round(dayVolume / 1.15));
+    }
+  }
+
+  // If still not provided, generate realistic volume calibrated by realistic Indian turnover
   if (!dayVolume || dayVolume <= 0) {
     let symHash = 0;
     const sym = (h.symbol || '').toUpperCase();
@@ -763,13 +863,14 @@ export function calculateStockVolumeMetrics(h) {
       symHash = (symHash * 37 + sym.charCodeAt(i)) % 1000;
     }
     
-    // Benchmark average daily volume in shares (scaled by stock price)
-    const baseShares = Math.max(50000, Math.round((45000000 / Math.max(40, cmp)) * (0.8 + (symHash % 40) / 100)));
+    // Benchmark turnover: ₹400 Cr to ₹1,200 Cr for Indian exchange active equities
+    const turnover = 4000000000 + (symHash * 8000000);
+    const baseShares = Math.max(300000, Math.round(turnover / Math.max(10, cmp)));
     avgVolume = avgVolume > 0 ? avgVolume : baseShares;
 
     // Daily volume fluctuation factor based on dayChangePercent and seed
     const dayChg = Math.abs(Number(h.dayChangePercent) || 0);
-    const activityBoost = 0.85 + (dayChg * 0.18) + ((symHash % 35) / 100);
+    const activityBoost = 0.85 + (dayChg * 0.12) + ((symHash % 30) / 100);
     dayVolume = Math.round(avgVolume * activityBoost);
   } else if (!avgVolume || avgVolume <= 0) {
     avgVolume = Math.round(dayVolume / 1.15);
@@ -809,6 +910,8 @@ export function calculateStockVolumeMetrics(h) {
     percent: parseFloat(percent.toFixed(1)),
     dayVolumeFormatted: formatVolumeShares(dayVolume),
     avgVolumeFormatted: formatVolumeShares(avgVolume),
+    dayVolumeShares: dayVolume.toLocaleString('en-IN'),
+    avgVolumeShares: avgVolume.toLocaleString('en-IN'),
     status,
     statusClass
   };
@@ -820,7 +923,7 @@ export function formatVolumeShares(vol) {
     return (num / 10000000).toFixed(2) + ' Cr';
   }
   if (num >= 100000) {
-    return (num / 100000).toFixed(1) + ' L';
+    return (num / 100000).toFixed(2) + ' L';
   }
   if (num >= 1000) {
     return (num / 1000).toFixed(1) + ' K';
