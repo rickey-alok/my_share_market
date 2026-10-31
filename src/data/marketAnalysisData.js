@@ -236,7 +236,21 @@ export function getFiiDiiMetrics(timeframe = 'week') {
   };
 }
 
-// Major Benchmark Indices Historical Trajectories (NIFTY 50 and SENSEX)
+// Major Benchmark & Sectoral Indices List
+export const AVAILABLE_INDICES = [
+  { id: 'nifty', name: 'NIFTY 50', shortName: 'Nifty 50' },
+  { id: 'sensex', name: 'SENSEX', shortName: 'Sensex' },
+  { id: 'bank_nifty', name: 'BANK NIFTY', shortName: 'Bank Nifty' },
+  { id: 'nifty_it', name: 'NIFTY IT', shortName: 'Nifty IT' },
+  { id: 'nifty_auto', name: 'NIFTY AUTO', shortName: 'Nifty Auto' },
+  { id: 'nifty_fmcg', name: 'NIFTY FMCG', shortName: 'Nifty FMCG' },
+  { id: 'nifty_chemical', name: 'NIFTY CHEMICALS', shortName: 'Chemicals' },
+  { id: 'nifty_pharma', name: 'NIFTY PHARMA', shortName: 'Pharma' },
+  { id: 'nifty_metal', name: 'NIFTY METAL', shortName: 'Metal' },
+  { id: 'nifty_midcap', name: 'NIFTY MIDCAP 100', shortName: 'Midcap 100' }
+];
+
+// Major Benchmark & Sectoral Indices Historical Trajectories
 export const INDICES_DATA = {
   day: {
     labels: ['9:15 AM', '10:00 AM', '11:00 AM', '12:00 PM', '1:00 PM', '2:00 PM', '3:00 PM', '3:30 PM'],
@@ -255,6 +269,70 @@ export const INDICES_DATA = {
       low: 81510.20,
       high: 82145.60,
       changePct: 0.57
+    },
+    bank_nifty: {
+      name: 'BANK NIFTY',
+      current: 51842.30,
+      points: [51580.20, 51690.40, 51640.10, 51760.50, 51820.30, 51780.80, 51880.50, 51842.30],
+      low: 51510.00,
+      high: 51920.00,
+      changePct: 0.62
+    },
+    nifty_it: {
+      name: 'NIFTY IT',
+      current: 42185.50,
+      points: [41950.40, 42080.20, 42020.60, 42140.30, 42210.50, 42180.20, 42220.80, 42185.50],
+      low: 41900.00,
+      high: 42260.00,
+      changePct: 0.45
+    },
+    nifty_auto: {
+      name: 'NIFTY AUTO',
+      current: 26345.80,
+      points: [26180.30, 26260.50, 26220.10, 26310.80, 26360.20, 26330.40, 26380.60, 26345.80],
+      low: 26140.00,
+      high: 26410.00,
+      changePct: 0.58
+    },
+    nifty_fmcg: {
+      name: 'NIFTY FMCG',
+      current: 61450.20,
+      points: [61250.20, 61360.40, 61310.50, 61420.20, 61470.50, 61440.10, 61480.30, 61450.20],
+      low: 61210.00,
+      high: 61510.00,
+      changePct: 0.32
+    },
+    nifty_chemical: {
+      name: 'NIFTY CHEMICALS',
+      current: 9450.40,
+      points: [9380.20, 9410.50, 9400.10, 9435.40, 9460.20, 9445.60, 9465.10, 9450.40],
+      low: 9365.00,
+      high: 9480.00,
+      changePct: 0.52
+    },
+    nifty_pharma: {
+      name: 'NIFTY PHARMA',
+      current: 22850.60,
+      points: [22740.50, 22810.20, 22780.40, 22840.60, 22870.30, 22850.10, 22880.40, 22850.60],
+      low: 22710.00,
+      high: 22910.00,
+      changePct: 0.42
+    },
+    nifty_metal: {
+      name: 'NIFTY METAL',
+      current: 9850.30,
+      points: [9780.40, 9820.60, 9805.20, 9845.80, 9870.40, 9850.20, 9875.10, 9850.30],
+      low: 9760.00,
+      high: 9890.00,
+      changePct: 0.68
+    },
+    nifty_midcap: {
+      name: 'NIFTY MIDCAP 100',
+      current: 58920.40,
+      points: [58620.40, 58780.50, 58710.20, 58890.60, 58980.40, 58940.10, 59020.80, 58920.40],
+      low: 58550.00,
+      high: 59080.00,
+      changePct: 0.55
     }
   },
   week: {
@@ -276,6 +354,70 @@ export const INDICES_DATA = {
       low: 81050.00,
       high: 82240.80,
       changePct: 0.94
+    },
+    bank_nifty: {
+      name: 'BANK NIFTY',
+      current: 51842.30,
+      points: [51250.00, 51420.00, 51680.00, 51590.00, 51842.30],
+      low: 51100.00,
+      high: 51950.00,
+      changePct: 1.15
+    },
+    nifty_it: {
+      name: 'NIFTY IT',
+      current: 42185.50,
+      points: [41840.00, 42050.00, 42280.00, 42120.00, 42185.50],
+      low: 41720.00,
+      high: 42350.00,
+      changePct: 0.82
+    },
+    nifty_auto: {
+      name: 'NIFTY AUTO',
+      current: 26345.80,
+      points: [26000.00, 26150.00, 26280.00, 26210.00, 26345.80],
+      low: 25920.00,
+      high: 26420.00,
+      changePct: 1.32
+    },
+    nifty_fmcg: {
+      name: 'NIFTY FMCG',
+      current: 61450.20,
+      points: [61150.00, 61280.00, 61390.00, 61350.00, 61450.20],
+      low: 61080.00,
+      high: 61520.00,
+      changePct: 0.48
+    },
+    nifty_chemical: {
+      name: 'NIFTY CHEMICALS',
+      current: 9450.40,
+      points: [9340.00, 9380.00, 9430.00, 9410.00, 9450.40],
+      low: 9310.00,
+      high: 9480.00,
+      changePct: 1.18
+    },
+    nifty_pharma: {
+      name: 'NIFTY PHARMA',
+      current: 22850.60,
+      points: [22630.00, 22710.00, 22790.00, 22760.00, 22850.60],
+      low: 22550.00,
+      high: 22920.00,
+      changePct: 0.95
+    },
+    nifty_metal: {
+      name: 'NIFTY METAL',
+      current: 9850.30,
+      points: [9720.00, 9780.00, 9840.00, 9810.00, 9850.30],
+      low: 9680.00,
+      high: 9890.00,
+      changePct: 1.25
+    },
+    nifty_midcap: {
+      name: 'NIFTY MIDCAP 100',
+      current: 58920.40,
+      points: [58080.00, 58350.00, 58650.00, 58580.00, 58920.40],
+      low: 57950.00,
+      high: 59100.00,
+      changePct: 1.45
     }
   },
   month: {
@@ -295,6 +437,70 @@ export const INDICES_DATA = {
       low: 79600.00,
       high: 82610.00,
       changePct: 2.79
+    },
+    bank_nifty: {
+      name: 'BANK NIFTY',
+      current: 51842.30,
+      points: [50210.00, 50640.00, 50980.00, 51350.00, 51200.00, 51620.00, 51842.30],
+      low: 49950.00,
+      high: 52150.00,
+      changePct: 3.25
+    },
+    nifty_it: {
+      name: 'NIFTY IT',
+      current: 42185.50,
+      points: [41020.00, 41350.00, 41720.00, 42100.00, 41850.00, 42080.00, 42185.50],
+      low: 40850.00,
+      high: 42520.00,
+      changePct: 2.85
+    },
+    nifty_auto: {
+      name: 'NIFTY AUTO',
+      current: 26345.80,
+      points: [25180.00, 25490.00, 25780.00, 26050.00, 25920.00, 26220.00, 26345.80],
+      low: 25050.00,
+      high: 26500.00,
+      changePct: 4.65
+    },
+    nifty_fmcg: {
+      name: 'NIFTY FMCG',
+      current: 61450.20,
+      points: [60150.00, 60480.00, 60790.00, 61120.00, 60980.00, 61320.00, 61450.20],
+      low: 60020.00,
+      high: 61650.00,
+      changePct: 2.15
+    },
+    nifty_chemical: {
+      name: 'NIFTY CHEMICALS',
+      current: 9450.40,
+      points: [9190.00, 9250.00, 9310.00, 9380.00, 9340.00, 9420.00, 9450.40],
+      low: 9150.00,
+      high: 9510.00,
+      changePct: 2.75
+    },
+    nifty_pharma: {
+      name: 'NIFTY PHARMA',
+      current: 22850.60,
+      points: [22040.00, 22280.00, 22450.00, 22680.00, 22540.00, 22750.00, 22850.60],
+      low: 21950.00,
+      high: 22980.00,
+      changePct: 3.65
+    },
+    nifty_metal: {
+      name: 'NIFTY METAL',
+      current: 9850.30,
+      points: [9450.00, 9580.00, 9690.00, 9780.00, 9720.00, 9820.00, 9850.30],
+      low: 9410.00,
+      high: 9920.00,
+      changePct: 4.20
+    },
+    nifty_midcap: {
+      name: 'NIFTY MIDCAP 100',
+      current: 58920.40,
+      points: [56740.00, 57250.00, 57800.00, 58400.00, 58150.00, 58680.00, 58920.40],
+      low: 56500.00,
+      high: 59250.00,
+      changePct: 3.85
     }
   },
   year: {
@@ -314,6 +520,70 @@ export const INDICES_DATA = {
       low: 71850.00,
       high: 85978.25,
       changePct: 13.32
+    },
+    bank_nifty: {
+      name: 'BANK NIFTY',
+      current: 51842.30,
+      points: [44800, 46100, 45200, 46900, 47800, 48900, 49600, 51200, 52400, 53800, 51100, 51842.30],
+      low: 44200.00,
+      high: 54467.35,
+      changePct: 15.72
+    },
+    nifty_it: {
+      name: 'NIFTY IT',
+      current: 42185.50,
+      points: [32800, 34200, 35600, 37200, 36400, 35100, 37800, 39900, 41200, 43100, 41500, 42185.50],
+      low: 31800.00,
+      high: 44250.00,
+      changePct: 28.61
+    },
+    nifty_auto: {
+      name: 'NIFTY AUTO',
+      current: 26345.80,
+      points: [17100, 18400, 19200, 20800, 21900, 22800, 24100, 25400, 26100, 26800, 25900, 26345.80],
+      low: 16800.00,
+      high: 27200.00,
+      changePct: 54.07
+    },
+    nifty_fmcg: {
+      name: 'NIFTY FMCG',
+      current: 61450.20,
+      points: [53800, 55200, 54900, 55800, 54600, 56200, 57400, 58900, 61200, 64500, 60800, 61450.20],
+      low: 52900.00,
+      high: 66438.00,
+      changePct: 14.22
+    },
+    nifty_chemical: {
+      name: 'NIFTY CHEMICALS',
+      current: 9450.40,
+      points: [8100, 8350, 8200, 8550, 8780, 8920, 9150, 9380, 9600, 9850, 9320, 9450.40],
+      low: 7950.00,
+      high: 10120.00,
+      changePct: 16.67
+    },
+    nifty_pharma: {
+      name: 'NIFTY PHARMA',
+      current: 22850.60,
+      points: [15600, 16800, 17500, 18600, 19100, 19400, 20600, 21800, 22600, 23500, 22400, 22850.60],
+      low: 15200.00,
+      high: 23800.00,
+      changePct: 46.48
+    },
+    nifty_metal: {
+      name: 'NIFTY METAL',
+      current: 9850.30,
+      points: [7200, 7750, 7600, 8100, 8450, 8900, 9250, 9600, 9800, 10250, 9650, 9850.30],
+      low: 7100.00,
+      high: 10480.00,
+      changePct: 36.81
+    },
+    nifty_midcap: {
+      name: 'NIFTY MIDCAP 100',
+      current: 58920.40,
+      points: [39600, 42100, 44200, 46800, 48200, 49800, 52600, 55400, 57800, 60200, 57900, 58920.40],
+      low: 38800.00,
+      high: 60925.00,
+      changePct: 48.79
     }
   },
   '3year': {
@@ -333,6 +603,70 @@ export const INDICES_DATA = {
       low: 63183.77,
       high: 85978.25,
       changePct: 28.63
+    },
+    bank_nifty: {
+      name: 'BANK NIFTY',
+      current: 51842.30,
+      points: [38500.00, 44100.00, 47900.00, 49800.00, 52100.00, 50800.00, 51842.30],
+      low: 37400.00,
+      high: 54467.35,
+      changePct: 34.66
+    },
+    nifty_it: {
+      name: 'NIFTY IT',
+      current: 42185.50,
+      points: [29600.00, 33500.00, 36800.00, 39100.00, 42800.00, 41200.00, 42185.50],
+      low: 26400.00,
+      high: 44250.00,
+      changePct: 42.52
+    },
+    nifty_auto: {
+      name: 'NIFTY AUTO',
+      current: 26345.80,
+      points: [12200.00, 16800.00, 21400.00, 23900.00, 26400.00, 25800.00, 26345.80],
+      low: 11800.00,
+      high: 27200.00,
+      changePct: 115.95
+    },
+    nifty_fmcg: {
+      name: 'NIFTY FMCG',
+      current: 61450.20,
+      points: [42400.00, 49800.00, 54200.00, 57100.00, 62800.00, 60500.00, 61450.20],
+      low: 41200.00,
+      high: 66438.00,
+      changePct: 44.93
+    },
+    nifty_chemical: {
+      name: 'NIFTY CHEMICALS',
+      current: 9450.40,
+      points: [6800.00, 7600.00, 8400.00, 8850.00, 9600.00, 9250.00, 9450.40],
+      low: 6500.00,
+      high: 10120.00,
+      changePct: 38.98
+    },
+    nifty_pharma: {
+      name: 'NIFTY PHARMA',
+      current: 22850.60,
+      points: [12500.00, 15400.00, 18900.00, 20800.00, 23400.00, 22200.00, 22850.60],
+      low: 11900.00,
+      high: 23800.00,
+      changePct: 82.80
+    },
+    nifty_metal: {
+      name: 'NIFTY METAL',
+      current: 9850.30,
+      points: [5500.00, 6800.00, 8100.00, 8900.00, 10100.00, 9600.00, 9850.30],
+      low: 5200.00,
+      high: 10480.00,
+      changePct: 79.10
+    },
+    nifty_midcap: {
+      name: 'NIFTY MIDCAP 100',
+      current: 58920.40,
+      points: [30100.00, 39500.00, 48200.00, 52400.00, 59800.00, 57400.00, 58920.40],
+      low: 28900.00,
+      high: 60925.00,
+      changePct: 95.75
     }
   },
   '5year': {
@@ -352,6 +686,70 @@ export const INDICES_DATA = {
       low: 50921.22,
       high: 85978.25,
       changePct: 35.12
+    },
+    bank_nifty: {
+      name: 'BANK NIFTY',
+      current: 51842.30,
+      points: [31200.00, 35800.00, 41000.00, 46500.00, 49500.00, 51842.30],
+      low: 29500.00,
+      high: 54467.35,
+      changePct: 66.16
+    },
+    nifty_it: {
+      name: 'NIFTY IT',
+      current: 42185.50,
+      points: [22100.00, 26800.00, 29500.00, 34200.00, 39000.00, 42185.50],
+      low: 21200.00,
+      high: 44250.00,
+      changePct: 90.88
+    },
+    nifty_auto: {
+      name: 'NIFTY AUTO',
+      current: 26345.80,
+      points: [8900.00, 11200.00, 14500.00, 18800.00, 23500.00, 26345.80],
+      low: 7900.00,
+      high: 27200.00,
+      changePct: 196.02
+    },
+    nifty_fmcg: {
+      name: 'NIFTY FMCG',
+      current: 61450.20,
+      points: [34200.00, 39500.00, 44800.00, 51000.00, 57200.00, 61450.20],
+      low: 32400.00,
+      high: 66438.00,
+      changePct: 79.68
+    },
+    nifty_chemical: {
+      name: 'NIFTY CHEMICALS',
+      current: 9450.40,
+      points: [5100.00, 6200.00, 7100.00, 8300.00, 9100.00, 9450.40],
+      low: 4850.00,
+      high: 10120.00,
+      changePct: 85.30
+    },
+    nifty_pharma: {
+      name: 'NIFTY PHARMA',
+      current: 22850.60,
+      points: [11400.00, 13100.00, 15200.00, 17800.00, 20900.00, 22850.60],
+      low: 10800.00,
+      high: 23800.00,
+      changePct: 100.44
+    },
+    nifty_metal: {
+      name: 'NIFTY METAL',
+      current: 9850.30,
+      points: [4200.00, 5100.00, 6300.00, 7600.00, 8900.00, 9850.30],
+      low: 3950.00,
+      high: 10480.00,
+      changePct: 134.53
+    },
+    nifty_midcap: {
+      name: 'NIFTY MIDCAP 100',
+      current: 58920.40,
+      points: [21400.00, 27800.00, 36200.00, 45800.00, 54500.00, 58920.40],
+      low: 19800.00,
+      high: 60925.00,
+      changePct: 175.33
     }
   }
 };

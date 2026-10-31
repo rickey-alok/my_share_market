@@ -95,28 +95,35 @@ export class AnalysisView {
         </div>
       </div>
 
-      <!-- Section 2: Major Benchmark Indices (NIFTY 50 & SENSEX) with High/Low Pointer -->
+      <!-- Section 2: Major Benchmark & Sectoral Indices with High/Low Pointer -->
       <div class="analysis-card mb-6">
-        <div class="card-header-with-actions">
+        <div class="card-header-with-actions" style="margin-bottom: 0.65rem;">
           <div class="card-title-row" style="margin-bottom: 0;">
-            <h2 class="card-title">${icons.lineChart} Benchmark Indices Trajectory</h2>
+            <h2 class="card-title">${icons.lineChart} Benchmark & Sectoral Indices</h2>
           </div>
-          <div style="display: flex; gap: 0.75rem; flex-wrap: wrap; align-items: center;">
-            <!-- Index Switcher (NIFTY 50 vs SENSEX) -->
-            <div class="trade-mode-toggle" style="margin-bottom: 0; padding: 0.2rem;" id="index-switch-toggle">
-              <button type="button" class="trade-mode-btn buy active" data-index="nifty">NIFTY 50</button>
-              <button type="button" class="trade-mode-btn buy" data-index="sensex">SENSEX</button>
-            </div>
-            <!-- Timeframe Filter -->
-            <div class="filter-pills-group" id="index-timeframe-pills">
-              <button type="button" class="filter-pill" data-timeframe="day">1D</button>
-              <button type="button" class="filter-pill active" data-timeframe="week">1W</button>
-              <button type="button" class="filter-pill" data-timeframe="month">1M</button>
-              <button type="button" class="filter-pill" data-timeframe="year">1Y</button>
-              <button type="button" class="filter-pill" data-timeframe="3year">3Y</button>
-              <button type="button" class="filter-pill" data-timeframe="5year">5Y</button>
-            </div>
+          <!-- Timeframe Filter -->
+          <div class="filter-pills-group" id="index-timeframe-pills">
+            <button type="button" class="filter-pill" data-timeframe="day">1D</button>
+            <button type="button" class="filter-pill active" data-timeframe="week">1W</button>
+            <button type="button" class="filter-pill" data-timeframe="month">1M</button>
+            <button type="button" class="filter-pill" data-timeframe="year">1Y</button>
+            <button type="button" class="filter-pill" data-timeframe="3year">3Y</button>
+            <button type="button" class="filter-pill" data-timeframe="5year">5Y</button>
           </div>
+        </div>
+
+        <!-- Scrollable Index Selector Chips -->
+        <div class="index-chips-scroll" id="index-switch-toggle" role="tablist">
+          <button type="button" class="index-chip active" data-index="nifty">NIFTY 50</button>
+          <button type="button" class="index-chip" data-index="sensex">SENSEX</button>
+          <button type="button" class="index-chip" data-index="bank_nifty">BANK NIFTY</button>
+          <button type="button" class="index-chip" data-index="nifty_it">NIFTY IT</button>
+          <button type="button" class="index-chip" data-index="nifty_auto">NIFTY AUTO</button>
+          <button type="button" class="index-chip" data-index="nifty_fmcg">NIFTY FMCG</button>
+          <button type="button" class="index-chip" data-index="nifty_chemical">CHEMICALS</button>
+          <button type="button" class="index-chip" data-index="nifty_pharma">PHARMA</button>
+          <button type="button" class="index-chip" data-index="nifty_metal">METAL</button>
+          <button type="button" class="index-chip" data-index="nifty_midcap">MIDCAP 100</button>
         </div>
 
         <!-- Index Level Summary & High-Low Range Bar -->
@@ -198,8 +205,8 @@ export class AnalysisView {
       });
     });
 
-    // Index Switcher (NIFTY vs SENSEX)
-    const indexBtns = this.container.querySelectorAll('#index-switch-toggle .trade-mode-btn');
+    // Index Switcher Chips
+    const indexBtns = this.container.querySelectorAll('#index-switch-toggle [data-index]');
     indexBtns.forEach(btn => {
       btn.addEventListener('click', () => {
         indexBtns.forEach(b => b.classList.remove('active'));
@@ -473,45 +480,41 @@ export class AnalysisView {
       }
 
       summaryContainer.innerHTML = `
-        <div class="index-meta-row">
-          <div>
-            <div class="index-current-name">${indexInfo.name}</div>
-            <div class="index-current-val mono">${current.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</div>
-          </div>
-          <div style="text-align: right;">
-            <div class="return-badge ${isPositive ? 'bull' : 'bear'}" style="font-size: 0.95rem; padding: 0.45rem 0.85rem;">
-              ${isPositive ? icons.trendingUp : icons.trendingDown}
-              ${isPositive ? '+' : ''}${indexInfo.changePct.toFixed(2)}% (${tfLabel})
+        <div class="index-compact-card">
+          <!-- Top Row: Index Name + CMP + Return Badge + Range -->
+          <div class="index-compact-top">
+            <div class="index-compact-val-block">
+              <span class="index-current-name">${indexInfo.name}</span>
+              <span class="index-current-val mono">${current.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</span>
             </div>
-            <div style="font-size: 0.76rem; color: var(--text-muted); margin-top: 0.25rem;">
-              Range: ${low.toLocaleString()} - ${high.toLocaleString()}
+            <div class="index-compact-return-block">
+              <span class="return-badge ${isPositive ? 'bull' : 'bear'}" style="font-size: 0.84rem; padding: 0.28rem 0.65rem;">
+                ${isPositive ? icons.trendingUp : icons.trendingDown}
+                ${isPositive ? '+' : ''}${indexInfo.changePct.toFixed(2)}% (${tfLabel})
+              </span>
+              <span class="index-range-subtext mono">
+                Range: ${low.toLocaleString()} — ${high.toLocaleString()}
+              </span>
             </div>
-          </div>
-        </div>
-
-        <!-- High - Low Range Bar Gauge (Feature 4 for Index) -->
-        <div class="range-gauge-container">
-          <div class="range-gauge-header">
-            <span class="range-bound low">
-              <strong>${indexLowTitle}</strong>
-              <span class="mono">${low.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</span>
-            </span>
-            <span class="range-indicator-badge">
-              Trading at ${pointerPositionPct.toFixed(0)}% of Range (${pointerPositionPct > 65 ? 'Near Highs' : pointerPositionPct < 35 ? 'Near Lows' : 'Mid Range'})
-            </span>
-            <span class="range-bound high">
-              <strong>${indexHighTitle}</strong>
-              <span class="mono">${high.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</span>
-            </span>
           </div>
 
-          <div class="range-gauge-track">
-            <div class="range-gauge-fill" style="width: ${pointerPositionPct}%;"></div>
-            <!-- Pointer needle with pulsing beacon -->
-            <div class="range-pointer" style="left: ${pointerPositionPct}%;">
-              <div class="pointer-needle"></div>
-              <div class="pointer-bubble mono">
-                CMP: ${current.toLocaleString('en-IN', { minimumFractionDigits: 1 })}
+          <!-- Bottom Row: High - Low Range Bar Gauge (Compact) -->
+          <div class="range-gauge-compact">
+            <div class="gauge-compact-labels">
+              <span class="gauge-bound-text"><strong>${indexLowTitle}</strong> <span class="mono">${low.toLocaleString('en-IN', { minimumFractionDigits: 1 })}</span></span>
+              <span class="range-indicator-badge compact">
+                Trading at ${pointerPositionPct.toFixed(0)}% of Range (${pointerPositionPct > 65 ? 'Near Highs' : pointerPositionPct < 35 ? 'Near Lows' : 'Mid Range'})
+              </span>
+              <span class="gauge-bound-text"><strong>${indexHighTitle}</strong> <span class="mono">${high.toLocaleString('en-IN', { minimumFractionDigits: 1 })}</span></span>
+            </div>
+
+            <div class="range-gauge-track compact">
+              <div class="range-gauge-fill" style="width: ${pointerPositionPct}%;"></div>
+              <div class="range-pointer compact" style="left: ${pointerPositionPct}%;">
+                <div class="pointer-needle compact"></div>
+                <div class="pointer-bubble compact mono">
+                  CMP: ${current.toLocaleString('en-IN', { minimumFractionDigits: 1 })}
+                </div>
               </div>
             </div>
           </div>
