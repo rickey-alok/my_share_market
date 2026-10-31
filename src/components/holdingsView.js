@@ -2,7 +2,7 @@
 import { portfolioStore } from '../state/portfolioStore.js';
 import { authService } from '../services/authService.js';
 import { liveMarketService } from '../services/liveMarketService.js';
-import { SECTORS, calculateStockRSI } from '../data/stocksDatabase.js';
+import { SECTORS, calculateStockRSI, calculateStockVolumeMetrics } from '../data/stocksDatabase.js';
 
 import { icons } from '../utils/icons.js';
 
@@ -104,7 +104,7 @@ export class HoldingsView {
                 <th style="text-align: right;">Shares (Qty)</th>
                 <th style="text-align: right;">Avg. Price</th>
                 <th style="text-align: right; white-space: nowrap;">CMP (Live)</th>
-                <th style="min-width: 260px; width: 290px;">Ranges & RSI (Day, 52W, RSI)</th>
+                <th style="min-width: 260px; width: 300px;">Ranges & Indicators (Day, 52W, RSI, Vol)</th>
                 <th style="text-align: right;">Total Invested</th>
                 <th style="text-align: right;">Current Value</th>
                 <th style="text-align: right;">Day's Change</th>
@@ -407,6 +407,9 @@ export class HoldingsView {
       rsiClass = 'rsi-bearish';
     }
 
+    // 4. Volume Indicator (Day Volume vs 52-Week Average Benchmark)
+    const vol = calculateStockVolumeMetrics(h);
+
     const is52wClose = !isW52MyOutside && myPrice > 0 && Math.abs(w52CmpPct - w52InRailMyPct) < 18;
 
     const getPinLabelTransform = (pct) => {
@@ -421,7 +424,7 @@ export class HoldingsView {
     const rsiTransform = getPinLabelTransform(clampedRsiPct);
 
     return `
-      <div class="range-dual-widget" title="${h.symbol}: Day Range, 52-Week Range & RSI (14)">
+      <div class="range-dual-widget" title="${h.symbol}: Day Range, 52-Week Range, RSI & Volume">
         <!-- 1. Day Range Row -->
         <div class="range-sub-row range-day-row">
           <div class="range-header-line">
@@ -560,6 +563,43 @@ export class HoldingsView {
             </span>
             <span class="range-bound-val bound-high" title="Overbought Threshold (>=70)">
               <span class="bound-tag">OB</span>70
+            </span>
+          </div>
+        </div>
+
+        <!-- 4. Volume Indicator Row -->
+        <div class="range-sub-row range-vol-row">
+          <div class="range-header-line">
+            <div class="range-header-left">
+              <span class="range-badge badge-vol">VOL</span>
+            </div>
+            <div class="range-header-right">
+              <span class="range-vol-pill ${vol.statusClass}" title="Today's Traded Volume: ${vol.dayVolumeFormatted} (${vol.volumeRatio}x of 52W Avg ${vol.avgVolumeFormatted})">
+                <span class="vol-dot ${vol.statusClass}"></span>
+                <span class="vol-num">${vol.dayVolumeFormatted}</span>
+                <span class="vol-text">${vol.status}</span>
+              </span>
+            </div>
+          </div>
+
+          <div class="range-bar-track" title="Traded Volume: ${vol.dayVolumeFormatted} | 52W Average: ${vol.avgVolumeFormatted} (${vol.volumeRatio}x)">
+            <div class="range-track-inner">
+              <div class="range-track-rail range-track-rail-vol">
+                <div class="vol-zone-divider" style="left: 50%;" title="52-Week Average Benchmark (1.0x)"></div>
+                <div class="range-track-fill fill-vol ${vol.statusClass}" style="left: 0; width: ${vol.percent}%;"></div>
+              </div>
+              <div class="range-pin pin-vol ${vol.statusClass}" style="left: ${vol.percent}%;" title="Day Volume: ${vol.dayVolumeFormatted} (${vol.status})">
+                <span class="pin-marker-vol"></span>
+              </div>
+            </div>
+          </div>
+
+          <div class="range-bounds-line">
+            <span class="range-bound-val bound-low" title="Day's Traded Volume">
+              <span class="bound-tag">Day</span>${vol.dayVolumeFormatted}
+            </span>
+            <span class="range-bound-val bound-high" title="52-Week Average Benchmark Volume (1.0x)">
+              <span class="bound-tag">52W Avg</span>${vol.avgVolumeFormatted}
             </span>
           </div>
         </div>
@@ -771,10 +811,10 @@ export class HoldingsView {
             </div>
           </div>
 
-          <!-- Price Ranges Indicator Section (Day, 52-Week & RSI) -->
+          <!-- Price Ranges & Indicators Section (Day, 52-Week, RSI & Volume) -->
           <div class="mobile-range-card-section">
             <div class="mobile-range-title">
-              <span>Day, 52-Week & RSI Ranges</span>
+              <span>Day, 52-Week, RSI & Volume</span>
             </div>
             ${this.renderRangeIndicator(h)}
           </div>

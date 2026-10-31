@@ -305,6 +305,8 @@ class LiveMarketService {
               dayLow,
               week52High,
               week52Low,
+              dayVolume: parseFloat(d.VOL || d.totalTradedVolume || d.TTQ || 0),
+              avgVolume: parseFloat(d.avgVolume || d.AVG_VOL || 0),
               open: parseFloat(d.OPN || prevClose),
               marketState: d.market_state || (this.isMarketOpen() ? 'OPEN' : 'CLOSED'),
               lastUpdated: d.lastupd || '',
@@ -400,6 +402,8 @@ class LiveMarketService {
                 dayLow,
                 week52High,
                 week52Low,
+                dayVolume: parseFloat(meta.regularMarketVolume || 0),
+                avgVolume: parseFloat(meta.averageDailyVolume3Month || meta.averageDailyVolume10Day || 0),
                 source: 'LIVE_EXCHANGE',
                 timestamp: Date.now()
               };
@@ -432,6 +436,8 @@ class LiveMarketService {
                 dayLow: parseFloat(dLow.toFixed(2)),
                 week52High: parseFloat(w52High.toFixed(2)),
                 week52Low: parseFloat(w52Low.toFixed(2)),
+                dayVolume: parseFloat(data.volume || 0),
+                avgVolume: parseFloat(data.avgVolume || 0),
                 source: 'LIVE_EXCHANGE',
                 timestamp: Date.now()
               };

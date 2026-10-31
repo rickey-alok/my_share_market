@@ -1216,7 +1216,9 @@ class PortfolioStore {
             dayHigh: parseFloat(dHigh.toFixed(2)),
             dayLow: parseFloat(dLow.toFixed(2)),
             week52High: parseFloat(wHigh.toFixed(2)),
-            week52Low: parseFloat(wLow.toFixed(2))
+            week52Low: parseFloat(wLow.toFixed(2)),
+            dayVolume: quote.dayVolume || h.dayVolume,
+            avgVolume: quote.avgVolume || h.avgVolume
           };
         }
         return h;

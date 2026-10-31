@@ -5018,6 +5018,18 @@ body::after {
   border: 1px solid rgba(139, 92, 246, 0.3);
 }
 
+.range-badge.badge-vol {
+  background: rgba(245, 158, 11, 0.15);
+  color: #fbbf24;
+  border: 1px solid rgba(245, 158, 11, 0.32);
+}
+
+[data-theme="light"] .range-badge.badge-vol {
+  background: rgba(217, 119, 6, 0.12);
+  color: #d97706;
+  border-color: rgba(217, 119, 6, 0.3);
+}
+
 .range-my-pill {
   font-size: 0.7rem;
   font-weight: 700;
@@ -5084,6 +5096,90 @@ body::after {
   color: #475569;
   background: #f1f5f9;
   border-color: #cbd5e1;
+}
+
+.range-vol-pill {
+  font-size: 0.69rem;
+  font-weight: 700;
+  font-family: var(--font-mono);
+  padding: 0.1rem 0.38rem;
+  border-radius: 4px;
+  line-height: 1;
+  white-space: nowrap;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.28rem;
+}
+
+.range-vol-pill.vol-low {
+  background: rgba(148, 163, 184, 0.14);
+  color: #94a3b8;
+  border: 1px solid rgba(148, 163, 184, 0.28);
+}
+
+.range-vol-pill.vol-normal {
+  background: rgba(16, 185, 129, 0.14);
+  color: #10b981;
+  border: 1px solid rgba(16, 185, 129, 0.3);
+}
+
+.range-vol-pill.vol-high {
+  background: rgba(99, 102, 241, 0.16);
+  color: #818cf8;
+  border: 1px solid rgba(99, 102, 241, 0.35);
+}
+
+.range-vol-pill.vol-surge {
+  background: rgba(244, 63, 94, 0.18);
+  color: #fb7185;
+  border: 1px solid rgba(244, 63, 94, 0.4);
+}
+
+[data-theme="light"] .range-vol-pill.vol-low {
+  background: #f1f5f9;
+  color: #475569;
+  border-color: #cbd5e1;
+}
+
+[data-theme="light"] .range-vol-pill.vol-normal {
+  background: rgba(16, 185, 129, 0.1);
+  color: #059669;
+  border-color: rgba(16, 185, 129, 0.25);
+}
+
+[data-theme="light"] .range-vol-pill.vol-high {
+  background: rgba(99, 102, 241, 0.1);
+  color: #4f46e5;
+  border-color: rgba(99, 102, 241, 0.25);
+}
+
+[data-theme="light"] .range-vol-pill.vol-surge {
+  background: rgba(244, 63, 94, 0.1);
+  color: #e11d48;
+  border-color: rgba(244, 63, 94, 0.25);
+}
+
+.vol-dot {
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  display: inline-block;
+}
+
+.vol-dot.vol-low { background: #94a3b8; }
+.vol-dot.vol-normal { background: #10b981; }
+.vol-dot.vol-high { background: #818cf8; }
+.vol-dot.vol-surge { background: #f43f5e; box-shadow: 0 0 5px rgba(244, 63, 94, 0.8); }
+
+.vol-num {
+  font-weight: 700;
+  letter-spacing: -0.01em;
+}
+
+.vol-text {
+  font-size: 0.62rem;
+  opacity: 0.92;
+  letter-spacing: 0.01em;
 }
 
 .range-bounds-group {
@@ -5496,6 +5592,102 @@ body::after {
 }
 
 [data-theme="light"] .pin-marker-rsi {
+  border-color: #ffffff;
+}
+
+/* Volume Track Rail with benchmark zones (Low <0.75x, Normal 0.75-1.35x, High 1.35-2.2x, Surge >2.2x) */
+.range-track-rail.range-track-rail-vol {
+  background: linear-gradient(
+    90deg,
+    rgba(148, 163, 184, 0.12) 0%,
+    rgba(16, 185, 129, 0.18) 50%,
+    rgba(99, 102, 241, 0.22) 75%,
+    rgba(244, 63, 94, 0.25) 100%
+  );
+}
+
+[data-theme="light"] .range-track-rail.range-track-rail-vol {
+  background: linear-gradient(
+    90deg,
+    rgba(226, 232, 240, 0.9) 0%,
+    rgba(16, 185, 129, 0.18) 50%,
+    rgba(99, 102, 241, 0.18) 75%,
+    rgba(244, 63, 94, 0.2) 100%
+  );
+}
+
+.vol-zone-divider {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 1.5px;
+  background: rgba(255, 255, 255, 0.45);
+  transform: translateX(-50%);
+  z-index: 2;
+  border-radius: 1px;
+}
+
+[data-theme="light"] .vol-zone-divider {
+  background: rgba(0, 0, 0, 0.3);
+}
+
+/* Volume Track Fills */
+.range-track-fill.fill-vol {
+  background: linear-gradient(90deg, rgba(245, 158, 11, 0.2), #fbbf24);
+  opacity: 0.85;
+}
+
+.range-track-fill.fill-vol.vol-low {
+  background: linear-gradient(90deg, rgba(148, 163, 184, 0.2), #94a3b8);
+}
+
+.range-track-fill.fill-vol.vol-normal {
+  background: linear-gradient(90deg, rgba(16, 185, 129, 0.2), #10b981);
+}
+
+.range-track-fill.fill-vol.vol-high {
+  background: linear-gradient(90deg, rgba(99, 102, 241, 0.2), #818cf8);
+}
+
+.range-track-fill.fill-vol.vol-surge {
+  background: linear-gradient(90deg, rgba(244, 63, 94, 0.2), #f43f5e);
+}
+
+/* Volume Marker Pin */
+.range-pin.pin-vol {
+  z-index: 3;
+}
+
+.pin-marker-vol {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #fbbf24;
+  border: 2px solid #0f172a;
+  box-shadow: 0 0 6px rgba(251, 191, 36, 0.95);
+}
+
+.pin-vol.vol-low .pin-marker-vol {
+  background: #94a3b8;
+  box-shadow: 0 0 6px rgba(148, 163, 184, 0.95);
+}
+
+.pin-vol.vol-normal .pin-marker-vol {
+  background: #10b981;
+  box-shadow: 0 0 7px rgba(16, 185, 129, 0.95);
+}
+
+.pin-vol.vol-high .pin-marker-vol {
+  background: #818cf8;
+  box-shadow: 0 0 7px rgba(129, 140, 248, 0.95);
+}
+
+.pin-vol.vol-surge .pin-marker-vol {
+  background: #f43f5e;
+  box-shadow: 0 0 9px rgba(244, 63, 94, 0.95);
+}
+
+[data-theme="light"] .pin-marker-vol {
   border-color: #ffffff;
 }
 
