@@ -5,7 +5,6 @@ import { firebaseService } from './services/firebase.js';
 import { DashboardView } from './components/dashboardView.js';
 import { HoldingsView } from './components/holdingsView.js';
 import { AddHoldingView } from './components/addHoldingView.js';
-import { StockDetailView } from './components/stockDetailView.js';
 import { AnalysisView } from './components/analysisView.js';
 import { ProfileModal } from './components/profileModal.js';
 import { authService } from './services/authService.js';
@@ -22,7 +21,6 @@ class App {
     this.dashboardView = null;
     this.holdingsView = null;
     this.addHoldingView = null;
-    this.stockDetailView = null;
     this.analysisView = null;
     this.profileModal = null;
 
@@ -33,44 +31,38 @@ class App {
     const dashboardContainer = document.getElementById('view-dashboard');
     const holdingsContainer = document.getElementById('view-holdings');
     const addHoldingContainer = document.getElementById('view-add-holding');
-    const stockDetailContainer = document.getElementById('view-stock-detail');
     const analysisContainer = document.getElementById('view-analysis');
-
     // Instantiate Views
     this.dashboardView = new DashboardView(
       dashboardContainer,
       (prefillData) => this.navigateTo('add-holding', prefillData),
-      (symbol) => this.navigateTo('stock', { symbol }),
       () => this.navigateTo('holdings')
     );
 
     if (holdingsContainer) {
       this.holdingsView = new HoldingsView(
         holdingsContainer,
-        (prefillData) => this.navigateTo('add-holding', prefillData),
-        (symbol) => this.navigateTo('stock', { symbol })
+        (prefillData) => this.navigateTo('add-holding', prefillData)
       );
     }
 
     this.addHoldingView = new AddHoldingView(
       addHoldingContainer,
       () => this.navigateTo('dashboard'),
-      (symbol) => this.navigateTo('stock', { symbol }),
+      (symbol) => {
+        this.navigateTo('holdings');
+        if (symbol && this.holdingsView && this.holdingsView.averageModal) {
+          setTimeout(() => this.holdingsView.averageModal.open(symbol), 50);
+        }
+      },
       () => this.navigateTo('holdings')
     );
     window.app = this;
 
-    this.stockDetailView = new StockDetailView(
-      stockDetailContainer,
-      () => this.navigateTo('holdings'),
-      (prefillData) => this.navigateTo('add-holding', prefillData),
-      (symbol) => this.navigateTo('stock', { symbol })
-    );
-
     if (analysisContainer) {
       this.analysisView = new AnalysisView(
         analysisContainer,
-        (symbol) => this.navigateTo('stock', { symbol })
+        () => this.navigateTo('holdings')
       );
     }
 
@@ -90,8 +82,11 @@ class App {
   }
 
   navigateTo(viewName, data = null) {
-    if (viewName === 'stock' && data && data.symbol) {
-      window.location.hash = `#/stock/${data.symbol}`;
+    if (viewName === 'stock') {
+      window.location.hash = `#/holdings`;
+      if (data && data.symbol && this.holdingsView && this.holdingsView.averageModal) {
+        setTimeout(() => this.holdingsView.averageModal.open(data.symbol), 50);
+      }
     } else if (viewName === 'holdings') {
       window.location.hash = `#/holdings`;
     } else if (viewName === 'add-holding') {
@@ -110,7 +105,11 @@ class App {
     const hash = window.location.hash.replace('#/', '').trim();
     if (hash.startsWith('stock/')) {
       const symbol = hash.replace('stock/', '').trim();
-      this.switchView('stock-detail', symbol);
+      window.location.hash = `#/holdings`;
+      this.switchView('holdings');
+      if (symbol && this.holdingsView && this.holdingsView.averageModal) {
+        setTimeout(() => this.holdingsView.averageModal.open(symbol), 50);
+      }
     } else if (hash === 'holdings') {
       this.switchView('holdings');
     } else if (hash.startsWith('add-holding')) {
@@ -130,13 +129,11 @@ class App {
     const dashboardContainer = document.getElementById('view-dashboard');
     const holdingsContainer = document.getElementById('view-holdings');
     const addHoldingContainer = document.getElementById('view-add-holding');
-    const stockDetailContainer = document.getElementById('view-stock-detail');
     const analysisContainer = document.getElementById('view-analysis');
 
     if (dashboardContainer) dashboardContainer.classList.remove('active');
     if (holdingsContainer) holdingsContainer.classList.remove('active');
     if (addHoldingContainer) addHoldingContainer.classList.remove('active');
-    if (stockDetailContainer) stockDetailContainer.classList.remove('active');
     if (analysisContainer) analysisContainer.classList.remove('active');
 
     if (viewName === 'dashboard') {
@@ -146,13 +143,6 @@ class App {
         holdingsContainer.classList.add('active');
         if (this.holdingsView) {
           this.holdingsView.update();
-        }
-      }
-    } else if (viewName === 'stock-detail') {
-      if (stockDetailContainer) {
-        stockDetailContainer.classList.add('active');
-        if (param && this.stockDetailView) {
-          this.stockDetailView.setStock(param);
         }
       }
     } else if (viewName === 'analysis') {

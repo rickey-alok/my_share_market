@@ -1598,7 +1598,7 @@ body::after {
 }
 
 .holdings-table tr[data-symbol] {
-  cursor: pointer;
+  cursor: default;
   transition: background var(--transition-fast);
 }
 
@@ -1795,13 +1795,12 @@ body::after {
   gap: 0.85rem;
   box-shadow: var(--shadow-sm);
   transition: transform var(--transition-fast), border-color var(--transition-fast), box-shadow var(--transition-fast);
-  cursor: pointer;
+  cursor: default;
   position: relative;
   overflow: hidden;
 }
 
 .holding-mobile-card:hover {
-  transform: translateY(-2px);
   border-color: var(--border-active);
   box-shadow: var(--shadow-md);
 }
@@ -5851,14 +5850,13 @@ body::after {
   background: var(--bg-surface);
   border: 1px solid var(--border-subtle);
   border-radius: var(--radius-md);
-  cursor: pointer;
+  cursor: default;
   transition: all var(--transition-fast);
 }
 
 .highlight-stock-row:hover {
   background: var(--bg-surface-elevated);
   border-color: rgba(99, 102, 241, 0.35);
-  transform: translateX(3px);
 }
 
 [data-theme="light"] .highlight-stock-row {

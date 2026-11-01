@@ -8,10 +8,9 @@ import { icons } from '../utils/icons.js';
 import { AverageCalculatorModal } from './averageCalculatorModal.js';
 
 export class HoldingsView {
-  constructor(container, onNavigateToAddHolding, onNavigateToStockDetail) {
+  constructor(container, onNavigateToAddHolding) {
     this.container = container;
     this.onNavigateToAddHolding = onNavigateToAddHolding;
-    this.onNavigateToStockDetail = onNavigateToStockDetail;
     this.averageModal = new AverageCalculatorModal();
     this.searchTerm = '';
     this.selectedSector = 'ALL';
@@ -301,16 +300,7 @@ export class HoldingsView {
         return;
       }
 
-      // Click on Stock row or mobile card to view dedicated Stock Detail page
-      const row = e.target.closest('tr[data-symbol]');
-      const card = e.target.closest('.holding-mobile-card[data-symbol]');
-      const targetEl = row || card;
-      if (targetEl && !e.target.closest('button')) {
-        const symbol = targetEl.getAttribute('data-symbol');
-        if (symbol && this.onNavigateToStockDetail) {
-          this.onNavigateToStockDetail(symbol);
-        }
-      }
+      // Only buttons (like [data-action="buy-more"] for average modal) handle click actions
     });
   }
 

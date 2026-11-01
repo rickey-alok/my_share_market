@@ -694,8 +694,8 @@ export class AddHoldingView {
         const symbol = symInput ? symInput.value.toUpperCase().trim() : '';
         if (symbol && this.onNavigateToStockDetail) {
           this.onNavigateToStockDetail(symbol);
-        } else if (symbol) {
-          window.location.hash = `#/stock/${symbol}`;
+        } else {
+          window.location.hash = `#/holdings`;
         }
       });
     }

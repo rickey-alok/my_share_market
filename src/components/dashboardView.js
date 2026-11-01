@@ -6,10 +6,9 @@ import { icons } from '../utils/icons.js';
 import Chart from 'chart.js/auto';
 
 export class DashboardView {
-  constructor(containerElement, onNavigateToAddHolding, onNavigateToStockDetail, onNavigateToHoldings) {
+  constructor(containerElement, onNavigateToAddHolding, onNavigateToHoldings) {
     this.container = containerElement;
     this.onNavigateToAddHolding = onNavigateToAddHolding;
-    this.onNavigateToStockDetail = onNavigateToStockDetail;
     this.onNavigateToHoldings = onNavigateToHoldings;
     this.chartInstance = null;
 
@@ -202,16 +201,6 @@ export class DashboardView {
         // Add first stock button
         if (e.target.closest('#btn-dashboard-add-first')) {
           if (this.onNavigateToAddHolding) this.onNavigateToAddHolding();
-          return;
-        }
-
-        // Click on a stock item row to view stock details
-        const stockRow = e.target.closest('[data-symbol]');
-        if (stockRow && !e.target.closest('button')) {
-          const sym = stockRow.getAttribute('data-symbol');
-          if (sym && this.onNavigateToStockDetail) {
-            this.onNavigateToStockDetail(sym);
-          }
         }
       });
     }
@@ -513,7 +502,7 @@ export class DashboardView {
               Top Performing Asset
             </div>
             ${topGainer ? `
-              <div style="display: flex; justify-content: space-between; align-items: center; cursor: pointer;" data-symbol="${topGainer.symbol}">
+              <div style="display: flex; justify-content: space-between; align-items: center;">
                 <div>
                   <div style="font-weight: 700; font-size: 1.05rem; display: flex; align-items: center; gap: 0.4rem;">
                     ${topGainer.symbol}
@@ -541,7 +530,7 @@ export class DashboardView {
               Largest Drag / Drawdown
             </div>
             ${topLoser ? `
-              <div style="display: flex; justify-content: space-between; align-items: center; cursor: pointer;" data-symbol="${topLoser.symbol}">
+              <div style="display: flex; justify-content: space-between; align-items: center;">
                 <div>
                   <div style="font-weight: 700; font-size: 1.05rem; display: flex; align-items: center; gap: 0.4rem;">
                     ${topLoser.symbol}
@@ -582,7 +571,7 @@ export class DashboardView {
           ${topHoldings.map(h => {
             const isProfit = h.pnl >= 0;
             return `
-              <div class="highlight-stock-row" data-symbol="${h.symbol}" title="Click to view details for ${h.symbol}">
+              <div class="highlight-stock-row">
                 <div style="display: flex; align-items: center; gap: 0.75rem;">
                   <div class="stock-symbol-chip">${h.symbol.substring(0, 3)}</div>
                   <div>
