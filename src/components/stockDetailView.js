@@ -291,8 +291,8 @@ export class StockDetailView {
         <!-- Stock Slide Navigator (Holdings Carousel / Swipe Switcher) -->
         ${this.renderSlideNavigatorHtml(enrichedHolding)}
 
-        <!-- Stock Hero Banner (with desktop floating slide chevrons) -->
-        <div class="stock-hero-card" id="stock-hero-card">
+        <!-- Compact Stock Overview Card (Zerodha Kite Style) -->
+        <div class="stock-compact-card ${isProfit ? 'profit-accent' : 'loss-accent'}" id="stock-hero-card">
           ${total > 1 ? `
             <button type="button" class="hero-float-nav prev" id="hero-nav-prev" title="Previous holding (${prevHolding ? prevHolding.symbol : ''})">
               ${icons.chevronLeft}
@@ -301,98 +301,61 @@ export class StockDetailView {
               ${icons.chevronRight}
             </button>
           ` : ''}
-          <div class="stock-hero-left">
-            <div class="stock-hero-identity">
-              <div class="stock-symbol-chip large">${enrichedHolding.symbol.substring(0, 3)}</div>
-              <div>
-                <div class="stock-hero-title">
-                  <h2>${enrichedHolding.name}</h2>
-                  <span class="stock-hero-badge">${enrichedHolding.symbol}</span>
-                  <span class="exchange-tag">${enrichedHolding.exchange || 'NSE'}</span>
-                </div>
-                <div class="stock-hero-meta">
-                  <span class="sector-tag">${enrichedHolding.sector || 'Equity'}</span>
-                  <span class="meta-dot">•</span>
-                  <span class="meta-date">Since: ${enrichedHolding.buyDate || 'Active'}</span>
-                </div>
-              </div>
-            </div>
-          </div>
 
-          <div class="stock-hero-right">
-            <div class="hero-price-label" style="display: flex; align-items: center; justify-content: flex-end; gap: 0.5rem;">
-              <span>Current Market Price (CMP)</span>
-              <button type="button" id="btn-edit-cmp" class="btn-chip-demo" style="padding: 0.15rem 0.5rem; font-size: 0.72rem; cursor: pointer;" title="Edit or update Current Market Price">
-                ${icons.edit || '✎'} Edit Price
+          <!-- Row 1: Qty & Avg on Left | LTP & Day Change on Right -->
+          <div class="compact-stock-row compact-row-top">
+            <div class="compact-metric-group left">
+              <span class="compact-metric-label">Qty</span>
+              <span class="compact-metric-val mono" id="kpi-shares-held">${enrichedHolding.quantity.toLocaleString()}</span>
+              <span class="compact-metric-sep">|</span>
+              <span class="compact-metric-label">Avg</span>
+              <span class="compact-metric-val mono" id="kpi-avg-price">${portfolioStore.formatMoney(enrichedHolding.avgPrice)}</span>
+            </div>
+            <div class="compact-metric-group right">
+              <span class="compact-metric-label">LTP</span>
+              <span class="compact-metric-val mono ltp-val" id="hero-cmp-val">${portfolioStore.formatMoney(enrichedHolding.cmp)}</span>
+              <span id="hero-day-change" class="compact-day-chg ${isDayProfit ? 'bull' : 'bear'}">
+                <span class="chg-arrow">${isDayProfit ? '▲' : '▼'}</span>
+                <span id="hero-day-change-text">${isDayProfit ? '+' : ''}${portfolioStore.formatMoney(enrichedHolding.dayPnL || 0)} (${isDayProfit ? '+' : ''}${(enrichedHolding.dayChangePercent || 0).toFixed(2)}%)</span>
+              </span>
+              <button type="button" id="btn-edit-cmp" class="btn-compact-edit-cmp" title="Edit Current Market Price (CMP)">
+                ${icons.edit || '✎'}
               </button>
             </div>
-            <div class="hero-cmp-row">
-              <span id="hero-cmp-val" class="hero-cmp-val">${portfolioStore.formatMoney(enrichedHolding.cmp)}</span>
-            </div>
-            <div id="hero-day-change" class="hero-day-change ${isDayProfit ? 'bull' : 'bear'}">
-              ${isDayProfit ? icons.trendingUp : icons.trendingDown}
-              <span id="hero-day-change-text">
-                ${isDayProfit ? '+' : ''}${portfolioStore.formatMoney(enrichedHolding.dayPnL || 0)}
-                (${isDayProfit ? '+' : ''}${(enrichedHolding.dayChangePercent || 0).toFixed(2)}%) Today
-              </span>
-            </div>
-          </div>
-        </div>
-
-        <!-- 4 Key Financial Metric Cards -->
-        <div class="detail-kpi-grid">
-          <div class="kpi-card accent-portfolio">
-            <div class="kpi-header">
-              <span class="kpi-title">Total Shares Held</span>
-              <span class="kpi-icon-pill" id="kpi-weight-badge">${enrichedHolding.weight ? enrichedHolding.weight.toFixed(1) + '% Weight' : ''}</span>
-            </div>
-            <div class="kpi-value" id="kpi-shares-held">
-              ${enrichedHolding.quantity.toLocaleString()} <span style="font-size: 0.9rem; color: var(--text-secondary); font-weight: 500;">shares</span>
-            </div>
-            <div class="kpi-footer">
-              <span class="kpi-subtext">Portfolio allocation</span>
-            </div>
           </div>
 
-          <div class="kpi-card accent-invested">
-            <div class="kpi-header">
-              <span class="kpi-title">Average Buy Price</span>
+          <!-- Row 2: Stock Symbol & Company on Left | Total P/L on Right -->
+          <div class="compact-stock-row compact-row-mid">
+            <div class="compact-identity-group">
+              <div class="compact-symbol-line">
+                <h2 class="compact-symbol-text">${enrichedHolding.symbol}</h2>
+                <span class="compact-exchange-pill">${enrichedHolding.exchange || 'NSE'}</span>
+                ${enrichedHolding.weight ? `
+                  <span class="compact-weight-pill" id="kpi-weight-badge">${enrichedHolding.weight.toFixed(1)}% Weight</span>
+                ` : ''}
+              </div>
+              ${enrichedHolding.name && enrichedHolding.name !== enrichedHolding.symbol ? `
+                <div class="compact-company-subtext">${enrichedHolding.name}</div>
+              ` : ''}
             </div>
-            <div class="kpi-value" id="kpi-avg-price">${portfolioStore.formatMoney(enrichedHolding.avgPrice)}</div>
-            <div class="kpi-footer">
-              <span class="kpi-subtext">Weighted cost per share</span>
-            </div>
-          </div>
-
-          <div class="kpi-card">
-            <div class="kpi-header">
-              <span class="kpi-title">Current vs Invested Value</span>
-            </div>
-            <div class="kpi-value" id="kpi-current-val" style="font-size: 1.45rem;">
-              ${portfolioStore.formatMoney(enrichedHolding.current || (enrichedHolding.quantity * enrichedHolding.cmp))}
-            </div>
-            <div class="kpi-footer">
-              <span class="kpi-subtext" id="kpi-invested-sub">
-                Invested: ${portfolioStore.formatMoney(enrichedHolding.invested || (enrichedHolding.quantity * enrichedHolding.avgPrice))}
-              </span>
-            </div>
-          </div>
-
-          <div class="kpi-card accent-pnl ${isProfit ? 'bull' : 'bear'}" id="kpi-pnl-card">
-            <div class="kpi-header">
-              <span class="kpi-title">Total Unrealized P&L</span>
-              <div class="kpi-icon-pill" id="kpi-pnl-icon" style="color: ${isProfit ? 'var(--bull-green)' : 'var(--bear-red)'};">
-                ${isProfit ? icons.trendingUp : icons.trendingDown}
+            <div class="compact-pnl-group">
+              <span class="compact-pnl-label">P/L</span>
+              <div class="compact-pnl-value mono ${isProfit ? 'bull' : 'bear'}" id="kpi-pnl-val">
+                ${isProfit ? '+' : ''}${portfolioStore.formatMoney(enrichedHolding.pnl || 0)}
+                <span class="compact-pnl-pct" id="kpi-pnl-badge">(${isProfit ? '+' : ''}${(enrichedHolding.pnlPercent || 0).toFixed(2)}%)</span>
               </div>
             </div>
-            <div class="kpi-value" id="kpi-pnl-val" style="color: ${isProfit ? 'var(--bull-green)' : 'var(--bear-red)'};">
-              ${isProfit ? '+' : ''}${portfolioStore.formatMoney(enrichedHolding.pnl || 0)}
+          </div>
+
+          <!-- Row 3: Invested on Left | Current on Right -->
+          <div class="compact-stock-row compact-row-bot">
+            <div class="compact-metric-group left">
+              <span class="compact-metric-label">Invested</span>
+              <span class="compact-metric-val mono secondary" id="kpi-invested-sub">${portfolioStore.formatMoney(enrichedHolding.invested || (enrichedHolding.quantity * enrichedHolding.avgPrice))}</span>
             </div>
-            <div class="kpi-footer">
-              <span class="return-badge ${isProfit ? 'bull' : 'bear'}" id="kpi-pnl-badge">
-                ${isProfit ? '+' : ''}${(enrichedHolding.pnlPercent || 0).toFixed(2)}%
-              </span>
-              <span class="kpi-subtext">overall position return</span>
+            <div class="compact-metric-group right">
+              <span class="compact-metric-label">Current</span>
+              <span class="compact-metric-val mono highlight" id="kpi-current-val">${portfolioStore.formatMoney(enrichedHolding.current || (enrichedHolding.quantity * enrichedHolding.cmp))}</span>
             </div>
           </div>
         </div>
@@ -822,10 +785,22 @@ export class StockDetailView {
 
       const curVal = parseInt(inputQty.value, 10);
       pillsContainer.innerHTML = `
-        <button type="button" class="quick-pill sell ${curVal === q25 ? 'active' : ''}" data-qty="${q25}" title="Sell 25% (${q25} shares)">25%</button>
-        <button type="button" class="quick-pill sell ${curVal === q50 ? 'active' : ''}" data-qty="${q50}" title="Sell 50% (${q50} shares)">50%</button>
-        <button type="button" class="quick-pill sell ${curVal === q75 ? 'active' : ''}" data-qty="${q75}" title="Sell 75% (${q75} shares)">75%</button>
-        <button type="button" class="quick-pill sell ${curVal === q100 ? 'active' : ''}" data-qty="${q100}" title="Sell 100% (All ${q100} shares)">100% (All)</button>
+        <button type="button" class="quick-pill sell ${curVal === q25 ? 'active' : ''}" data-qty="${q25}" title="Sell 25% (${q25} shares)">
+          <span>25%</span>
+          <span class="pill-sub">(${q25.toLocaleString()})</span>
+        </button>
+        <button type="button" class="quick-pill sell ${curVal === q50 ? 'active' : ''}" data-qty="${q50}" title="Sell 50% (${q50} shares)">
+          <span>50%</span>
+          <span class="pill-sub">(${q50.toLocaleString()})</span>
+        </button>
+        <button type="button" class="quick-pill sell ${curVal === q75 ? 'active' : ''}" data-qty="${q75}" title="Sell 75% (${q75} shares)">
+          <span>75%</span>
+          <span class="pill-sub">(${q75.toLocaleString()})</span>
+        </button>
+        <button type="button" class="quick-pill sell ${curVal === q100 ? 'active' : ''}" data-qty="${q100}" title="Sell 100% (All ${q100} shares)">
+          <span>100%</span>
+          <span class="pill-sub">(All ${q100.toLocaleString()})</span>
+        </button>
       `;
     }
 
@@ -1056,8 +1031,10 @@ export class StockDetailView {
     const isDayProfit = dayPnL >= 0;
 
     if (elDayChg && elDayChgText) {
-      elDayChg.className = `hero-day-change ${isDayProfit ? 'bull' : 'bear'}`;
-      elDayChgText.textContent = `${isDayProfit ? '+' : ''}${portfolioStore.formatMoney(dayPnL)} (${isDayProfit ? '+' : ''}${dayChangePercent.toFixed(2)}%) Today`;
+      elDayChg.className = `compact-day-chg ${isDayProfit ? 'bull' : 'bear'}`;
+      const arrow = elDayChg.querySelector('.chg-arrow');
+      if (arrow) arrow.textContent = isDayProfit ? '▲' : '▼';
+      elDayChgText.textContent = `${isDayProfit ? '+' : ''}${portfolioStore.formatMoney(dayPnL)} (${isDayProfit ? '+' : ''}${dayChangePercent.toFixed(2)}%)`;
     }
 
     // Update current value & unrealized P&L
@@ -1076,30 +1053,26 @@ export class StockDetailView {
     const elAvg = this.container.querySelector('#kpi-avg-price');
     const elCur = this.container.querySelector('#kpi-current-val');
     const elInvSub = this.container.querySelector('#kpi-invested-sub');
-    const elPnlCard = this.container.querySelector('#kpi-pnl-card');
-    const elPnlIcon = this.container.querySelector('#kpi-pnl-icon');
+    const elHeroCard = this.container.querySelector('#stock-hero-card');
     const elPnlVal = this.container.querySelector('#kpi-pnl-val');
     const elPnlBadge = this.container.querySelector('#kpi-pnl-badge');
 
-    if (elShares) elShares.innerHTML = `${holding.quantity.toLocaleString()} <span style="font-size: 0.9rem; color: var(--text-secondary); font-weight: 500;">shares</span>`;
+    if (elShares) elShares.textContent = holding.quantity.toLocaleString();
     if (elWeight) elWeight.textContent = `${(holding.weight || 0).toFixed(1)}% Weight`;
     if (elAvg) elAvg.textContent = portfolioStore.formatMoney(holding.avgPrice);
     if (elCur) elCur.textContent = portfolioStore.formatMoney(holding.current);
-    if (elInvSub) elInvSub.textContent = `Invested: ${portfolioStore.formatMoney(holding.invested)}`;
+    if (elInvSub) elInvSub.textContent = portfolioStore.formatMoney(holding.invested);
 
     const isProfit = (holding.pnl || 0) >= 0;
-    if (elPnlCard) elPnlCard.className = `kpi-card accent-pnl ${isProfit ? 'bull' : 'bear'}`;
-    if (elPnlIcon) {
-      elPnlIcon.innerHTML = isProfit ? icons.trendingUp : icons.trendingDown;
-      elPnlIcon.style.color = isProfit ? 'var(--bull-green)' : 'var(--bear-red)';
+    if (elHeroCard) {
+      elHeroCard.classList.remove('profit-accent', 'loss-accent');
+      elHeroCard.classList.add(isProfit ? 'profit-accent' : 'loss-accent');
     }
     if (elPnlVal) {
-      elPnlVal.textContent = `${isProfit ? '+' : ''}${portfolioStore.formatMoney(holding.pnl || 0)}`;
-      elPnlVal.style.color = isProfit ? 'var(--bull-green)' : 'var(--bear-red)';
-    }
-    if (elPnlBadge) {
-      elPnlBadge.className = `return-badge ${isProfit ? 'bull' : 'bear'}`;
-      elPnlBadge.textContent = `${isProfit ? '+' : ''}${(holding.pnlPercent || 0).toFixed(2)}%`;
+      elPnlVal.className = `compact-pnl-value mono ${isProfit ? 'bull' : 'bear'}`;
+      elPnlVal.innerHTML = `${isProfit ? '+' : ''}${portfolioStore.formatMoney(holding.pnl || 0)} <span class="compact-pnl-pct" id="kpi-pnl-badge">(${isProfit ? '+' : ''}${(holding.pnlPercent || 0).toFixed(2)}%)</span>`;
+    } else if (elPnlBadge) {
+      elPnlBadge.textContent = `(${isProfit ? '+' : ''}${(holding.pnlPercent || 0).toFixed(2)}%)`;
     }
   }
 

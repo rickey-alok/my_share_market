@@ -5,12 +5,14 @@ import { liveMarketService } from '../services/liveMarketService.js';
 import { SECTORS, calculateStockRSI, calculateStockVolumeMetrics } from '../data/stocksDatabase.js';
 
 import { icons } from '../utils/icons.js';
+import { AverageCalculatorModal } from './averageCalculatorModal.js';
 
 export class HoldingsView {
   constructor(container, onNavigateToAddHolding, onNavigateToStockDetail) {
     this.container = container;
     this.onNavigateToAddHolding = onNavigateToAddHolding;
     this.onNavigateToStockDetail = onNavigateToStockDetail;
+    this.averageModal = new AverageCalculatorModal();
     this.searchTerm = '';
     this.selectedSector = 'ALL';
     this.sortBy = 'value-desc';
@@ -61,7 +63,7 @@ export class HoldingsView {
       <!-- Holdings Container -->
       <div class="holdings-container">
         <div class="holdings-toolbar">
-          <!-- Row 1: Large Search Input + Clear All Button -->
+          <!-- Row 1: Large Search Input + Delete All Button -->
           <div class="holdings-toolbar-row holdings-toolbar-primary">
             <div class="search-input-box">
               ${icons.search}
@@ -69,7 +71,7 @@ export class HoldingsView {
             </div>
             <button id="btn-holdings-clear-all" class="btn btn-outline btn-clear-all" title="Delete all shares from portfolio and database">
               ${icons.trash2}
-              <span>Clear All</span>
+              <span>Delete All</span>
             </button>
           </div>
 
@@ -220,7 +222,7 @@ export class HoldingsView {
       });
     }
 
-    // Clear All Holdings Button
+    // Delete All Holdings Button
     const btnClearAll = this.container.querySelector('#btn-holdings-clear-all');
     if (btnClearAll) {
       btnClearAll.addEventListener('click', async () => {
@@ -239,7 +241,7 @@ export class HoldingsView {
         if (!confirmed) return;
 
         btnClearAll.disabled = true;
-        btnClearAll.textContent = 'Clearing...';
+        btnClearAll.textContent = 'Deleting...';
 
         try {
           if (typeof portfolioStore.clearAllHoldings === 'function') {
@@ -249,13 +251,13 @@ export class HoldingsView {
           } else {
             throw new Error('Clear holdings method is not available in portfolio store.');
           }
-          this.showToast('All holdings, transaction history, and orders cleared successfully.', 'info');
+          this.showToast('All holdings, transaction history, and orders deleted successfully.', 'info');
         } catch (err) {
-          console.error('Error clearing holdings:', err);
-          alert('Failed to clear holdings: ' + err.message);
+          console.error('Error deleting holdings:', err);
+          alert('Failed to delete holdings: ' + err.message);
         } finally {
           btnClearAll.disabled = false;
-          btnClearAll.innerHTML = `${icons.trash2} <span>Clear All</span>`;
+          btnClearAll.innerHTML = `${icons.trash2} <span>Delete All</span>`;
         }
       });
     }
@@ -289,12 +291,12 @@ export class HoldingsView {
         return;
       }
 
-      // Buy more / Average Price Calculator for this stock
+      // Buy more / Average Price Calculator for this stock -> Open in-screen pop-up modal
       const buyMoreBtn = e.target.closest('[data-action="buy-more"]');
       if (buyMoreBtn) {
         const symbol = buyMoreBtn.getAttribute('data-symbol');
-        if (symbol && this.onNavigateToStockDetail) {
-          this.onNavigateToStockDetail(symbol);
+        if (symbol) {
+          this.averageModal.open(symbol);
         }
         return;
       }

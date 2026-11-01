@@ -283,15 +283,9 @@ export class DashboardView {
         <div class="kpi-dual-col">
           <div class="kpi-mini-header">
             <span class="kpi-mini-title">${icons.sparkles} Current Value</span>
-            <span class="kpi-live-indicator"><span class="kpi-live-dot"></span>Live</span>
           </div>
           <div class="kpi-mini-value">${portfolioStore.formatMoney(metrics.totalCurrentValue)}</div>
-          <div class="kpi-mini-footer">
-            <span class="return-badge-sm ${isTotalProfit ? 'bull' : 'bear'}">
-              ${isTotalProfit ? icons.arrowUpRight : icons.arrowDownRight}
-              ${isTotalProfit ? '+' : ''}${metrics.totalPnLPercent.toFixed(2)}% net
-            </span>
-          </div>
+          <div class="kpi-mini-footer"></div>
         </div>
       </div>
 
