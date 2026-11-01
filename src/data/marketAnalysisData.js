@@ -424,11 +424,11 @@ export const INDICES_DATA = {
     labels: ['1 Oct', '5 Oct', '10 Oct', '15 Oct', '20 Oct', '25 Oct', 'Current'],
     nifty: {
       name: 'NIFTY 50',
-      current: 25124.60,
-      points: [24410.50, 24580.20, 24720.80, 24910.40, 24850.10, 25040.30, 25124.60],
-      low: 24350.00,
-      high: 25290.00,
-      changePct: 2.92
+      current: 24205.35,
+      points: [26310.00, 25680.00, 24990.00, 25120.00, 24850.00, 24180.00, 24205.35],
+      low: 24140.00,
+      high: 26310.00,
+      changePct: -8.00
     },
     sensex: {
       name: 'SENSEX',
