@@ -483,6 +483,7 @@ export class DashboardView {
     const isTopTab = this.performanceTab !== 'bottom';
     const activeList = isTopTab ? top5Gainers : bottom5Losers;
     const activeTotalInvested = activeList.reduce((sum, h) => sum + (h.invested || 0), 0);
+    const activeTotalCurrent = activeList.reduce((sum, h) => sum + (h.current || 0), 0);
 
     // Top 4 largest holdings by current value
     const topHoldings = [...metrics.holdings]
@@ -508,11 +509,17 @@ export class DashboardView {
           </div>
         </div>
 
-        <!-- Total Invested Summary for Selected Group -->
+        <!-- Total Invested & Current Value Summary for Selected Group -->
         ${activeList.length > 0 ? `
-          <div style="display: flex; justify-content: space-between; align-items: center; padding: 0.45rem 0.8rem; background: rgba(255, 255, 255, 0.03); border: 1px solid var(--border-subtle); border-radius: var(--radius-sm); font-size: 0.76rem; color: var(--text-secondary); margin-top: 0.65rem;">
-            <span>Total Invested in ${isTopTab ? 'Top 5' : 'Bottom 5'}:</span>
-            <strong style="font-family: var(--font-mono); color: var(--text-primary); font-size: 0.84rem;">${portfolioStore.formatMoney(activeTotalInvested)}</strong>
+          <div style="display: flex; justify-content: space-between; align-items: center; padding: 0.5rem 0.8rem; background: rgba(255, 255, 255, 0.03); border: 1px solid var(--border-subtle); border-radius: var(--radius-sm); font-size: 0.76rem; color: var(--text-secondary); margin-top: 0.65rem; gap: 0.5rem; flex-wrap: wrap;">
+            <div>
+              <span>Invested (${isTopTab ? 'Top 5' : 'Bottom 5'}): </span>
+              <strong style="font-family: var(--font-mono); color: var(--text-primary); font-size: 0.82rem;">${portfolioStore.formatMoney(activeTotalInvested)}</strong>
+            </div>
+            <div>
+              <span>Current Value: </span>
+              <strong style="font-family: var(--font-mono); color: var(--text-primary); font-size: 0.82rem;">${portfolioStore.formatMoney(activeTotalCurrent)}</strong>
+            </div>
           </div>
         ` : ''}
 
@@ -537,11 +544,11 @@ export class DashboardView {
                   <div style="font-weight: 700; font-family: var(--font-mono); font-size: 0.95rem; color: ${isProfit ? 'var(--bull-green)' : 'var(--bear-red)'};">
                     ${isProfit ? '+' : ''}${h.pnlPercent.toFixed(2)}%
                   </div>
-                  <div style="font-size: 0.76rem; font-family: var(--font-mono); color: var(--text-primary); margin-top: 0.12rem;">
-                    <span style="color: var(--text-secondary); font-size: 0.7rem;">Inv:</span> <strong>${portfolioStore.formatMoney(h.invested)}</strong>
+                  <div style="font-size: 0.74rem; font-family: var(--font-mono); color: var(--text-secondary); margin-top: 0.12rem;">
+                    <span style="color: var(--text-muted); font-size: 0.68rem;">Inv:</span> <span>${portfolioStore.formatMoney(h.invested)}</span>
                   </div>
-                  <div style="font-size: 0.72rem; font-family: var(--font-mono); color: var(--text-muted); margin-top: 0.08rem;">
-                    CMP: ${portfolioStore.formatMoney(h.cmp)}
+                  <div style="font-size: 0.76rem; font-family: var(--font-mono); color: var(--text-primary); margin-top: 0.06rem;">
+                    <span style="color: var(--text-muted); font-size: 0.68rem;">Current:</span> <strong>${portfolioStore.formatMoney(h.current)}</strong>
                   </div>
                 </div>
               </div>
