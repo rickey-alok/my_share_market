@@ -92,6 +92,15 @@ export function normalizeRow(row, metadata = {}) {
     symbol = symbol.slice(0, -3).trim();
   }
 
+  // Canonicalize common Indian ticker transitions & aliases
+  if (symbol === 'ZOMATO') {
+    symbol = 'ETERNAL';
+  } else if (symbol === 'TMCV' || symbol === 'TMPV') {
+    symbol = 'TATAMOTORS';
+  } else if (symbol === 'MM') {
+    symbol = 'M&M';
+  }
+
   // 1. Support multi-part quantities (Zerodha Kite statement format: Quantity Available + Pledged + Discrepant)
   const rawAvailQty = getVal(['quantityavailable', 'availableqty', 'availablequantity']);
   const rawPledgedMargin = getVal(['quantitypledgedmargin', 'pledgedmarginqty', 'pledgedmargin']);
@@ -475,9 +484,38 @@ export async function parseImportFile(file) {
     validItems.push(item);
   });
 
-  const totalInvested = validItems.reduce((sum, item) => sum + (item.quantity * item.buyPrice), 0);
-  const totalShares = validItems.reduce((sum, item) => sum + item.quantity, 0);
-  const totalPresentValue = validItems.reduce((sum, item) => sum + (item.quantity * item.cmp), 0);
+  // Reconcile intra-file duplicate rows (e.g., Zerodha multiple pledged/avail lots or split trade entries)
+  const finalValidItems = [];
+  const symbolMap = new Map();
+
+  validItems.forEach(item => {
+    const key = (item.symbol || '').toUpperCase().trim();
+    if (!symbolMap.has(key)) {
+      const copy = { ...item };
+      symbolMap.set(key, copy);
+      finalValidItems.push(copy);
+    } else {
+      const existing = symbolMap.get(key);
+      const sameQty = Math.abs(existing.quantity - item.quantity) < 0.001;
+      const maxP = Math.max(existing.buyPrice, item.buyPrice, 1);
+      const priceDiffPct = Math.abs(existing.buyPrice - item.buyPrice) / maxP;
+
+      if (sameQty && priceDiffPct < 0.08) {
+        // True identical row duplicate (e.g. gross vs net price): keep the higher fidelity/all-in price
+        existing.buyPrice = Math.max(existing.buyPrice, item.buyPrice);
+      } else {
+        // Separate lots: compute weighted average acquisition cost
+        const totalQty = existing.quantity + item.quantity;
+        const weightedPrice = totalQty > 0 ? ((existing.quantity * existing.buyPrice) + (item.quantity * item.buyPrice)) / totalQty : existing.buyPrice;
+        existing.quantity = totalQty;
+        existing.buyPrice = parseFloat(weightedPrice.toFixed(2));
+      }
+    }
+  });
+
+  const totalInvested = finalValidItems.reduce((sum, item) => sum + (item.quantity * item.buyPrice), 0);
+  const totalShares = finalValidItems.reduce((sum, item) => sum + item.quantity, 0);
+  const totalPresentValue = finalValidItems.reduce((sum, item) => sum + (item.quantity * item.cmp), 0);
   const unrealizedPnL = totalPresentValue - totalInvested;
   const unrealizedPnLPct = totalInvested > 0 ? ((unrealizedPnL / totalInvested) * 100) : 0;
 
@@ -490,7 +528,7 @@ export async function parseImportFile(file) {
     clientId: fileMetadata.clientId || '',
     statementDate: fileMetadata.statementDate || '',
     totalRows: rawRows.length,
-    validItems,
+    validItems: finalValidItems,
     invalidRows,
     totalInvested,
     totalShares,

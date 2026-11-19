@@ -398,19 +398,30 @@ class PortfolioStore {
       if (this.activeSyncedUserId !== effectiveUid) return;
 
       if (Array.isArray(cloudHoldings)) {
-        if (cloudHoldings.length > 0) {
+        const { uniqueHoldings, duplicatesToRemove } = this.reconcileAndDeduplicateHoldings(cloudHoldings);
+
+        // Asynchronously purge duplicate documents from Firestore so they never re-appear
+        if (duplicatesToRemove.length > 0 && !this.isInspectingOtherUser) {
+          duplicatesToRemove.forEach(dup => {
+            if (dup.id) {
+              firebaseService.removeUserHolding(effectiveUid, dup.id, dup.symbol).catch(() => {});
+            }
+          });
+        }
+
+        if (uniqueHoldings.length > 0) {
           let priceUpdated = false;
-          const calibrated = cloudHoldings.map(h => {
-            const sym = (h.symbol || '').toUpperCase().trim();
+          const calibrated = uniqueHoldings.map(h => {
+            const sym = this.canonicalizeSymbol(h.symbol);
             const ref = POPULAR_STOCKS.find(s => s.symbol.toUpperCase() === sym);
             if (ref && ref.cmp) {
               // Only calibrate wildly obsolete prices
               if (Math.abs(h.cmp - ref.cmp) / ref.cmp > 0.35) {
                 priceUpdated = true;
-                return { ...h, cmp: ref.cmp, prevClose: ref.prevClose || h.prevClose };
+                return { ...h, symbol: sym, cmp: ref.cmp, prevClose: ref.prevClose || h.prevClose };
               }
             }
-            return h;
+            return { ...h, symbol: sym };
           });
 
           this.holdings = calibrated;
@@ -520,7 +531,13 @@ class PortfolioStore {
       const data = localStorage.getItem(this.getUserHoldingsKey(uid));
       if (data !== null) {
         const parsed = JSON.parse(data);
-        if (Array.isArray(parsed)) return parsed;
+        if (Array.isArray(parsed)) {
+          const { uniqueHoldings, duplicatesToRemove } = this.reconcileAndDeduplicateHoldings(parsed);
+          if (duplicatesToRemove.length > 0) {
+            this.saveUserHoldings(uid, uniqueHoldings);
+          }
+          return uniqueHoldings;
+        }
       }
     } catch (e) {
       console.error('Failed to load user holdings from localStorage', e);
@@ -565,7 +582,13 @@ class PortfolioStore {
       const data = localStorage.getItem(STORAGE_KEY_GUEST_HOLDINGS);
       if (data !== null) {
         const parsed = JSON.parse(data);
-        if (Array.isArray(parsed)) return parsed;
+        if (Array.isArray(parsed)) {
+          const { uniqueHoldings, duplicatesToRemove } = this.reconcileAndDeduplicateHoldings(parsed);
+          if (duplicatesToRemove.length > 0) {
+            this.saveGuestHoldings(uniqueHoldings);
+          }
+          return uniqueHoldings;
+        }
       }
     } catch (e) {
       console.error('Failed to load guest holdings from localStorage', e);
@@ -940,9 +963,22 @@ class PortfolioStore {
 
     // Synchronize active holdings with the latest real market prices
   syncWithMarketDatabase() {
+    const { uniqueHoldings, duplicatesToRemove } = this.reconcileAndDeduplicateHoldings(this.holdings);
+    this.holdings = uniqueHoldings;
+
+    if (duplicatesToRemove.length > 0) {
+      this.saveHoldings(this.holdings);
+      const uid = this.getActiveUserId();
+      if (uid && uid !== 'usr_local_guest' && !this.isInspectingOtherUser && firebaseService.isConfigured) {
+        duplicatesToRemove.forEach(dup => {
+          if (dup.id) firebaseService.removeUserHolding(uid, dup.id, dup.symbol).catch(() => {});
+        });
+      }
+    }
+
     let changed = false;
     this.holdings = this.holdings.map(h => {
-      const sym = (h.symbol || '').toUpperCase().trim();
+      const sym = this.canonicalizeSymbol(h.symbol);
       const ref = POPULAR_STOCKS.find(s => s.symbol.toUpperCase() === sym);
       if (ref && ref.cmp) {
         const isRangeInvalid = !h.dayHigh || !h.dayLow || !h.week52High || !h.week52Low ||
@@ -1121,15 +1157,98 @@ class PortfolioStore {
     });
   }
 
+  canonicalizeSymbol(raw) {
+    if (!raw) return '';
+    let sym = String(raw).toUpperCase().trim();
+    if (sym.endsWith('.NS') || sym.endsWith('.BO')) {
+      sym = sym.slice(0, -3).trim();
+    } else if (sym.endsWith('-EQ') || sym.endsWith('-BE') || sym.endsWith('-BL') || sym.endsWith('-BZ')) {
+      sym = sym.slice(0, -3).trim();
+    }
+    if (sym === 'ZOMATO') return 'ETERNAL';
+    if (sym === 'TMCV' || sym === 'TMPV') return 'TATAMOTORS';
+    if (sym === 'MM') return 'M&M';
+    return sym;
+  }
+
+  reconcileAndDeduplicateHoldings(rawHoldings = []) {
+    if (!Array.isArray(rawHoldings) || rawHoldings.length === 0) {
+      return { uniqueHoldings: [], duplicatesToRemove: [] };
+    }
+
+    const map = new Map();
+    const duplicatesToRemove = [];
+
+    for (const raw of rawHoldings) {
+      if (!raw || !raw.symbol) continue;
+      const cleanSym = this.canonicalizeSymbol(raw.symbol);
+      const isin = (raw.isin || '').toUpperCase().trim();
+      const lookupKey = cleanSym || isin;
+      if (!lookupKey) continue;
+
+      if (!map.has(lookupKey)) {
+        map.set(lookupKey, {
+          ...raw,
+          symbol: cleanSym,
+          isin: isin || raw.isin || ''
+        });
+      } else {
+        const existing = map.get(lookupKey);
+        duplicatesToRemove.push(raw);
+
+        const qty1 = parseFloat(existing.quantity) || 0;
+        const qty2 = parseFloat(raw.quantity) || 0;
+        const price1 = parseFloat(existing.avgPrice) || 0;
+        const price2 = parseFloat(raw.avgPrice) || 0;
+
+        // Check if this is an identical duplicate (same quantity and very close price within 8%)
+        const sameQty = Math.abs(qty1 - qty2) < 0.001;
+        const maxPrice = Math.max(price1, price2, 1);
+        const priceDiffPct = Math.abs(price1 - price2) / maxPrice;
+
+        if (sameQty && priceDiffPct < 0.08) {
+          // Identical duplicate import: keep single position with all-in buy price
+          existing.avgPrice = Math.max(price1, price2);
+          existing.cmp = existing.cmp || raw.cmp;
+          existing.prevClose = existing.prevClose || raw.prevClose;
+          existing.dayHigh = Math.max(existing.dayHigh || 0, raw.dayHigh || 0);
+          existing.dayLow = Math.min(existing.dayLow || Infinity, raw.dayLow || Infinity);
+          existing.week52High = Math.max(existing.week52High || 0, raw.week52High || 0);
+          existing.week52Low = Math.min(existing.week52Low || Infinity, raw.week52Low || Infinity);
+        } else {
+          // Separate purchases of same stock: compute weighted average
+          const totalQty = qty1 + qty2;
+          const weightedAvg = totalQty > 0 ? ((qty1 * price1) + (qty2 * price2)) / totalQty : price1;
+          existing.quantity = totalQty;
+          existing.avgPrice = parseFloat(weightedAvg.toFixed(2));
+          existing.cmp = existing.cmp || raw.cmp;
+          existing.dayHigh = Math.max(existing.dayHigh || 0, raw.dayHigh || 0);
+          existing.dayLow = Math.min(existing.dayLow || Infinity, raw.dayLow || Infinity);
+          existing.week52High = Math.max(existing.week52High || 0, raw.week52High || 0);
+          existing.week52Low = Math.min(existing.week52Low || Infinity, raw.week52Low || Infinity);
+        }
+      }
+    }
+
+    return {
+      uniqueHoldings: Array.from(map.values()),
+      duplicatesToRemove
+    };
+  }
+
   /**
    * Adds or averages a holding
    * @param {Object} item - { symbol, name, exchange, sector, quantity, buyPrice, buyDate, notes, cmp }
    */
   addOrUpdateHolding(item) {
-    const symbol = item.symbol.toUpperCase().trim();
+    const symbol = this.canonicalizeSymbol(item.symbol);
+    const itemIsin = (item.isin || '').toUpperCase().trim();
     const quantity = parseFloat(item.quantity);
     const buyPrice = parseFloat(item.buyPrice);
-    const existingIndex = this.holdings.findIndex(h => h.symbol.toUpperCase() === symbol);
+    const existingIndex = this.holdings.findIndex(h => 
+      this.canonicalizeSymbol(h.symbol) === symbol ||
+      (itemIsin && h.isin && h.isin.toUpperCase().trim() === itemIsin)
+    );
 
     let holdingId;
     let isAveraged = false;
@@ -1379,10 +1498,10 @@ class PortfolioStore {
   }
 
   async deleteHolding(id, symbol = null) {
-    const symMatch = symbol ? symbol.toUpperCase().trim() : null;
+    const symMatch = symbol ? this.canonicalizeSymbol(symbol) : null;
     const idx = this.holdings.findIndex(h => 
       String(h.id) === String(id) || 
-      (symMatch && h.symbol && h.symbol.toUpperCase().trim() === symMatch)
+      (symMatch && this.canonicalizeSymbol(h.symbol) === symMatch)
     );
 
     let deleted = null;
@@ -1427,13 +1546,14 @@ class PortfolioStore {
 
   getHoldingBySymbol(symbol) {
     if (!symbol) return null;
-    return this.holdings.find(h => h.symbol.toUpperCase() === symbol.toUpperCase().trim());
+    const clean = this.canonicalizeSymbol(symbol);
+    return this.holdings.find(h => this.canonicalizeSymbol(h.symbol) === clean);
   }
 
   getTransactionsForStock(symbol) {
     if (!symbol) return [];
-    const sym = symbol.toUpperCase().trim();
-    let txs = this.transactions.filter(t => t.symbol && t.symbol.toUpperCase().trim() === sym);
+    const sym = this.canonicalizeSymbol(symbol);
+    let txs = this.transactions.filter(t => t.symbol && this.canonicalizeSymbol(t.symbol) === sym);
 
     // If holding exists but no transactions found (e.g. legacy storage), synthesize initial record
     const holding = this.getHoldingBySymbol(sym);
@@ -1470,7 +1590,9 @@ class PortfolioStore {
     let totalDayPnL = 0;
     let totalPrevDayValue = 0;
 
-    const enrichedHoldings = this.holdings.map(h => {
+    const { uniqueHoldings } = this.reconcileAndDeduplicateHoldings(this.holdings);
+
+    const enrichedHoldings = uniqueHoldings.map(h => {
       const invested = h.quantity * h.avgPrice;
       const current = h.quantity * h.cmp;
       const pnl = current - invested;
