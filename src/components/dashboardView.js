@@ -12,6 +12,7 @@ export class DashboardView {
     this.onNavigateToHoldings = onNavigateToHoldings;
     this.chartInstance = null;
     this.performanceTab = 'top';
+    this.pnlBreakdownTab = 'profit';
 
     this.init();
   }
@@ -181,8 +182,22 @@ export class DashboardView {
           return;
         }
 
+        // Tab button for Profit vs Loss Breakdown
+        const pnlTabBtn = e.target.closest('[data-pnl-tab]');
+        if (pnlTabBtn) {
+          const tab = pnlTabBtn.dataset.pnlTab;
+          if (tab && tab !== this.pnlBreakdownTab) {
+            this.pnlBreakdownTab = tab;
+            const metrics = portfolioStore.getPortfolioMetrics();
+            this.renderHighlights(metrics);
+          }
+          return;
+        }
+
         // View all holdings button
-        if (e.target.closest('#btn-dashboard-view-all-holdings') || e.target.closest('#btn-dashboard-header-view-holdings')) {
+        if (e.target.closest('#btn-dashboard-view-all-holdings') || 
+            e.target.closest('#btn-dashboard-header-view-holdings') ||
+            e.target.closest('#btn-dashboard-pnl-view-holdings')) {
           if (this.onNavigateToHoldings) this.onNavigateToHoldings();
           return;
         }
@@ -490,6 +505,36 @@ export class DashboardView {
       .sort((a, b) => b.current - a.current)
       .slice(0, 4);
 
+    // All Stocks Profit vs Loss Breakdown
+    const profitStocks = [...metrics.holdings]
+      .filter(h => h.pnl >= 0)
+      .sort((a, b) => b.pnlPercent - a.pnlPercent);
+
+    const lossStocks = [...metrics.holdings]
+      .filter(h => h.pnl < 0)
+      .sort((a, b) => a.pnlPercent - b.pnlPercent);
+
+    const profitCount = profitStocks.length;
+    const lossCount = lossStocks.length;
+    const totalCount = metrics.totalHoldingsCount || (profitCount + lossCount);
+
+    const profitInvested = profitStocks.reduce((sum, h) => sum + (h.invested || 0), 0);
+    const profitCurrent = profitStocks.reduce((sum, h) => sum + (h.current || 0), 0);
+    const profitNet = profitCurrent - profitInvested;
+    const profitNetPct = profitInvested > 0 ? (profitNet / profitInvested) * 100 : 0;
+
+    const lossInvested = lossStocks.reduce((sum, h) => sum + (h.invested || 0), 0);
+    const lossCurrent = lossStocks.reduce((sum, h) => sum + (h.current || 0), 0);
+    const lossNet = lossCurrent - lossInvested;
+    const lossNetPct = lossInvested > 0 ? (lossNet / lossInvested) * 100 : 0;
+
+    const profitSharePct = totalCount > 0 ? ((profitCount / totalCount) * 100).toFixed(1) : '0.0';
+    const lossSharePct = totalCount > 0 ? ((lossCount / totalCount) * 100).toFixed(1) : '0.0';
+
+    // Active Tab for Profit vs Loss Breakdown Card
+    const isProfitTab = (this.pnlBreakdownTab || 'profit') !== 'loss';
+    const activePnlList = isProfitTab ? profitStocks : lossStocks;
+
     container.innerHTML = `
       <!-- Card 1: Top 5 and Bottom 5 Movers in Tabbed Button Form -->
       <div class="analytics-card">
@@ -606,6 +651,166 @@ export class DashboardView {
             <span>→</span>
           </button>
         </div>
+      </div>
+
+      <!-- Card 3: All Stocks Profit vs Loss Breakdown -->
+      <div class="analytics-card pnl-breakdown-card">
+        <div class="card-title-row" style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 0.5rem;">
+          <div>
+            <h2 class="card-title" style="display: flex; align-items: center; gap: 0.45rem;">
+              ${icons.barChart2} All Stocks: Profit vs Loss Overview
+            </h2>
+            <div style="font-size: 0.76rem; color: var(--text-muted); margin-top: 0.15rem;">
+              Full portfolio breakdown across all ${totalCount} active stocks
+            </div>
+          </div>
+
+          <!-- Tabbed Buttons for In Profit / In Loss -->
+          <div class="perf-tab-group" role="tablist">
+            <button type="button" class="perf-tab-btn ${isProfitTab ? 'active tab-top' : ''}" data-pnl-tab="profit" title="Show All In-Profit Stocks">
+              <span class="perf-dot bull">●</span>
+              <span>In Profit (${profitCount})</span>
+            </button>
+            <button type="button" class="perf-tab-btn ${!isProfitTab ? 'active tab-bottom' : ''}" data-pnl-tab="loss" title="Show All In-Loss Stocks">
+              <span class="perf-dot bear">●</span>
+              <span>In Loss (${lossCount})</span>
+            </button>
+          </div>
+        </div>
+
+        <!-- Win/Loss Ratio Progress Bar -->
+        <div style="margin-top: 0.85rem; margin-bottom: 0.85rem;">
+          <div style="display: flex; justify-content: space-between; font-size: 0.76rem; margin-bottom: 0.4rem; font-weight: 600;">
+            <span style="color: var(--bull-green); display: flex; align-items: center; gap: 0.35rem;">
+              <span style="display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: var(--bull-green);"></span>
+              ${profitCount} in Profit (${profitSharePct}%)
+            </span>
+            <span style="color: var(--bear-red); display: flex; align-items: center; gap: 0.35rem;">
+              ${lossCount} in Loss (${lossSharePct}%)
+              <span style="display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: var(--bear-red);"></span>
+            </span>
+          </div>
+          <div style="display: flex; height: 8px; border-radius: var(--radius-full); overflow: hidden; background: var(--border-subtle); width: 100%;">
+            <div style="width: ${profitSharePct}%; background: linear-gradient(90deg, #10b981, #059669); transition: width 0.3s ease;" title="${profitCount} stocks in profit (${profitSharePct}%)"></div>
+            <div style="width: ${lossSharePct}%; background: linear-gradient(90deg, #f87171, #ef4444); transition: width 0.3s ease;" title="${lossCount} stocks in loss (${lossSharePct}%)"></div>
+          </div>
+        </div>
+
+        <!-- Dual Comparison Metric Cards -->
+        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 0.85rem; margin-bottom: 1rem;">
+          <!-- Left: Stocks in Profit Summary -->
+          <div style="padding: 0.85rem 1rem; background: rgba(16, 185, 129, 0.05); border: 1px solid rgba(16, 185, 129, 0.22); border-radius: var(--radius-md);">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.6rem;">
+              <span style="font-weight: 700; font-size: 0.86rem; color: var(--bull-green); display: flex; align-items: center; gap: 0.35rem;">
+                <span class="perf-dot bull">●</span>
+                Stocks in Profit
+              </span>
+              <span style="font-size: 0.74rem; font-weight: 700; background: rgba(16, 185, 129, 0.15); color: var(--bull-green); padding: 0.15rem 0.5rem; border-radius: var(--radius-full);">
+                ${profitCount} Stocks (${profitSharePct}%)
+              </span>
+            </div>
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.6rem; font-family: var(--font-mono);">
+              <div>
+                <div style="font-size: 0.68rem; color: var(--text-muted); font-family: var(--font-heading); margin-bottom: 0.12rem;">TOTAL INVESTED</div>
+                <strong style="color: var(--text-primary); font-size: 0.86rem;">${portfolioStore.formatMoney(profitInvested)}</strong>
+              </div>
+              <div>
+                <div style="font-size: 0.68rem; color: var(--text-muted); font-family: var(--font-heading); margin-bottom: 0.12rem;">CURRENT VALUE</div>
+                <strong style="color: var(--bull-green); font-size: 0.86rem;">${portfolioStore.formatMoney(profitCurrent)}</strong>
+              </div>
+            </div>
+            <div style="margin-top: 0.6rem; padding-top: 0.5rem; border-top: 1px solid rgba(16, 185, 129, 0.15); display: flex; justify-content: space-between; align-items: center; font-size: 0.74rem;">
+              <span style="color: var(--text-secondary);">Unrealized Gain:</span>
+              <strong style="font-family: var(--font-mono); color: var(--bull-green); font-size: 0.84rem;">
+                +${portfolioStore.formatMoney(profitNet)} (+${profitNetPct.toFixed(2)}%)
+              </strong>
+            </div>
+          </div>
+
+          <!-- Right: Stocks in Loss Summary -->
+          <div style="padding: 0.85rem 1rem; background: rgba(239, 68, 68, 0.05); border: 1px solid rgba(239, 68, 68, 0.22); border-radius: var(--radius-md);">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.6rem;">
+              <span style="font-weight: 700; font-size: 0.86rem; color: var(--bear-red); display: flex; align-items: center; gap: 0.35rem;">
+                <span class="perf-dot bear">●</span>
+                Stocks in Loss
+              </span>
+              <span style="font-size: 0.74rem; font-weight: 700; background: rgba(239, 68, 68, 0.15); color: var(--bear-red); padding: 0.15rem 0.5rem; border-radius: var(--radius-full);">
+                ${lossCount} Stocks (${lossSharePct}%)
+              </span>
+            </div>
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.6rem; font-family: var(--font-mono);">
+              <div>
+                <div style="font-size: 0.68rem; color: var(--text-muted); font-family: var(--font-heading); margin-bottom: 0.12rem;">TOTAL INVESTED</div>
+                <strong style="color: var(--text-primary); font-size: 0.86rem;">${portfolioStore.formatMoney(lossInvested)}</strong>
+              </div>
+              <div>
+                <div style="font-size: 0.68rem; color: var(--text-muted); font-family: var(--font-heading); margin-bottom: 0.12rem;">CURRENT VALUE</div>
+                <strong style="color: var(--bear-red); font-size: 0.86rem;">${portfolioStore.formatMoney(lossCurrent)}</strong>
+              </div>
+            </div>
+            <div style="margin-top: 0.6rem; padding-top: 0.5rem; border-top: 1px solid rgba(239, 68, 68, 0.15); display: flex; justify-content: space-between; align-items: center; font-size: 0.74rem;">
+              <span style="color: var(--text-secondary);">Unrealized Loss:</span>
+              <strong style="font-family: var(--font-mono); color: var(--bear-red); font-size: 0.84rem;">
+                ${portfolioStore.formatMoney(lossNet)} (${lossNetPct.toFixed(2)}%)
+              </strong>
+            </div>
+          </div>
+        </div>
+
+        <!-- Section Label for Selected Tab List -->
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.55rem; padding: 0 0.15rem;">
+          <span style="font-size: 0.78rem; font-weight: 600; color: var(--text-secondary);">
+            All ${activePnlList.length} ${isProfitTab ? 'Stocks in Profit (Gainers)' : 'Stocks in Loss (Drawdowns)'}:
+          </span>
+          <span style="font-size: 0.72rem; color: var(--text-muted); font-family: var(--font-mono);">
+            ${activePnlList.length} of ${totalCount}
+          </span>
+        </div>
+
+        <!-- Scrollable List of All Stocks in Active Tab -->
+        <div class="pnl-stocks-scroll">
+          ${activePnlList.length > 0 ? activePnlList.map((h, idx) => {
+            const isProfit = h.pnlPercent >= 0;
+            return `
+              <div class="highlight-stock-row" style="padding: 0.65rem 0.85rem;">
+                <div style="display: flex; align-items: center; gap: 0.65rem; min-width: 0;">
+                  <span class="perf-rank-badge ${isProfitTab ? 'bull' : 'bear'}">#${idx + 1}</span>
+                  <div class="stock-symbol-chip" style="width: 32px; height: 32px; font-size: 0.72rem;">${h.symbol.substring(0, 3)}</div>
+                  <div style="min-width: 0;">
+                    <div style="font-weight: 700; font-size: 0.92rem; display: flex; align-items: center; gap: 0.35rem;">
+                      <span class="text-truncate" style="max-width: 140px;">${h.symbol}</span>
+                      <span class="exchange-tag" style="font-size: 0.65rem; padding: 0.1rem 0.35rem;">${h.exchange || 'NSE'}</span>
+                    </div>
+                    <div class="text-truncate" style="font-size: 0.74rem; color: var(--text-secondary); max-width: 160px;" title="${h.name || h.sector}">${h.name || h.sector || 'Equity'}</div>
+                    <div style="font-size: 0.7rem; color: var(--text-muted); margin-top: 0.08rem;">${h.quantity.toLocaleString()} shares</div>
+                  </div>
+                </div>
+                <div style="text-align: right; white-space: nowrap; flex-shrink: 0;">
+                  <div style="font-weight: 700; font-family: var(--font-mono); font-size: 0.95rem; color: ${isProfit ? 'var(--bull-green)' : 'var(--bear-red)'};">
+                    ${isProfit ? '+' : ''}${h.pnlPercent.toFixed(2)}%
+                  </div>
+                  <div style="font-size: 0.74rem; font-family: var(--font-mono); color: var(--text-secondary); margin-top: 0.12rem;">
+                    <span style="color: var(--text-muted); font-size: 0.68rem;">Inv:</span> <span>${portfolioStore.formatMoney(h.invested)}</span>
+                  </div>
+                  <div style="font-size: 0.76rem; font-family: var(--font-mono); color: var(--text-primary); margin-top: 0.06rem;">
+                    <span style="color: var(--text-muted); font-size: 0.68rem;">Current:</span> <strong>${portfolioStore.formatMoney(h.current)}</strong>
+                  </div>
+                </div>
+              </div>
+            `;
+          }).join('') : `
+            <div style="padding: 2rem 1rem; text-align: center; color: var(--text-secondary); font-size: 0.85rem;">
+              No stocks found in ${isProfitTab ? 'profit' : 'loss'}.
+            </div>
+          `}
+        </div>
+
+        <!-- Action Button to Open Holdings Table -->
+        <button id="btn-dashboard-pnl-view-holdings" class="btn btn-outline btn-sm" style="margin-top: 0.85rem; width: 100%; justify-content: center; gap: 0.5rem;">
+          ${icons.layers}
+          <span>View All ${totalCount} Holdings in Table</span>
+          <span>→</span>
+        </button>
       </div>
     `;
   }

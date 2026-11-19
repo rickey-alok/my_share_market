@@ -5946,6 +5946,39 @@ body::after {
   border: 1px solid rgba(239, 68, 68, 0.3);
 }
 
+/* Profit vs Loss Breakdown Card */
+.pnl-breakdown-card {
+  grid-column: 1 / -1;
+}
+
+.pnl-stocks-scroll {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  max-height: 380px;
+  overflow-y: auto;
+  padding-right: 4px;
+  scrollbar-width: thin;
+  scrollbar-color: var(--border-subtle) transparent;
+}
+
+.pnl-stocks-scroll::-webkit-scrollbar {
+  width: 5px;
+}
+
+.pnl-stocks-scroll::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.pnl-stocks-scroll::-webkit-scrollbar-thumb {
+  background: var(--border-subtle);
+  border-radius: var(--radius-full);
+}
+
+.pnl-stocks-scroll::-webkit-scrollbar-thumb:hover {
+  background: var(--text-muted);
+}
+
 /* Holdings Summary Banner in Dedicated Holdings View */
 .holdings-summary-banner {
   display: flex;
