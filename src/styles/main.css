@@ -5836,6 +5836,116 @@ body::after {
   border-color: var(--brand-indigo-light);
 }
 
+/* ==========================================================================
+   Performance Highlights Tabbed Control (Top 5 / Bottom 5)
+   ========================================================================== */
+.perf-tab-group {
+  display: inline-flex;
+  align-items: center;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-full);
+  padding: 3px;
+  gap: 3px;
+}
+
+[data-theme="light"] .perf-tab-group {
+  background: #f1f5f9;
+  border-color: rgba(0, 0, 0, 0.08);
+}
+
+.perf-tab-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.32rem 0.75rem;
+  font-size: 0.75rem;
+  font-weight: 600;
+  font-family: var(--font-heading);
+  color: var(--text-secondary);
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: var(--radius-full);
+  cursor: pointer;
+  transition: all var(--transition-fast);
+  white-space: nowrap;
+}
+
+.perf-tab-btn:hover {
+  color: var(--text-primary);
+  background: rgba(255, 255, 255, 0.04);
+}
+
+[data-theme="light"] .perf-tab-btn:hover {
+  background: rgba(0, 0, 0, 0.04);
+}
+
+.perf-tab-btn.active {
+  background: var(--bg-surface);
+  color: var(--text-primary);
+  border-color: var(--border-subtle);
+  box-shadow: var(--shadow-sm);
+}
+
+[data-theme="light"] .perf-tab-btn.active {
+  background: #ffffff;
+  border-color: rgba(0, 0, 0, 0.1);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+}
+
+.perf-tab-btn.active.tab-top {
+  color: var(--bull-green) !important;
+  border-color: rgba(16, 185, 129, 0.35);
+  background: rgba(16, 185, 129, 0.08);
+}
+
+.perf-tab-btn.active.tab-bottom {
+  color: var(--bear-red) !important;
+  border-color: rgba(239, 68, 68, 0.35);
+  background: rgba(239, 68, 68, 0.08);
+}
+
+.perf-dot {
+  font-size: 0.55rem;
+  line-height: 1;
+}
+
+.perf-dot.bull {
+  color: var(--bull-green);
+}
+
+.perf-dot.bear {
+  color: var(--bear-red);
+}
+
+.perf-rank-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 24px;
+  height: 24px;
+  padding: 0 4px;
+  font-size: 0.72rem;
+  font-weight: 700;
+  font-family: var(--font-mono);
+  border-radius: 6px;
+  background: rgba(255, 255, 255, 0.05);
+  color: var(--text-secondary);
+  flex-shrink: 0;
+}
+
+.perf-rank-badge.bull {
+  background: rgba(16, 185, 129, 0.12);
+  color: var(--bull-green);
+  border: 1px solid rgba(16, 185, 129, 0.3);
+}
+
+.perf-rank-badge.bear {
+  background: rgba(239, 68, 68, 0.12);
+  color: var(--bear-red);
+  border: 1px solid rgba(239, 68, 68, 0.3);
+}
+
 /* Holdings Summary Banner in Dedicated Holdings View */
 .holdings-summary-banner {
   display: flex;

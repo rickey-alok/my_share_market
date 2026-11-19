@@ -11,6 +11,7 @@ export class DashboardView {
     this.onNavigateToAddHolding = onNavigateToAddHolding;
     this.onNavigateToHoldings = onNavigateToHoldings;
     this.chartInstance = null;
+    this.performanceTab = 'top';
 
     this.init();
   }
@@ -168,6 +169,18 @@ export class DashboardView {
     const highlightsContainer = this.container.querySelector('#dashboard-highlights-container');
     if (highlightsContainer) {
       highlightsContainer.addEventListener('click', (e) => {
+        // Tab button for Top 5 / Bottom 5
+        const tabBtn = e.target.closest('[data-perf-tab]');
+        if (tabBtn) {
+          const tab = tabBtn.dataset.perfTab;
+          if (tab && tab !== this.performanceTab) {
+            this.performanceTab = tab;
+            const metrics = portfolioStore.getPortfolioMetrics();
+            this.renderHighlights(metrics);
+          }
+          return;
+        }
+
         // View all holdings button
         if (e.target.closest('#btn-dashboard-view-all-holdings') || e.target.closest('#btn-dashboard-header-view-holdings')) {
           if (this.onNavigateToHoldings) this.onNavigateToHoldings();
@@ -456,77 +469,75 @@ export class DashboardView {
       return;
     }
 
+    // Top 5 Gainers (by pnlPercent descending)
+    const top5Gainers = [...metrics.holdings]
+      .sort((a, b) => b.pnlPercent - a.pnlPercent)
+      .slice(0, 5);
+
+    // Bottom 5 Losers/Drawdowns (by pnlPercent ascending)
+    const bottom5Losers = [...metrics.holdings]
+      .sort((a, b) => a.pnlPercent - b.pnlPercent)
+      .slice(0, 5);
+
+    // Active tab list
+    const isTopTab = this.performanceTab !== 'bottom';
+    const activeList = isTopTab ? top5Gainers : bottom5Losers;
+
     // Top 4 largest holdings by current value
     const topHoldings = [...metrics.holdings]
       .sort((a, b) => b.current - a.current)
       .slice(0, 4);
 
-    const topGainer = metrics.topGainer;
-    const topLoser = metrics.topLoser;
-
     container.innerHTML = `
-      <!-- Card 1: Top Movers & Portfolio Performance -->
+      <!-- Card 1: Top 5 and Bottom 5 Movers in Tabbed Button Form -->
       <div class="analytics-card">
-        <div class="card-title-row">
+        <div class="card-title-row" style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 0.5rem;">
           <h2 class="card-title">${icons.trendingUp} Performance Highlights</h2>
+          
+          <!-- Tabbed Buttons for Top 5 / Bottom 5 -->
+          <div class="perf-tab-group" role="tablist">
+            <button type="button" class="perf-tab-btn ${isTopTab ? 'active tab-top' : ''}" data-perf-tab="top" title="Show Top 5 Gainers">
+              <span class="perf-dot bull">●</span>
+              <span>Top 5</span>
+            </button>
+            <button type="button" class="perf-tab-btn ${!isTopTab ? 'active tab-bottom' : ''}" data-perf-tab="bottom" title="Show Bottom 5 Drawdowns">
+              <span class="perf-dot bear">●</span>
+              <span>Bottom 5</span>
+            </button>
+          </div>
         </div>
 
-        <div style="display: flex; flex-direction: column; gap: 1rem; margin-top: 0.5rem;">
-          <!-- Top Gainer -->
-          <div style="background: rgba(16, 185, 129, 0.06); border: 1px solid rgba(16, 185, 129, 0.2); border-radius: var(--radius-md); padding: 1rem;">
-            <div style="font-size: 0.75rem; color: var(--bull-green); font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 0.35rem;">
-              Top Performing Asset
-            </div>
-            ${topGainer ? `
-              <div style="display: flex; justify-content: space-between; align-items: center;">
-                <div>
-                  <div style="font-weight: 700; font-size: 1.05rem; display: flex; align-items: center; gap: 0.4rem;">
-                    ${topGainer.symbol}
-                    <span class="exchange-tag">${topGainer.exchange || 'NSE'}</span>
-                  </div>
-                  <div style="font-size: 0.8rem; color: var(--text-secondary); margin-top: 0.15rem;">${topGainer.name}</div>
-                </div>
-                <div style="text-align: right;">
-                  <div style="font-weight: 700; font-family: var(--font-mono); font-size: 1.05rem; color: var(--bull-green);">
-                    +${topGainer.pnlPercent.toFixed(2)}%
-                  </div>
-                  <div style="font-size: 0.78rem; font-family: var(--font-mono); color: var(--text-secondary);">
-                    CMP: ${portfolioStore.formatMoney(topGainer.cmp)}
+        <div style="display: flex; flex-direction: column; gap: 0.5rem; margin-top: 0.75rem;">
+          ${activeList.length > 0 ? activeList.map((h, idx) => {
+            const isProfit = h.pnlPercent >= 0;
+            return `
+              <div class="highlight-stock-row" style="padding: 0.65rem 0.85rem;">
+                <div style="display: flex; align-items: center; gap: 0.65rem; min-width: 0;">
+                  <span class="perf-rank-badge ${isTopTab ? 'bull' : 'bear'}">#${idx + 1}</span>
+                  <div class="stock-symbol-chip" style="width: 32px; height: 32px; font-size: 0.72rem;">${h.symbol.substring(0, 3)}</div>
+                  <div style="min-width: 0;">
+                    <div style="font-weight: 700; font-size: 0.92rem; display: flex; align-items: center; gap: 0.35rem;">
+                      <span class="text-truncate" style="max-width: 140px;">${h.symbol}</span>
+                      <span class="exchange-tag" style="font-size: 0.65rem; padding: 0.1rem 0.35rem;">${h.exchange || 'NSE'}</span>
+                    </div>
+                    <div class="text-truncate" style="font-size: 0.74rem; color: var(--text-secondary); max-width: 160px;" title="${h.name || h.sector}">${h.name || h.sector || 'Equity'}</div>
                   </div>
                 </div>
-              </div>
-            ` : `
-              <div style="color: var(--text-muted); font-size: 0.85rem;">No profitable asset yet</div>
-            `}
-          </div>
-
-          <!-- Top Decliner -->
-          <div style="background: rgba(239, 68, 68, 0.06); border: 1px solid rgba(239, 68, 68, 0.2); border-radius: var(--radius-md); padding: 1rem;">
-            <div style="font-size: 0.75rem; color: var(--bear-red); font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 0.35rem;">
-              Largest Drag / Drawdown
-            </div>
-            ${topLoser ? `
-              <div style="display: flex; justify-content: space-between; align-items: center;">
-                <div>
-                  <div style="font-weight: 700; font-size: 1.05rem; display: flex; align-items: center; gap: 0.4rem;">
-                    ${topLoser.symbol}
-                    <span class="exchange-tag">${topLoser.exchange || 'NSE'}</span>
+                <div style="text-align: right; white-space: nowrap; flex-shrink: 0;">
+                  <div style="font-weight: 700; font-family: var(--font-mono); font-size: 0.95rem; color: ${isProfit ? 'var(--bull-green)' : 'var(--bear-red)'};">
+                    ${isProfit ? '+' : ''}${h.pnlPercent.toFixed(2)}%
                   </div>
-                  <div style="font-size: 0.8rem; color: var(--text-secondary); margin-top: 0.15rem;">${topLoser.name}</div>
-                </div>
-                <div style="text-align: right;">
-                  <div style="font-weight: 700; font-family: var(--font-mono); font-size: 1.05rem; color: var(--bear-red);">
-                    ${topLoser.pnlPercent.toFixed(2)}%
-                  </div>
-                  <div style="font-size: 0.78rem; font-family: var(--font-mono); color: var(--text-secondary);">
-                    CMP: ${portfolioStore.formatMoney(topLoser.cmp)}
+                  <div style="font-size: 0.74rem; font-family: var(--font-mono); color: var(--text-secondary); margin-top: 0.15rem;">
+                    CMP: ${portfolioStore.formatMoney(h.cmp)}
                   </div>
                 </div>
               </div>
-            ` : `
-              <div style="color: var(--text-muted); font-size: 0.85rem;">All holdings currently in profit</div>
-            `}
-          </div>
+            `;
+          }).join('') : `
+            <div style="padding: 1.5rem; text-align: center; color: var(--text-secondary); font-size: 0.85rem;">
+              No ${isTopTab ? 'gainers' : 'drawdown stocks'} in portfolio yet.
+            </div>
+          `}
 
           <!-- Quick Navigation Link to Analysis -->
           <button id="btn-dashboard-header-view-holdings" class="btn btn-outline btn-sm" style="width: 100%; justify-content: center; margin-top: 0.5rem;">
