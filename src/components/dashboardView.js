@@ -482,6 +482,7 @@ export class DashboardView {
     // Active tab list
     const isTopTab = this.performanceTab !== 'bottom';
     const activeList = isTopTab ? top5Gainers : bottom5Losers;
+    const activeTotalInvested = activeList.reduce((sum, h) => sum + (h.invested || 0), 0);
 
     // Top 4 largest holdings by current value
     const topHoldings = [...metrics.holdings]
@@ -507,7 +508,15 @@ export class DashboardView {
           </div>
         </div>
 
-        <div style="display: flex; flex-direction: column; gap: 0.5rem; margin-top: 0.75rem;">
+        <!-- Total Invested Summary for Selected Group -->
+        ${activeList.length > 0 ? `
+          <div style="display: flex; justify-content: space-between; align-items: center; padding: 0.45rem 0.8rem; background: rgba(255, 255, 255, 0.03); border: 1px solid var(--border-subtle); border-radius: var(--radius-sm); font-size: 0.76rem; color: var(--text-secondary); margin-top: 0.65rem;">
+            <span>Total Invested in ${isTopTab ? 'Top 5' : 'Bottom 5'}:</span>
+            <strong style="font-family: var(--font-mono); color: var(--text-primary); font-size: 0.84rem;">${portfolioStore.formatMoney(activeTotalInvested)}</strong>
+          </div>
+        ` : ''}
+
+        <div style="display: flex; flex-direction: column; gap: 0.5rem; margin-top: 0.65rem;">
           ${activeList.length > 0 ? activeList.map((h, idx) => {
             const isProfit = h.pnlPercent >= 0;
             return `
@@ -521,13 +530,17 @@ export class DashboardView {
                       <span class="exchange-tag" style="font-size: 0.65rem; padding: 0.1rem 0.35rem;">${h.exchange || 'NSE'}</span>
                     </div>
                     <div class="text-truncate" style="font-size: 0.74rem; color: var(--text-secondary); max-width: 160px;" title="${h.name || h.sector}">${h.name || h.sector || 'Equity'}</div>
+                    <div style="font-size: 0.7rem; color: var(--text-muted); margin-top: 0.08rem;">${h.quantity.toLocaleString()} shares</div>
                   </div>
                 </div>
                 <div style="text-align: right; white-space: nowrap; flex-shrink: 0;">
                   <div style="font-weight: 700; font-family: var(--font-mono); font-size: 0.95rem; color: ${isProfit ? 'var(--bull-green)' : 'var(--bear-red)'};">
                     ${isProfit ? '+' : ''}${h.pnlPercent.toFixed(2)}%
                   </div>
-                  <div style="font-size: 0.74rem; font-family: var(--font-mono); color: var(--text-secondary); margin-top: 0.15rem;">
+                  <div style="font-size: 0.76rem; font-family: var(--font-mono); color: var(--text-primary); margin-top: 0.12rem;">
+                    <span style="color: var(--text-secondary); font-size: 0.7rem;">Inv:</span> <strong>${portfolioStore.formatMoney(h.invested)}</strong>
+                  </div>
+                  <div style="font-size: 0.72rem; font-family: var(--font-mono); color: var(--text-muted); margin-top: 0.08rem;">
                     CMP: ${portfolioStore.formatMoney(h.cmp)}
                   </div>
                 </div>
