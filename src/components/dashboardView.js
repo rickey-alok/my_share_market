@@ -40,10 +40,6 @@ export class DashboardView {
           <p class="page-subtitle">Executive wealth overview, asset allocation, and market performance</p>
         </div>
         <div class="page-header-actions">
-          <button id="btn-auto-refresh-toggle" class="btn btn-outline btn-sm ${liveMarketService.isAutoRefreshActive ? 'active-pulse' : ''}" title="Toggle 30s Auto Refresh during market hours">
-            <span class="live-dot ${liveMarketService.isAutoRefreshActive ? 'pulse-green' : 'dim'}" style="font-size: 0.75rem;">●</span>
-            <span id="auto-refresh-label">Auto-Sync: ${liveMarketService.isAutoRefreshActive ? 'ON' : 'OFF'}</span>
-          </button>
           <button id="btn-refresh-quotes" class="btn btn-outline btn-sm" title="Refresh Live Quotes">
             ${icons.refreshCw}
             <span id="sync-market-label">Sync Market</span>
@@ -136,26 +132,6 @@ export class DashboardView {
     if (btnNavHoldings) {
       btnNavHoldings.addEventListener('click', () => {
         if (this.onNavigateToHoldings) this.onNavigateToHoldings();
-      });
-    }
-
-    // Auto-Refresh Toggle Button
-    const btnAutoRefresh = this.container.querySelector('#btn-auto-refresh-toggle');
-    if (btnAutoRefresh) {
-      btnAutoRefresh.addEventListener('click', () => {
-        const isActive = liveMarketService.toggleAutoRefresh();
-        const label = btnAutoRefresh.querySelector('#auto-refresh-label');
-        const dot = btnAutoRefresh.querySelector('.live-dot');
-        if (isActive) {
-          btnAutoRefresh.classList.add('active-pulse');
-          if (label) label.textContent = 'Auto-Sync: ON';
-          if (dot) { dot.classList.add('pulse-green'); dot.classList.remove('dim'); }
-          portfolioStore.refreshMarketQuotes();
-        } else {
-          btnAutoRefresh.classList.remove('active-pulse');
-          if (label) label.textContent = 'Auto-Sync: OFF';
-          if (dot) { dot.classList.remove('pulse-green'); dot.classList.add('dim'); }
-        }
       });
     }
 
@@ -254,7 +230,7 @@ export class DashboardView {
 
     kpiContainer.innerHTML = `
       <!-- Card 1: Combined Portfolio Capital & Valuation (Invested on Left, Current Value on Right) -->
-      <div class="kpi-card kpi-card-dual accent-portfolio">
+      <div class="kpi-card kpi-card-dual">
         <!-- Left Side: Total Invested -->
         <div class="kpi-dual-col">
           <div class="kpi-mini-header">
@@ -279,7 +255,7 @@ export class DashboardView {
       </div>
 
       <!-- Card 2: Combined Unrealized P&L (Total P&L on Left, Today's Movement on Right) -->
-      <div class="kpi-card kpi-card-dual accent-pnl ${isTotalProfit ? 'bull' : 'bear'}">
+      <div class="kpi-card kpi-card-dual ${isTotalProfit ? 'bull' : 'bear'}">
         <!-- Left Side: Total P&L -->
         <div class="kpi-dual-col">
           <div class="kpi-mini-header">
@@ -314,7 +290,7 @@ export class DashboardView {
       </div>
 
       <!-- Card 3: Dedicated Realized Profit Card -->
-      <div class="kpi-card kpi-card-realized accent-performance">
+      <div class="kpi-card kpi-card-realized">
         <div class="kpi-realized-content">
           <div class="kpi-realized-meta">
             <div class="kpi-mini-header">

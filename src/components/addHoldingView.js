@@ -218,11 +218,15 @@ export class AddHoldingView {
               </div>
             </div>
 
-            <!-- Submit Button -->
-            <div style="margin-top: 1rem;">
+            <!-- Submit Button & Watchlist Button -->
+            <div style="margin-top: 1rem; display: flex; flex-direction: column; gap: 0.5rem;">
               <button type="submit" id="btn-submit-holding" class="btn btn-primary" style="width: 100%; padding: 0.85rem; font-size: 1rem;">
                 ${icons.plus}
                 <span id="submit-btn-label">Confirm & Add to Portfolio</span>
+              </button>
+              <button type="button" id="btn-save-to-watchlist-instead" class="btn btn-outline" style="width: 100%; padding: 0.65rem; justify-content: center; gap: 0.45rem;">
+                ${icons.bookmark || icons.star}
+                <span>Save to Watchlist Instead</span>
               </button>
             </div>
           </form>
@@ -683,6 +687,49 @@ export class AddHoldingView {
       form.addEventListener('submit', (e) => {
         e.preventDefault();
         this.handleSubmit();
+      });
+    }
+
+    // Save to Watchlist Instead Button
+    const btnSaveWatchlist = this.container.querySelector('#btn-save-to-watchlist-instead');
+    if (btnSaveWatchlist) {
+      btnSaveWatchlist.addEventListener('click', async () => {
+        const symInput = this.container.querySelector('#input-symbol');
+        const companyInput = this.container.querySelector('#input-company-name');
+        const sectorSelect = this.container.querySelector('#select-sector');
+        const exchangeSelect = this.container.querySelector('#select-exchange');
+        const priceInput = this.container.querySelector('#input-buy-price');
+        const notesInput = this.container.querySelector('#input-notes');
+
+        const symbol = symInput?.value?.toUpperCase()?.trim();
+        if (!symbol) {
+          this.showToast('Please enter or select a stock symbol to add to Watchlist.', 'error');
+          if (symInput) symInput.focus();
+          return;
+        }
+
+        const name = companyInput?.value?.trim() || symbol;
+        const exchange = exchangeSelect?.value || 'NSE';
+        const sector = sectorSelect?.value || 'General / Equity';
+        const targetPrice = priceInput?.value ? parseFloat(priceInput.value) : null;
+        const notes = notesInput?.value?.trim() || '';
+
+        try {
+          btnSaveWatchlist.disabled = true;
+          await portfolioStore.addToWatchlist({
+            symbol,
+            name,
+            exchange,
+            sector,
+            targetPrice,
+            notes
+          });
+          this.showToast(`Saved ${symbol} to your Watchlist!`, 'success');
+        } catch (err) {
+          this.showToast(err.message, 'error');
+        } finally {
+          btnSaveWatchlist.disabled = false;
+        }
       });
     }
 

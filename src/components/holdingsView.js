@@ -44,10 +44,6 @@ export class HoldingsView {
           <p class="page-subtitle">Real-time market valuation, average buy prices, live CMP, and profit/loss breakdown</p>
         </div>
         <div class="page-header-actions">
-          <button id="btn-holdings-auto-refresh" class="btn btn-outline btn-sm ${liveMarketService.isAutoRefreshActive ? 'active-pulse' : ''}" title="Toggle 30s Auto Refresh during market hours">
-            <span class="live-dot ${liveMarketService.isAutoRefreshActive ? 'pulse-green' : 'dim'}" style="font-size: 0.75rem;">●</span>
-            <span id="holdings-auto-refresh-label">Auto-Sync: ${liveMarketService.isAutoRefreshActive ? 'ON' : 'OFF'}</span>
-          </button>
           <button id="btn-holdings-sync-market" class="btn btn-outline btn-sm" title="Refresh Live Quotes">
             ${icons.refreshCw}
             <span id="holdings-sync-market-label">Sync Market</span>
@@ -139,26 +135,6 @@ export class HoldingsView {
     if (btnAdd) {
       btnAdd.addEventListener('click', () => {
         if (this.onNavigateToAddHolding) this.onNavigateToAddHolding();
-      });
-    }
-
-    // Auto Refresh Toggle Button
-    const btnAutoRefresh = this.container.querySelector('#btn-holdings-auto-refresh');
-    const autoLabel = this.container.querySelector('#holdings-auto-refresh-label');
-    const dot = btnAutoRefresh?.querySelector('.live-dot');
-    if (btnAutoRefresh) {
-      btnAutoRefresh.addEventListener('click', () => {
-        const isActive = liveMarketService.toggleAutoRefresh();
-        if (isActive) {
-          btnAutoRefresh.classList.add('active-pulse');
-          if (autoLabel) autoLabel.textContent = 'Auto-Sync: ON';
-          if (dot) { dot.classList.add('pulse-green'); dot.classList.remove('dim'); }
-          portfolioStore.refreshMarketQuotes();
-        } else {
-          btnAutoRefresh.classList.remove('active-pulse');
-          if (autoLabel) autoLabel.textContent = 'Auto-Sync: OFF';
-          if (dot) { dot.classList.remove('pulse-green'); dot.classList.add('dim'); }
-        }
       });
     }
 
@@ -274,6 +250,36 @@ export class HoldingsView {
           if (tableWrap) {
             tableWrap.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
           }
+        }
+        return;
+      }
+
+      // Toggle Watchlist
+      const watchlistBtn = e.target.closest('[data-action="toggle-watchlist"]');
+      if (watchlistBtn) {
+        const symbol = watchlistBtn.getAttribute('data-symbol');
+        if (symbol) {
+          if (portfolioStore.isInWatchlist(symbol)) {
+            await portfolioStore.removeFromWatchlist(symbol);
+            this.showToast(`Removed ${symbol} from Watchlist.`, 'info');
+          } else {
+            try {
+              const h = portfolioStore.getHoldingBySymbol(symbol);
+              const activeWlName = portfolioStore.getWatchlistName(portfolioStore.getActiveWatchlistId());
+              await portfolioStore.addToWatchlist({
+                symbol: h?.symbol || symbol,
+                name: h?.name || symbol,
+                exchange: h?.exchange || 'NSE',
+                sector: h?.sector || 'General / Equity',
+                targetPrice: h?.avgPrice || (h?.cmp ? parseFloat((h.cmp * 0.97).toFixed(2)) : null),
+                notes: h?.notes || 'Saved from portfolio holdings'
+              });
+              this.showToast(`Saved ${symbol} to "${activeWlName}"!`, 'success');
+            } catch (err) {
+              alert(err.message);
+            }
+          }
+          this.update();
         }
         return;
       }
@@ -663,6 +669,7 @@ export class HoldingsView {
       const isSynced = isMarketSynced && event.quotes && event.quotes[h.symbol];
       const tickClass = isTicking ? (tickDirection === 'up' ? 'tick-up' : 'tick-down') : (isSynced ? 'tick-up' : '');
       const rowSyncClass = isSynced ? 'row-synced' : '';
+      const isInWatchlist = portfolioStore.isInWatchlist(h.symbol);
 
       return `
         <tr data-symbol="${h.symbol}" class="${rowSyncClass}">
@@ -725,7 +732,10 @@ export class HoldingsView {
             </div>
           </td>
           <td style="text-align: center;">
-            <div class="table-actions" style="justify-content: center;">
+            <div class="table-actions" style="justify-content: center; gap: 0.35rem;">
+              <button class="icon-action-btn watchlist-toggle-btn ${isInWatchlist ? 'active' : ''}" data-action="toggle-watchlist" data-symbol="${h.symbol}" title="${isInWatchlist ? 'Remove from Watchlist' : 'Save to Watchlist'}">
+                ${isInWatchlist ? icons.starFilled : icons.star}
+              </button>
               <button class="btn btn-outline btn-sm" data-action="buy-more" data-symbol="${h.symbol}" title="Open Average Price Calculator (${h.symbol})">
                 ${icons.plus} Average
               </button>
@@ -746,6 +756,7 @@ export class HoldingsView {
       const isSynced = isMarketSynced && event.quotes && event.quotes[h.symbol];
       const tickClass = isTicking ? (tickDirection === 'up' ? 'tick-up' : 'tick-down') : (isSynced ? 'tick-up' : '');
       const cardSyncClass = isSynced ? 'card-synced' : '';
+      const isInWatchlist = portfolioStore.isInWatchlist(h.symbol);
 
       return `
         <div class="holding-mobile-card ${cardSyncClass}" data-symbol="${h.symbol}" title="Click to view ${h.symbol} transactions & details">
@@ -811,8 +822,12 @@ export class HoldingsView {
             ${this.renderRangeIndicator(h)}
           </div>
 
-          <div class="mobile-card-bottom">
-            <button class="btn btn-outline btn-avg-calc" data-action="buy-more" data-symbol="${h.symbol}" title="Open Average Price Calculator (${h.symbol})">
+          <div class="mobile-card-bottom" style="display: flex; gap: 0.45rem; align-items: center;">
+            <button class="btn btn-outline btn-sm watchlist-toggle-btn ${isInWatchlist ? 'active' : ''}" data-action="toggle-watchlist" data-symbol="${h.symbol}" title="${isInWatchlist ? 'Remove from Watchlist' : 'Save to Watchlist'}">
+              ${isInWatchlist ? icons.starFilled : icons.star}
+              <span>${isInWatchlist ? 'Saved' : 'Watchlist'}</span>
+            </button>
+            <button class="btn btn-outline btn-avg-calc" data-action="buy-more" data-symbol="${h.symbol}" title="Open Average Price Calculator (${h.symbol})" style="flex: 1;">
               ${icons.calculator || icons.plus}
               <span>Average Calculator</span>
             </button>

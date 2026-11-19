@@ -85,7 +85,7 @@ const SCRIP_MAP = {
 class LiveMarketService {
   constructor() {
     this.customProxyUrl = getStoredItem(STORAGE_KEY_CUSTOM_PROXY, '') || (typeof import.meta !== 'undefined' && import.meta.env?.VITE_MARKET_PROXY_URL) || '';
-    this.isAutoRefreshActive = getStoredItem(STORAGE_KEY_AUTO_REFRESH, 'false') === 'true';
+    this.isAutoRefreshActive = getStoredItem(STORAGE_KEY_AUTO_REFRESH, 'true') !== 'false';
     this.cache = new Map();
     this.scripCache = new Map(Object.entries(SCRIP_MAP));
     this.lastSyncTimestamp = null;

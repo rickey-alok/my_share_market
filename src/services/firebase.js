@@ -273,6 +273,113 @@ class FirebaseService {
   }
 
   // ==========================================================
+  // User Watchlist Synchronization (/users/{userId}/watchlist)
+  // ==========================================================
+
+  listenToUserWatchlist(userId, onUpdate, onError) {
+    if (!this.isConfigured || !this.db || !userId) return null;
+    try {
+      const colRef = collection(this.db, 'users', userId, 'watchlist');
+      return onSnapshot(colRef, (snapshot) => {
+        const items = [];
+        snapshot.forEach(docSnap => {
+          items.push({ id: docSnap.id, ...docSnap.data() });
+        });
+        onUpdate(items);
+      }, (err) => {
+        console.error(`Firestore user [${userId}] watchlist listener error:`, err);
+        if (onError) onError(err);
+      });
+    } catch (e) {
+      console.error('listenToUserWatchlist exception:', e);
+      return null;
+    }
+  }
+
+  async saveUserWatchlistStock(userId, stock, userEmail = '') {
+    if (!this.isConfigured || !this.db || !userId || !stock || !stock.id) return false;
+    try {
+      const payload = {
+        id: stock.id,
+        userId: userId,
+        userEmail: userEmail,
+        symbol: (stock.symbol || '').toUpperCase().trim(),
+        name: stock.name || stock.symbol,
+        exchange: stock.exchange || 'NSE',
+        sector: stock.sector || 'General / Equity',
+        watchlistId: Number(stock.watchlistId) || 1,
+        cmp: Number(stock.cmp || 0),
+        prevClose: Number(stock.prevClose || stock.cmp || 0),
+        targetPrice: stock.targetPrice !== undefined && stock.targetPrice !== null ? Number(stock.targetPrice) : null,
+        notes: stock.notes || '',
+        addedDate: stock.addedDate || new Date().toISOString().split('T')[0],
+        dayHigh: Number(stock.dayHigh || stock.cmp || 0),
+        dayLow: Number(stock.dayLow || stock.cmp || 0),
+        week52High: Number(stock.week52High || 0),
+        week52Low: Number(stock.week52Low || 0),
+        dayChangePercent: Number(stock.dayChangePercent || 0),
+        updatedAt: serverTimestamp()
+      };
+
+      const userDocRef = doc(this.db, 'users', userId, 'watchlist', stock.id);
+      await setDoc(userDocRef, payload, { merge: true });
+      return true;
+    } catch (e) {
+      console.error('Error saving user watchlist stock to Firestore:', e);
+      return false;
+    }
+  }
+
+  async removeUserWatchlistStock(userId, stockId, symbol = '') {
+    if (!this.isConfigured || !this.db || !userId) return false;
+    try {
+      const delPromises = [];
+      if (stockId) {
+        const docRef = doc(this.db, 'users', userId, 'watchlist', String(stockId));
+        delPromises.push(deleteDoc(docRef).catch(() => {}));
+      }
+      if (symbol) {
+        const symClean = String(symbol).toUpperCase().trim();
+        try {
+          const colRef = collection(this.db, 'users', userId, 'watchlist');
+          const snap = await getDocs(colRef);
+          snap.forEach(d => {
+            const data = d.data();
+            if (data.symbol && data.symbol.toUpperCase().trim() === symClean) {
+              delPromises.push(deleteDoc(d.ref).catch(() => {}));
+            }
+          });
+        } catch (e) {}
+      }
+      await Promise.all(delPromises);
+      return true;
+    } catch (e) {
+      console.error('Error removing user watchlist stock from Firestore:', e);
+      return false;
+    }
+  }
+
+  async clearAllUserWatchlist(userId, watchlistId = null) {
+    if (!this.isConfigured || !this.db || !userId) return false;
+    try {
+      const colRef = collection(this.db, 'users', userId, 'watchlist');
+      const snap = await getDocs(colRef);
+      const delPromises = [];
+      snap.forEach(d => {
+        const data = d.data();
+        if (watchlistId === null || (Number(data.watchlistId) || 1) === Number(watchlistId)) {
+          delPromises.push(deleteDoc(d.ref).catch(() => {}));
+        }
+      });
+      await Promise.all(delPromises);
+      return true;
+    } catch (e) {
+      console.error('Error clearing all user watchlist from Firestore:', e);
+      return false;
+    }
+  }
+
+  // ==========================================================
   // User Scoped Transactions (/users/{userId}/transactions)
   // ==========================================================
 

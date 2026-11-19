@@ -5,8 +5,91 @@ import { liveMarketService } from '../services/liveMarketService.js';
 
 const STORAGE_KEY_GUEST_HOLDINGS = 'apna_share_guest_holdings_v1';
 const STORAGE_KEY_GUEST_TRANSACTIONS = 'apna_share_guest_txs_v1';
+const STORAGE_KEY_GUEST_WATCHLIST = 'apna_share_guest_watchlist_v1';
 const STORAGE_KEY_CURRENCY = 'apex_portfolio_currency_v1';
 const STORAGE_KEY_LIVE_FEED = 'apex_portfolio_live_feed_v1';
+const STORAGE_KEY_WATCHLIST_NAMES = 'apna_share_watchlist_names_v1';
+const STORAGE_KEY_ACTIVE_WATCHLIST_ID = 'apna_share_active_watchlist_id_v1';
+
+// Initial realistic seed watchlist for Indian market investor
+const DEFAULT_WATCHLIST = [
+  {
+    id: 'w_1',
+    symbol: 'INFY',
+    name: 'Infosys Ltd.',
+    exchange: 'NSE',
+    sector: 'Information Technology',
+    cmp: 1153.80,
+    prevClose: 1153.35,
+    dayLow: 1038.05,
+    dayHigh: 1197.80,
+    week52Low: 980.40,
+    week52High: 1728.00,
+    dayChangePercent: 0.04,
+    dayVolume: 13030713,
+    avgVolume: 16853446,
+    targetPrice: 1120.00,
+    notes: 'Watch for IT demand recovery and digital revenue growth',
+    addedDate: '2025-10-15'
+  },
+  {
+    id: 'w_2',
+    symbol: 'SBIN',
+    name: 'State Bank of India',
+    exchange: 'NSE',
+    sector: 'Banking & Financials',
+    cmp: 840.50,
+    prevClose: 835.20,
+    dayLow: 832.00,
+    dayHigh: 845.00,
+    week52Low: 730.00,
+    week52High: 912.00,
+    dayChangePercent: 0.63,
+    dayVolume: 12500000,
+    avgVolume: 14200000,
+    targetPrice: 825.00,
+    notes: 'PSU banking leader with robust credit growth',
+    addedDate: '2025-10-18'
+  },
+  {
+    id: 'w_3',
+    symbol: 'LT',
+    name: 'Larsen & Toubro Ltd.',
+    exchange: 'NSE',
+    sector: 'Infrastructure & Capital Goods',
+    cmp: 3480.00,
+    prevClose: 3450.00,
+    dayLow: 3440.00,
+    dayHigh: 3510.00,
+    week52Low: 3100.00,
+    week52High: 3950.00,
+    dayChangePercent: 0.87,
+    dayVolume: 2100000,
+    avgVolume: 2400000,
+    targetPrice: 3380.00,
+    notes: 'Massive infrastructure order book and capex cycle',
+    addedDate: '2025-10-20'
+  },
+  {
+    id: 'w_4',
+    symbol: 'BHARTIARTL',
+    name: 'Bharti Airtel Ltd.',
+    exchange: 'NSE',
+    sector: 'Telecommunications',
+    cmp: 1640.00,
+    prevClose: 1655.00,
+    dayLow: 1630.00,
+    dayHigh: 1665.00,
+    week52Low: 1150.00,
+    week52High: 1780.00,
+    dayChangePercent: -0.91,
+    dayVolume: 4800000,
+    avgVolume: 5100000,
+    targetPrice: 1600.00,
+    notes: 'ARPU growth trajectory and 5G market share gains',
+    addedDate: '2025-10-22'
+  }
+];
 
 // Initial realistic seed holdings for an Indian Market investor (Current Market Prices)
 const DEFAULT_HOLDINGS = [
@@ -120,6 +203,9 @@ class PortfolioStore {
     this.activeSyncedUserId = null;
     this.firestoreUnsubscribeHoldings = null;
     this.firestoreUnsubscribeTransactions = null;
+    this.firestoreUnsubscribeWatchlist = null;
+    this.activeWatchlistId = this.loadActiveWatchlistId();
+    this.watchlistNames = this.loadWatchlistNames();
 
     const initialUser = this.getActiveUser();
     if (initialUser && !initialUser.isGuest && initialUser.uid) {
@@ -139,9 +225,11 @@ class PortfolioStore {
       }
       this.holdings = userHoldings;
       this.transactions = this.loadUserTransactions(initialUser.uid);
+      this.watchlist = this.loadUserWatchlist(initialUser.uid);
     } else {
       this.holdings = this.loadGuestHoldings();
       this.transactions = this.loadGuestTransactions();
+      this.watchlist = this.loadGuestWatchlist();
     }
 
     if (this.isLiveFeedActive && liveMarketService.isMarketOpen() && this.holdings.length > 0) {
@@ -164,7 +252,8 @@ class PortfolioStore {
 
     // Subscribe to live market auto-refresh interval ticks
     liveMarketService.subscribe((event) => {
-      if (event.type === 'AUTO_REFRESH_TICK' && this.holdings.length > 0) {
+      const hasStocks = (this.holdings && this.holdings.length > 0) || (this.watchlist && this.watchlist.length > 0);
+      if (event.type === 'AUTO_REFRESH_TICK' && hasStocks) {
         this.refreshMarketQuotes(true);
       }
     });
@@ -220,6 +309,7 @@ class PortfolioStore {
     // Load locally cached data for this specific user
     this.holdings = this.loadUserHoldings(userId);
     this.transactions = this.loadUserTransactions(userId);
+    this.watchlist = this.loadUserWatchlist(userId);
     this.notify({ type: 'PORTFOLIO_RESET' });
 
     // Connect to Firestore sync for this user
@@ -237,11 +327,13 @@ class PortfolioStore {
     try {
       localStorage.removeItem(STORAGE_KEY_GUEST_HOLDINGS);
       localStorage.removeItem(STORAGE_KEY_GUEST_TRANSACTIONS);
+      localStorage.removeItem(STORAGE_KEY_GUEST_WATCHLIST);
     } catch (e) {}
 
     // Reset in-memory state to clean empty portfolio
     this.holdings = [];
     this.transactions = [];
+    this.watchlist = [];
     this.stopLiveSimulation();
 
     this.notify({ type: 'PORTFOLIO_RESET' });
@@ -277,6 +369,10 @@ class PortfolioStore {
     if (this.firestoreUnsubscribeTransactions) {
       this.firestoreUnsubscribeTransactions();
       this.firestoreUnsubscribeTransactions = null;
+    }
+    if (this.firestoreUnsubscribeWatchlist) {
+      this.firestoreUnsubscribeWatchlist();
+      this.firestoreUnsubscribeWatchlist = null;
     }
     this.isCloudSyncing = false;
   }
@@ -344,6 +440,17 @@ class PortfolioStore {
         this.transactions = cloudTxs;
         this.saveTransactions(this.transactions);
         this.notify({ type: 'CLOUD_TX_UPDATED' });
+      }
+    });
+
+    // Listen to user-specific private watchlist (/users/{userId}/watchlist)
+    this.firestoreUnsubscribeWatchlist = firebaseService.listenToUserWatchlist(effectiveUid, (cloudWatchlist) => {
+      if (this.activeSyncedUserId !== effectiveUid) return;
+
+      if (Array.isArray(cloudWatchlist)) {
+        this.watchlist = cloudWatchlist;
+        this.saveWatchlist(this.watchlist);
+        this.notify({ type: 'WATCHLIST_UPDATED', watchlist: this.watchlist });
       }
     });
 
@@ -511,7 +618,327 @@ class PortfolioStore {
     return this.loadGuestTransactions();
   }
 
-  // Synchronize active holdings with the latest real market prices
+  // ==========================================
+  // Watchlist Persistence & User Scoping
+  // ==========================================
+
+  getUserWatchlistKey(uid) {
+    return `apna_share_user_watchlist_${uid}`;
+  }
+
+  loadUserWatchlist(uid) {
+    if (!uid || uid === 'usr_local_guest') return [];
+    try {
+      const data = localStorage.getItem(this.getUserWatchlistKey(uid));
+      if (data !== null) {
+        const parsed = JSON.parse(data);
+        if (Array.isArray(parsed)) return parsed;
+      }
+    } catch (e) {
+      console.error('Failed to load user watchlist from localStorage', e);
+    }
+    return [];
+  }
+
+  saveUserWatchlist(uid, watchlist) {
+    if (!uid || uid === 'usr_local_guest') return;
+    try {
+      localStorage.setItem(this.getUserWatchlistKey(uid), JSON.stringify(watchlist));
+    } catch (e) {
+      console.error('Failed to save user watchlist to localStorage', e);
+    }
+  }
+
+  loadGuestWatchlist() {
+    try {
+      const data = localStorage.getItem(STORAGE_KEY_GUEST_WATCHLIST);
+      if (data !== null) {
+        const parsed = JSON.parse(data);
+        if (Array.isArray(parsed)) return parsed;
+      }
+    } catch (e) {
+      console.error('Failed to load guest watchlist from localStorage', e);
+    }
+    return JSON.parse(JSON.stringify(DEFAULT_WATCHLIST));
+  }
+
+  saveGuestWatchlist(watchlist) {
+    try {
+      localStorage.setItem(STORAGE_KEY_GUEST_WATCHLIST, JSON.stringify(watchlist));
+    } catch (e) {
+      console.error('Failed to save guest watchlist to localStorage', e);
+    }
+  }
+
+  loadWatchlist() {
+    const uid = this.getActiveUserId();
+    if (uid && uid !== 'usr_local_guest') {
+      return this.loadUserWatchlist(uid);
+    }
+    return this.loadGuestWatchlist();
+  }
+
+  saveWatchlist(watchlist) {
+    const uid = this.getActiveUserId();
+    if (uid && uid !== 'usr_local_guest' && !this.isInspectingOtherUser) {
+      this.saveUserWatchlist(uid, watchlist);
+    } else if (!this.isInspectingOtherUser) {
+      this.saveGuestWatchlist(watchlist);
+    }
+  }
+
+  // ==========================================
+  // Watchlist Business Logic & Operations (Multi-Watchlist: 3 Lists, 50 Stocks Each)
+  // ==========================================
+
+  loadActiveWatchlistId() {
+    try {
+      const id = parseInt(localStorage.getItem(STORAGE_KEY_ACTIVE_WATCHLIST_ID), 10);
+      if ([1, 2, 3].includes(id)) return id;
+    } catch (e) {}
+    return 1;
+  }
+
+  loadWatchlistNames() {
+    try {
+      const data = localStorage.getItem(STORAGE_KEY_WATCHLIST_NAMES);
+      if (data) {
+        const parsed = JSON.parse(data);
+        if (parsed && typeof parsed === 'object') {
+          return {
+            1: parsed[1] || 'Watchlist 1',
+            2: parsed[2] || 'Watchlist 2',
+            3: parsed[3] || 'Watchlist 3'
+          };
+        }
+      }
+    } catch (e) {}
+    return { 1: 'Watchlist 1', 2: 'Watchlist 2', 3: 'Watchlist 3' };
+  }
+
+  getActiveWatchlistId() {
+    return this.activeWatchlistId || 1;
+  }
+
+  setActiveWatchlist(id) {
+    const parsed = Number(id);
+    if ([1, 2, 3].includes(parsed)) {
+      this.activeWatchlistId = parsed;
+      try {
+        localStorage.setItem(STORAGE_KEY_ACTIVE_WATCHLIST_ID, String(parsed));
+      } catch (e) {}
+      this.notify({ type: 'WATCHLIST_TAB_CHANGED', activeWatchlistId: parsed });
+    }
+  }
+
+  getWatchlistNames() {
+    return {
+      1: (this.watchlistNames && this.watchlistNames[1]) || 'Watchlist 1',
+      2: (this.watchlistNames && this.watchlistNames[2]) || 'Watchlist 2',
+      3: (this.watchlistNames && this.watchlistNames[3]) || 'Watchlist 3'
+    };
+  }
+
+  getWatchlistName(id) {
+    const names = this.getWatchlistNames();
+    return names[Number(id) || 1] || `Watchlist ${id}`;
+  }
+
+  setWatchlistName(id, name) {
+    const parsed = Number(id);
+    if ([1, 2, 3].includes(parsed) && name && typeof name === 'string') {
+      const clean = name.trim().substring(0, 24);
+      if (!this.watchlistNames) this.watchlistNames = { 1: 'Watchlist 1', 2: 'Watchlist 2', 3: 'Watchlist 3' };
+      this.watchlistNames[parsed] = clean;
+      try {
+        localStorage.setItem(STORAGE_KEY_WATCHLIST_NAMES, JSON.stringify(this.watchlistNames));
+      } catch (e) {}
+      this.notify({ type: 'WATCHLIST_NAMES_UPDATED', watchlistNames: this.watchlistNames });
+    }
+  }
+
+  getWatchlist(watchlistId = null) {
+    const targetId = watchlistId !== null && watchlistId !== undefined ? Number(watchlistId) : this.activeWatchlistId;
+    if (!Array.isArray(this.watchlist)) return [];
+    return this.watchlist.filter(w => (Number(w.watchlistId) || 1) === targetId);
+  }
+
+  getAllWatchlistItems() {
+    return Array.isArray(this.watchlist) ? this.watchlist : [];
+  }
+
+  getWatchlistCounts() {
+    const list = Array.isArray(this.watchlist) ? this.watchlist : [];
+    return {
+      1: list.filter(w => (Number(w.watchlistId) || 1) === 1).length,
+      2: list.filter(w => (Number(w.watchlistId) || 1) === 2).length,
+      3: list.filter(w => (Number(w.watchlistId) || 1) === 3).length,
+      total: list.length
+    };
+  }
+
+  getWatchlistStockBySymbol(symbol, watchlistId = null) {
+    if (!symbol) return null;
+    const sym = symbol.toUpperCase().trim();
+    return this.getWatchlist(watchlistId).find(w => (w.symbol || '').toUpperCase().trim() === sym) || null;
+  }
+
+  isInWatchlist(symbol, watchlistId = null) {
+    return Boolean(this.getWatchlistStockBySymbol(symbol, watchlistId));
+  }
+
+  async addToWatchlist({ symbol, name, exchange, sector, targetPrice, notes, watchlistId }) {
+    if (!symbol) throw new Error('Stock symbol is required');
+    const sym = symbol.toUpperCase().trim();
+    if (!Array.isArray(this.watchlist)) this.watchlist = [];
+
+    const targetWlId = Number(watchlistId) || this.activeWatchlistId || 1;
+    const currentList = this.getWatchlist(targetWlId);
+    const existingIndex = this.watchlist.findIndex(w => (w.symbol || '').toUpperCase().trim() === sym && (Number(w.watchlistId) || 1) === targetWlId);
+
+    // Limit check: Up to 50 shares per watchlist
+    if (existingIndex === -1 && currentList.length >= 50) {
+      const wlName = this.getWatchlistName(targetWlId);
+      throw new Error(`Watchlist "${wlName}" has reached the maximum capacity of 50 stocks. Please remove a stock or switch to another watchlist.`);
+    }
+
+    const refStock = POPULAR_STOCKS.find(s => s.symbol.toUpperCase() === sym);
+
+    const cmp = refStock ? refStock.cmp : 100;
+    const prevClose = refStock ? refStock.prevClose : cmp;
+    const dayHigh = refStock ? refStock.dayHigh : cmp;
+    const dayLow = refStock ? refStock.dayLow : cmp;
+    const week52High = refStock ? refStock.week52High : parseFloat((cmp * 1.25).toFixed(2));
+    const week52Low = refStock ? refStock.week52Low : parseFloat((cmp * 0.75).toFixed(2));
+    const dayChangePercent = refStock ? refStock.dayChangePercent : 0;
+
+    let target = targetPrice !== undefined && targetPrice !== null && !isNaN(parseFloat(targetPrice)) ? parseFloat(targetPrice) : null;
+    if (target === null && cmp) {
+      target = parseFloat((cmp * 0.97).toFixed(2));
+    }
+
+    let item;
+    if (existingIndex !== -1) {
+      item = {
+        ...this.watchlist[existingIndex],
+        watchlistId: targetWlId,
+        name: name || this.watchlist[existingIndex].name || (refStock ? refStock.name : sym),
+        exchange: exchange || this.watchlist[existingIndex].exchange || (refStock ? refStock.exchange : 'NSE'),
+        sector: sector || this.watchlist[existingIndex].sector || (refStock ? refStock.sector : 'General / Equity'),
+        targetPrice: target,
+        notes: notes !== undefined ? notes : this.watchlist[existingIndex].notes,
+        cmp: refStock ? refStock.cmp : this.watchlist[existingIndex].cmp,
+        prevClose: refStock ? refStock.prevClose : this.watchlist[existingIndex].prevClose
+      };
+      this.watchlist[existingIndex] = item;
+    } else {
+      const id = 'w_' + Date.now() + '_' + Math.random().toString(36).substr(2, 6);
+      item = {
+        id,
+        watchlistId: targetWlId,
+        symbol: sym,
+        name: name || (refStock ? refStock.name : sym),
+        exchange: exchange || (refStock ? refStock.exchange : 'NSE'),
+        sector: sector || (refStock ? refStock.sector : 'General / Equity'),
+        cmp: parseFloat(cmp),
+        prevClose: parseFloat(prevClose),
+        dayHigh: parseFloat(dayHigh),
+        dayLow: parseFloat(dayLow),
+        week52High: parseFloat(week52High),
+        week52Low: parseFloat(week52Low),
+        dayChangePercent: parseFloat(dayChangePercent),
+        targetPrice: target,
+        notes: notes || '',
+        addedDate: new Date().toISOString().split('T')[0]
+      };
+      this.watchlist.unshift(item);
+    }
+
+    this.saveWatchlist(this.watchlist);
+
+    if (firebaseService.isConfigured && !this.isInspectingOtherUser) {
+      const u = this.getActiveUser();
+      const uid = this.getActiveUserId();
+      if (uid && uid !== 'usr_local_guest') {
+        firebaseService.saveUserWatchlistStock(uid, item, u?.email).catch(() => {});
+      }
+    }
+
+    this.notify({ type: 'WATCHLIST_UPDATED', watchlist: this.watchlist, item });
+    return item;
+  }
+
+  async updateWatchlistItem(id, updates = {}) {
+    if (!Array.isArray(this.watchlist)) this.watchlist = [];
+    const idx = this.watchlist.findIndex(w => String(w.id) === String(id));
+    if (idx === -1) return null;
+
+    this.watchlist[idx] = {
+      ...this.watchlist[idx],
+      ...updates,
+      id: this.watchlist[idx].id
+    };
+
+    this.saveWatchlist(this.watchlist);
+
+    if (firebaseService.isConfigured && !this.isInspectingOtherUser) {
+      const u = this.getActiveUser();
+      const uid = this.getActiveUserId();
+      if (uid && uid !== 'usr_local_guest') {
+        firebaseService.saveUserWatchlistStock(uid, this.watchlist[idx], u?.email).catch(() => {});
+      }
+    }
+
+    this.notify({ type: 'WATCHLIST_UPDATED', watchlist: this.watchlist, item: this.watchlist[idx] });
+    return this.watchlist[idx];
+  }
+
+  async removeFromWatchlist(idOrSymbol, watchlistId = null) {
+    if (!idOrSymbol || !Array.isArray(this.watchlist)) return null;
+    const str = String(idOrSymbol).toUpperCase().trim();
+    const targetWlId = watchlistId !== null && watchlistId !== undefined ? Number(watchlistId) : null;
+
+    const idx = this.watchlist.findIndex(w => {
+      const matchesId = String(w.id) === String(idOrSymbol);
+      const matchesSym = w.symbol && w.symbol.toUpperCase().trim() === str;
+      const matchesWl = targetWlId === null || (Number(w.watchlistId) || 1) === targetWlId;
+      return (matchesId || matchesSym) && matchesWl;
+    });
+
+    if (idx === -1) return null;
+
+    const removed = this.watchlist.splice(idx, 1)[0];
+    this.saveWatchlist(this.watchlist);
+
+    if (firebaseService.isConfigured && !this.isInspectingOtherUser) {
+      const uid = this.getActiveUserId();
+      if (uid && uid !== 'usr_local_guest') {
+        firebaseService.removeUserWatchlistStock(uid, removed.id, removed.symbol).catch(() => {});
+      }
+    }
+
+    this.notify({ type: 'WATCHLIST_UPDATED', watchlist: this.watchlist, removed });
+    return removed;
+  }
+
+  async clearWatchlist(watchlistId = null) {
+    const targetWlId = watchlistId !== null && watchlistId !== undefined ? Number(watchlistId) : this.activeWatchlistId;
+    if (!Array.isArray(this.watchlist)) return;
+
+    this.watchlist = this.watchlist.filter(w => (Number(w.watchlistId) || 1) !== targetWlId);
+    this.saveWatchlist(this.watchlist);
+
+    if (firebaseService.isConfigured && !this.isInspectingOtherUser) {
+      const uid = this.getActiveUserId();
+      if (uid && uid !== 'usr_local_guest') {
+        firebaseService.clearAllUserWatchlist(uid, targetWlId).catch(() => {});
+      }
+    }
+
+    this.notify({ type: 'WATCHLIST_UPDATED', watchlist: this.watchlist, clearedWatchlistId: targetWlId });
+  }
+
+    // Synchronize active holdings with the latest real market prices
   syncWithMarketDatabase() {
     let changed = false;
     this.holdings = this.holdings.map(h => {
@@ -570,6 +997,27 @@ class PortfolioStore {
       }
       return h;
     });
+
+    if (Array.isArray(this.watchlist) && this.watchlist.length > 0) {
+      this.watchlist = this.watchlist.map(w => {
+        const sym = (w.symbol || '').toUpperCase().trim();
+        const ref = POPULAR_STOCKS.find(s => s.symbol.toUpperCase() === sym);
+        if (ref && ref.cmp) {
+          return {
+            ...w,
+            cmp: ref.cmp,
+            prevClose: ref.prevClose || w.prevClose || ref.cmp,
+            dayHigh: ref.dayHigh || w.dayHigh || ref.cmp,
+            dayLow: ref.dayLow || w.dayLow || ref.cmp,
+            week52High: ref.week52High || w.week52High || (ref.cmp * 1.25),
+            week52Low: ref.week52Low || w.week52Low || (ref.cmp * 0.75),
+            dayChangePercent: ref.dayChangePercent !== undefined ? ref.dayChangePercent : w.dayChangePercent
+          };
+        }
+        return w;
+      });
+      this.saveWatchlist(this.watchlist);
+    }
 
     if (changed) {
       this.saveHoldings(this.holdings);
@@ -1152,11 +1600,13 @@ class PortfolioStore {
         return;
       }
 
-      if (!this.isLiveFeedActive || this.holdings.length === 0) return;
+      const pool = [...this.holdings, ...this.watchlist];
+      if (!this.isLiveFeedActive || pool.length === 0) return;
 
-      // Pick a random holding to fluctuate
-      const randomIndex = Math.floor(Math.random() * this.holdings.length);
-      const target = this.holdings[randomIndex];
+      // Pick a random holding or watchlist item to fluctuate
+      const randomIndex = Math.floor(Math.random() * pool.length);
+      const target = pool[randomIndex];
+      const isWatchlist = Array.isArray(this.watchlist) && this.watchlist.some(w => w.id === target.id);
 
       // Realistic tick between -0.20% and +0.20%
       const deltaPercent = (Math.random() * 0.40 - 0.20) / 100;
@@ -1173,9 +1623,14 @@ class PortfolioStore {
           symbol: target.symbol,
           direction: newPrice > oldPrice ? 'up' : 'down',
           oldPrice,
-          newPrice
+          newPrice,
+          isWatchlist
         };
-        this.saveHoldings(this.holdings);
+        if (isWatchlist) {
+          this.saveWatchlist(this.watchlist);
+        } else {
+          this.saveHoldings(this.holdings);
+        }
         this.notify({ type: 'PRICE_TICK', tick: this.lastTickSymbol });
       }
     }, 3200);
@@ -1202,49 +1657,78 @@ class PortfolioStore {
 
   // Refresh market quotes: Fetches real-time NSE/BSE prices from liveMarketService
   async refreshMarketQuotes(isSilent = false) {
-    if (!Array.isArray(this.holdings) || this.holdings.length === 0) {
+    const allQuotesItems = [...(this.holdings || []), ...(this.watchlist || [])];
+    if (allQuotesItems.length === 0) {
       this.notify({ type: 'MANUAL_REFRESH', isSilent, timestamp: Date.now() });
       return { totalCount: 0, updatedCount: 0, meta: null };
     }
 
     try {
-      const quotes = await liveMarketService.fetchQuotesForHoldings(this.holdings);
+      const quotes = await liveMarketService.fetchQuotesForHoldings(allQuotesItems);
       let updatedCount = 0;
 
-      this.holdings = this.holdings.map(h => {
-        const sym = (h.symbol || '').toUpperCase().trim();
-        const quote = quotes[sym];
-        if (quote && quote.cmp && quote.cmp > 0) {
-          if (Math.abs(h.cmp - quote.cmp) > 0.01) {
-            updatedCount++;
+      if (Array.isArray(this.holdings)) {
+        this.holdings = this.holdings.map(h => {
+          const sym = (h.symbol || '').toUpperCase().trim();
+          const quote = quotes[sym];
+          if (quote && quote.cmp && quote.cmp > 0) {
+            if (Math.abs(h.cmp - quote.cmp) > 0.01) {
+              updatedCount++;
+            }
+            const cmp = quote.cmp;
+            let dHigh = Number(quote.dayHigh || quote.high || h.dayHigh || cmp);
+            let dLow = Number(quote.dayLow || quote.low || h.dayLow || cmp);
+            let wHigh = Number(quote.week52High || h.week52High || (cmp * 1.25));
+            let wLow = Number(quote.week52Low || h.week52Low || (cmp * 0.75));
+
+            dHigh = Math.max(dHigh, cmp);
+            dLow = Math.min(dLow, cmp);
+            wHigh = Math.max(wHigh, dHigh, cmp);
+            wLow = Math.min(wLow, dLow, cmp);
+
+            return {
+              ...h,
+              cmp: cmp,
+              prevClose: quote.prevClose || h.prevClose || cmp,
+              dayHigh: parseFloat(dHigh.toFixed(2)),
+              dayLow: parseFloat(dLow.toFixed(2)),
+              week52High: parseFloat(wHigh.toFixed(2)),
+              week52Low: parseFloat(wLow.toFixed(2)),
+              dayVolume: quote.dayVolume || h.dayVolume,
+              avgVolume: quote.avgVolume || h.avgVolume
+            };
           }
-          const cmp = quote.cmp;
-          let dHigh = Number(quote.dayHigh || quote.high || h.dayHigh || cmp);
-          let dLow = Number(quote.dayLow || quote.low || h.dayLow || cmp);
-          let wHigh = Number(quote.week52High || h.week52High || (cmp * 1.25));
-          let wLow = Number(quote.week52Low || h.week52Low || (cmp * 0.75));
+          return h;
+        });
+        this.saveHoldings(this.holdings);
+      }
 
-          dHigh = Math.max(dHigh, cmp);
-          dLow = Math.min(dLow, cmp);
-          wHigh = Math.max(wHigh, dHigh, cmp);
-          wLow = Math.min(wLow, dLow, cmp);
+      if (Array.isArray(this.watchlist) && this.watchlist.length > 0) {
+        this.watchlist = this.watchlist.map(w => {
+          const sym = (w.symbol || '').toUpperCase().trim();
+          const quote = quotes[sym];
+          if (quote && quote.cmp && quote.cmp > 0) {
+            const cmp = quote.cmp;
+            let dHigh = Number(quote.dayHigh || quote.high || w.dayHigh || cmp);
+            let dLow = Number(quote.dayLow || quote.low || w.dayLow || cmp);
+            let wHigh = Number(quote.week52High || w.week52High || (cmp * 1.25));
+            let wLow = Number(quote.week52Low || w.week52Low || (cmp * 0.75));
 
-          return {
-            ...h,
-            cmp: cmp,
-            prevClose: quote.prevClose || h.prevClose || cmp,
-            dayHigh: parseFloat(dHigh.toFixed(2)),
-            dayLow: parseFloat(dLow.toFixed(2)),
-            week52High: parseFloat(wHigh.toFixed(2)),
-            week52Low: parseFloat(wLow.toFixed(2)),
-            dayVolume: quote.dayVolume || h.dayVolume,
-            avgVolume: quote.avgVolume || h.avgVolume
-          };
-        }
-        return h;
-      });
-
-      this.saveHoldings(this.holdings);
+            return {
+              ...w,
+              cmp: cmp,
+              prevClose: quote.prevClose || w.prevClose || cmp,
+              dayHigh: parseFloat(dHigh.toFixed(2)),
+              dayLow: parseFloat(dLow.toFixed(2)),
+              week52High: parseFloat(wHigh.toFixed(2)),
+              week52Low: parseFloat(wLow.toFixed(2)),
+              dayChangePercent: quote.dayChangePercent !== undefined ? quote.dayChangePercent : w.dayChangePercent
+            };
+          }
+          return w;
+        });
+        this.saveWatchlist(this.watchlist);
+      }
 
       if (firebaseService.isConfigured && !this.isInspectingOtherUser) {
         const u = this.getActiveUser();
@@ -1252,6 +1736,9 @@ class PortfolioStore {
         if (uid && uid !== 'usr_local_guest') {
           for (const h of this.holdings) {
             firebaseService.saveUserHolding(uid, h, u?.email).catch(() => {});
+          }
+          for (const w of this.watchlist) {
+            firebaseService.saveUserWatchlistStock(uid, w, u?.email).catch(() => {});
           }
         }
       }
@@ -1267,12 +1754,12 @@ class PortfolioStore {
         updatedCount
       });
 
-      return { totalCount: this.holdings.length, updatedCount, quotes, meta };
+      return { totalCount: allQuotesItems.length, updatedCount, quotes, meta };
     } catch (err) {
       console.warn('refreshMarketQuotes error:', err);
       this.syncWithMarketDatabase();
       this.notify({ type: 'MANUAL_REFRESH', isSilent, timestamp: Date.now() });
-      return { totalCount: this.holdings.length, updatedCount: 0, meta: null, error: err.message };
+      return { totalCount: allQuotesItems.length, updatedCount: 0, meta: null, error: err.message };
     }
   }
 
@@ -1288,7 +1775,8 @@ class PortfolioStore {
       app: 'Apna Share Calculator',
       exportedAt: new Date().toISOString(),
       holdings: this.holdings,
-      transactions: this.transactions
+      transactions: this.transactions,
+      watchlist: this.watchlist
     };
   }
 
@@ -1304,9 +1792,21 @@ class PortfolioStore {
       this.saveTransactions(this.transactions);
     }
 
+    if (Array.isArray(data.watchlist)) {
+      this.watchlist = data.watchlist;
+      this.saveWatchlist(this.watchlist);
+    }
+
     if (firebaseService.isConfigured) {
       this.holdings.forEach(h => firebaseService.saveHolding(h));
       this.transactions.forEach(t => firebaseService.recordTransaction(t));
+      if (Array.isArray(this.watchlist)) {
+        const uid = this.getActiveUserId();
+        const u = this.getActiveUser();
+        if (uid && uid !== 'usr_local_guest') {
+          this.watchlist.forEach(w => firebaseService.saveUserWatchlistStock(uid, w, u?.email));
+        }
+      }
     }
 
     this.notify({ type: 'DATA_IMPORTED' });
@@ -1380,19 +1880,23 @@ class PortfolioStore {
   async clearAllData() {
     this.holdings = [];
     this.transactions = [];
+    this.watchlist = [];
     this.saveHoldings(this.holdings);
     this.saveTransactions(this.transactions);
+    this.saveWatchlist(this.watchlist);
 
-    // Explicitly wipe storage keys to remove any cached holdings and transaction history
+    // Explicitly wipe storage keys to remove any cached holdings, watchlist, and transaction history
     try {
       localStorage.removeItem(STORAGE_KEY_GUEST_HOLDINGS);
       localStorage.removeItem(STORAGE_KEY_GUEST_TRANSACTIONS);
+      localStorage.removeItem(STORAGE_KEY_GUEST_WATCHLIST);
       localStorage.removeItem('apex_portfolio_holdings_v1');
       localStorage.removeItem('apex_portfolio_txs_v1');
       const uid = this.getActiveUserId();
       if (uid && uid !== 'usr_local_guest') {
         localStorage.removeItem(this.getUserHoldingsKey(uid));
         localStorage.removeItem(this.getUserTransactionsKey(uid));
+        localStorage.removeItem(this.getUserWatchlistKey(uid));
       }
     } catch (e) {}
 
@@ -1402,7 +1906,8 @@ class PortfolioStore {
         try {
           await Promise.all([
             firebaseService.clearAllUserHoldings(uid),
-            firebaseService.clearAllUserTransactions(uid)
+            firebaseService.clearAllUserTransactions(uid),
+            firebaseService.clearAllUserWatchlist(uid)
           ]);
         } catch (err) {
           console.error('Failed to clear user data from Firestore:', err);
@@ -1413,6 +1918,7 @@ class PortfolioStore {
     this.notify({ type: 'DATA_CLEARED' });
     this.notify({ type: 'HOLDINGS_CLEARED' });
     this.notify({ type: 'TRANSACTIONS_UPDATED' });
+    this.notify({ type: 'WATCHLIST_UPDATED', watchlist: [] });
     this.notify({ type: 'PORTFOLIO_RESET' });
   }
 

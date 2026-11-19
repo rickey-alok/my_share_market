@@ -6,6 +6,7 @@ import { DashboardView } from './components/dashboardView.js';
 import { HoldingsView } from './components/holdingsView.js';
 import { AddHoldingView } from './components/addHoldingView.js';
 import { AnalysisView } from './components/analysisView.js';
+import { WatchlistView } from './components/watchlistView.js';
 import { ProfileModal } from './components/profileModal.js';
 import { authService } from './services/authService.js';
 import { liveMarketService } from './services/liveMarketService.js';
@@ -22,6 +23,7 @@ class App {
     this.holdingsView = null;
     this.addHoldingView = null;
     this.analysisView = null;
+    this.watchlistView = null;
     this.profileModal = null;
 
     this.init();
@@ -32,6 +34,8 @@ class App {
     const holdingsContainer = document.getElementById('view-holdings');
     const addHoldingContainer = document.getElementById('view-add-holding');
     const analysisContainer = document.getElementById('view-analysis');
+    const watchlistContainer = document.getElementById('view-watchlist');
+
     // Instantiate Views
     this.dashboardView = new DashboardView(
       dashboardContainer,
@@ -66,6 +70,14 @@ class App {
       );
     }
 
+    if (watchlistContainer) {
+      this.watchlistView = new WatchlistView(
+        watchlistContainer,
+        (prefillData) => this.navigateTo('add-holding', prefillData),
+        () => this.navigateTo('holdings')
+      );
+    }
+
     // User Profile, Login, Data & Settings Modal
     this.profileModal = new ProfileModal('modal-user-profile');
     this.setupUserProfile();
@@ -76,9 +88,40 @@ class App {
     this.setupTickerSimulation();
     this.setupCloudSyncModal();
 
+    // Subscribe to portfolioStore for watchlist counter badge
+    portfolioStore.subscribe((event) => {
+      if (event.type === 'WATCHLIST_UPDATED' || event.type === 'PORTFOLIO_RESET' || event.type === 'DATA_CLEARED') {
+        this.updateWatchlistBadge();
+      }
+    });
+    this.updateWatchlistBadge();
+
     // Handle browser hash navigation
     window.addEventListener('hashchange', () => this.handleHashChange());
     this.handleHashChange();
+  }
+
+  openAddToWatchlistModal(prefill = null) {
+    if (this.watchlistView && this.watchlistView.addToWatchlistModal) {
+      this.watchlistView.addToWatchlistModal.open(prefill, () => {
+        if (this.watchlistView) this.watchlistView.update();
+        this.updateWatchlistBadge();
+      });
+    }
+  }
+
+  updateWatchlistBadge() {
+    const list = portfolioStore.getWatchlist();
+    const count = list.length;
+    const badge = document.getElementById('nav-watchlist-count');
+    if (badge) {
+      if (count > 0) {
+        badge.textContent = count;
+        badge.style.display = 'inline-flex';
+      } else {
+        badge.style.display = 'none';
+      }
+    }
   }
 
   navigateTo(viewName, data = null) {
@@ -89,6 +132,8 @@ class App {
       }
     } else if (viewName === 'holdings') {
       window.location.hash = `#/holdings`;
+    } else if (viewName === 'watchlist') {
+      window.location.hash = `#/watchlist`;
     } else if (viewName === 'add-holding') {
       window.location.hash = `#/add-holding`;
       if (data && this.addHoldingView) {
@@ -112,6 +157,8 @@ class App {
       }
     } else if (hash === 'holdings') {
       this.switchView('holdings');
+    } else if (hash === 'watchlist') {
+      this.switchView('watchlist');
     } else if (hash.startsWith('add-holding')) {
       const isBulk = hash.includes('mode=bulk');
       this.switchView('add-holding', isBulk ? { mode: 'bulk' } : null);
@@ -130,11 +177,13 @@ class App {
     const holdingsContainer = document.getElementById('view-holdings');
     const addHoldingContainer = document.getElementById('view-add-holding');
     const analysisContainer = document.getElementById('view-analysis');
+    const watchlistContainer = document.getElementById('view-watchlist');
 
     if (dashboardContainer) dashboardContainer.classList.remove('active');
     if (holdingsContainer) holdingsContainer.classList.remove('active');
     if (addHoldingContainer) addHoldingContainer.classList.remove('active');
     if (analysisContainer) analysisContainer.classList.remove('active');
+    if (watchlistContainer) watchlistContainer.classList.remove('active');
 
     if (viewName === 'dashboard') {
       if (dashboardContainer) dashboardContainer.classList.add('active');
@@ -143,6 +192,13 @@ class App {
         holdingsContainer.classList.add('active');
         if (this.holdingsView) {
           this.holdingsView.update();
+        }
+      }
+    } else if (viewName === 'watchlist') {
+      if (watchlistContainer) {
+        watchlistContainer.classList.add('active');
+        if (this.watchlistView) {
+          this.watchlistView.update();
         }
       }
     } else if (viewName === 'analysis') {
