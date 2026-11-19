@@ -5,6 +5,107 @@ import { authService } from '../services/authService.js';
 import { icons } from '../utils/icons.js';
 import Chart from 'chart.js/auto';
 
+// Squarified Treemap Layout Algorithm for Market Carpet
+function squarify(children, rect) {
+  let { x, y, w, h } = rect;
+  if (!children || !children.length) return [];
+  const total = children.reduce((s, c) => s + (c.value || 0), 0);
+  if (total <= 0) return [];
+
+  const validChildren = children.filter(c => (c.value || 0) > 0);
+  if (!validChildren.length) return [];
+
+  const items = validChildren
+    .sort((a, b) => b.value - a.value)
+    .map(c => ({ ...c, area: (c.value / total) * w * h }));
+
+  if (items.length === 1) {
+    return [{ ...items[0], x, y, w, h }];
+  }
+
+  const results = [];
+
+  function layoutRow(row, side, isHorizontal, originX, originY) {
+    const rowArea = row.reduce((s, c) => s + c.area, 0);
+    const rowThickness = rowArea / side;
+    let offset = 0;
+    for (const item of row) {
+      const itemLength = item.area / rowThickness;
+      if (isHorizontal) {
+        results.push({ ...item, x: originX, y: originY + offset, w: rowThickness, h: itemLength });
+        offset += itemLength;
+      } else {
+        results.push({ ...item, x: originX + offset, y: originY, w: itemLength, h: rowThickness });
+        offset += itemLength;
+      }
+    }
+  }
+
+  function worst(row, side) {
+    const rowArea = row.reduce((s, c) => s + c.area, 0);
+    const rowThickness = rowArea / side;
+    if (rowThickness <= 0) return Infinity;
+    let maxAspect = 0;
+    for (const item of row) {
+      const itemLength = item.area / rowThickness;
+      if (itemLength <= 0) return Infinity;
+      const aspect = Math.max(rowThickness / itemLength, itemLength / rowThickness);
+      if (aspect > maxAspect) maxAspect = aspect;
+    }
+    return maxAspect;
+  }
+
+  let remaining = [...items];
+  let curRect = { x, y, w, h };
+
+  while (remaining.length > 0) {
+    const isHorizontal = curRect.w >= curRect.h;
+    const side = isHorizontal ? curRect.h : curRect.w;
+    let row = [remaining[0]];
+    let i = 1;
+
+    while (i < remaining.length) {
+      const next = remaining[i];
+      const withNext = [...row, next];
+      if (worst(withNext, side) <= worst(row, side)) {
+        row = withNext;
+        i++;
+      } else {
+        break;
+      }
+    }
+
+    layoutRow(row, side, isHorizontal, curRect.x, curRect.y);
+    const rowArea = row.reduce((s, c) => s + c.area, 0);
+    const rowThickness = rowArea / side;
+
+    if (isHorizontal) {
+      curRect.x += rowThickness;
+      curRect.w -= rowThickness;
+    } else {
+      curRect.y += rowThickness;
+      curRect.h -= rowThickness;
+    }
+
+    remaining = remaining.slice(row.length);
+  }
+
+  return results;
+}
+
+function getCarpetColor(returnPct) {
+  if (returnPct === undefined || returnPct === null || isNaN(returnPct)) return '#475569';
+  if (returnPct >= 100) return '#064e3b';
+  if (returnPct >= 50) return '#047857';
+  if (returnPct >= 20) return '#059669';
+  if (returnPct >= 5) return '#10b981';
+  if (returnPct > 0) return '#16a34a';
+  if (returnPct === 0) return '#475569';
+  if (returnPct > -5) return '#ef4444';
+  if (returnPct > -20) return '#dc2626';
+  return '#991b1b';
+}
+
 export class DashboardView {
   constructor(containerElement, onNavigateToAddHolding, onNavigateToHoldings) {
     this.container = containerElement;
@@ -13,6 +114,8 @@ export class DashboardView {
     this.chartInstance = null;
     this.performanceTab = 'top';
     this.pnlBreakdownTab = 'profit';
+    this.carpetMode = 'stock'; // 'stock' | 'sector'
+    this.carpetMetric = 'pnl'; // 'pnl' | 'day'
 
     this.init();
   }
@@ -74,15 +177,60 @@ export class DashboardView {
         <!-- Dynamically injected -->
       </div>
 
-      <!-- Analytics Breakdown (Chart & Sectors) -->
+      <!-- Analytics Breakdown (Market Carpet & Sectors) -->
       <div class="analytics-section">
-        <div class="analytics-card">
-          <div class="card-title-row">
-            <h2 class="card-title">${icons.pieChart} Sector Allocation</h2>
-            <span class="brand-badge" id="analytics-holdings-count">0 Assets</span>
+        <div class="analytics-card" id="market-carpet-card">
+          <div class="card-title-row" style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 0.5rem;">
+            <div style="display: flex; align-items: center; gap: 0.5rem;">
+              <h2 class="card-title" style="display: flex; align-items: center; gap: 0.45rem;">
+                ${icons.layoutDashboard} Market Carpet
+              </h2>
+              <span class="brand-badge" id="carpet-assets-count">0 Assets</span>
+            </div>
+            
+            <div style="display: flex; align-items: center; gap: 0.4rem; flex-wrap: wrap;">
+              <!-- Group Switcher (Stock vs Sector) -->
+              <div class="perf-tab-group" role="tablist">
+                <button type="button" class="perf-tab-btn active" id="btn-carpet-mode-stock" data-carpet-mode="stock" title="View Stocks Carpet">
+                  <span>Stocks</span>
+                </button>
+                <button type="button" class="perf-tab-btn" id="btn-carpet-mode-sector" data-carpet-mode="sector" title="View Sectors Carpet">
+                  <span>Sectors</span>
+                </button>
+              </div>
+
+              <!-- Metric Switcher (All-Time vs Today) -->
+              <div class="perf-tab-group" role="tablist">
+                <button type="button" class="perf-tab-btn active" id="btn-carpet-metric-pnl" data-carpet-metric="pnl" title="Color by All-Time Return %">
+                  <span>All-Time</span>
+                </button>
+                <button type="button" class="perf-tab-btn" id="btn-carpet-metric-day" data-carpet-metric="day" title="Color by Today's Return %">
+                  <span>Today</span>
+                </button>
+              </div>
+            </div>
           </div>
-          <div class="chart-wrapper">
-            <canvas id="allocation-chart"></canvas>
+
+          <!-- Market Carpet Treemap Container -->
+          <div id="market-carpet-container" class="market-carpet-container">
+            <!-- Treemap tiles dynamically injected -->
+          </div>
+
+          <!-- Carpet Color Legend Bar -->
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 0.75rem; font-size: 0.7rem; color: var(--text-muted); flex-wrap: wrap; gap: 0.4rem;">
+            <div style="display: flex; align-items: center; gap: 0.35rem;">
+              <span style="display: inline-block; width: 10px; height: 10px; border-radius: 2px; background: #991b1b;"></span>
+              <span>&lt; -20%</span>
+              <span style="display: inline-block; width: 10px; height: 10px; border-radius: 2px; background: #ef4444; margin-left: 0.15rem;"></span>
+              <span>-5%</span>
+              <span style="display: inline-block; width: 10px; height: 10px; border-radius: 2px; background: #475569; margin-left: 0.15rem;"></span>
+              <span>0%</span>
+              <span style="display: inline-block; width: 10px; height: 10px; border-radius: 2px; background: #10b981; margin-left: 0.15rem;"></span>
+              <span>+5%</span>
+              <span style="display: inline-block; width: 10px; height: 10px; border-radius: 2px; background: #047857; margin-left: 0.15rem;"></span>
+              <span>&gt; +50%</span>
+            </div>
+            <span style="font-family: var(--font-mono); font-size: 0.68rem;">Tile Area = Valuation Weight</span>
           </div>
         </div>
 
@@ -209,25 +357,114 @@ export class DashboardView {
       });
     }
 
-    // Chart responsiveness
-    this.handleResize = () => {
-      if (this.chartInstance) {
-        const isMobileNow = window.innerWidth <= 768;
-        let needsUpdate = false;
-        if (isMobileNow && this.chartInstance.options.plugins.legend.position !== 'bottom') {
-          this.chartInstance.options.plugins.legend.position = 'bottom';
-          this.chartInstance.options.plugins.legend.labels.padding = 10;
-          needsUpdate = true;
-        } else if (!isMobileNow && this.chartInstance.options.plugins.legend.position !== 'right') {
-          this.chartInstance.options.plugins.legend.position = 'right';
-          this.chartInstance.options.plugins.legend.labels.padding = 14;
-          needsUpdate = true;
+    // Carpet Card Controls and Tooltip
+    const carpetCard = this.container.querySelector('#market-carpet-card');
+    if (carpetCard) {
+      carpetCard.addEventListener('click', (e) => {
+        const modeBtn = e.target.closest('[data-carpet-mode]');
+        if (modeBtn) {
+          const mode = modeBtn.dataset.carpetMode;
+          if (mode && mode !== this.carpetMode) {
+            this.carpetMode = mode;
+            const metrics = portfolioStore.getPortfolioMetrics();
+            this.renderMarketCarpet(metrics);
+          }
+          return;
         }
-        this.chartInstance.resize();
-        if (needsUpdate) {
-          this.chartInstance.update();
+
+        const metricBtn = e.target.closest('[data-carpet-metric]');
+        if (metricBtn) {
+          const metric = metricBtn.dataset.carpetMetric;
+          if (metric && metric !== this.carpetMetric) {
+            this.carpetMetric = metric;
+            const metrics = portfolioStore.getPortfolioMetrics();
+            this.renderMarketCarpet(metrics);
+          }
+          return;
         }
+
+        const tile = e.target.closest('.carpet-tile');
+        if (tile) {
+          if (this.onNavigateToHoldings) this.onNavigateToHoldings();
+        }
+      });
+
+      // Tooltip handling
+      let carpetTooltip = document.getElementById('market-carpet-tooltip');
+      if (!carpetTooltip) {
+        carpetTooltip = document.createElement('div');
+        carpetTooltip.id = 'market-carpet-tooltip';
+        carpetTooltip.className = 'market-carpet-tooltip';
+        document.body.appendChild(carpetTooltip);
       }
+
+      const showTooltip = (e, tile) => {
+        const infoStr = tile.dataset.carpetInfo;
+        if (!infoStr) return;
+        try {
+          const d = JSON.parse(decodeURIComponent(infoStr));
+          const pnlSign = d.pnl >= 0 ? '+' : '';
+          const daySign = d.dayPnL >= 0 ? '+' : '';
+          const isProfit = d.pnl >= 0;
+          const isDayProfit = d.dayPnL >= 0;
+
+          carpetTooltip.innerHTML = `
+            <div style="font-weight: 800; font-size: 0.88rem; display: flex; justify-content: space-between; align-items: center; gap: 0.5rem; margin-bottom: 0.35rem; border-bottom: 1px solid var(--border-subtle); padding-bottom: 0.35rem;">
+              <span>${d.title}</span>
+              <span style="font-family: var(--font-mono); font-size: 0.78rem; color: ${isProfit ? 'var(--bull-green)' : 'var(--bear-red)'};">${d.returnText}</span>
+            </div>
+            ${d.subtitle ? `<div style="font-size: 0.72rem; color: var(--text-secondary); margin-bottom: 0.45rem;">${d.subtitle}</div>` : ''}
+            <div style="display: flex; justify-content: space-between; font-size: 0.74rem; margin-bottom: 0.2rem;">
+              <span style="color: var(--text-muted);">Current Value:</span>
+              <strong style="font-family: var(--font-mono);">${d.valueText} (${d.weightText})</strong>
+            </div>
+            ${d.investedText ? `
+              <div style="display: flex; justify-content: space-between; font-size: 0.74rem; margin-bottom: 0.2rem;">
+                <span style="color: var(--text-muted);">Invested:</span>
+                <span style="font-family: var(--font-mono);">${d.investedText}</span>
+              </div>
+            ` : ''}
+            <div style="display: flex; justify-content: space-between; font-size: 0.74rem; margin-bottom: 0.2rem;">
+              <span style="color: var(--text-muted);">Total P&L:</span>
+              <strong style="font-family: var(--font-mono); color: ${isProfit ? 'var(--bull-green)' : 'var(--bear-red)'};">${pnlSign}${d.pnlText} (${pnlSign}${d.pnlPctText})</strong>
+            </div>
+            <div style="display: flex; justify-content: space-between; font-size: 0.74rem;">
+              <span style="color: var(--text-muted);">Today's Move:</span>
+              <span style="font-family: var(--font-mono); color: ${isDayProfit ? 'var(--bull-green)' : 'var(--bear-red)'};">${daySign}${d.dayText} (${daySign}${d.dayPctText})</span>
+            </div>
+          `;
+
+          const x = e.clientX + 14;
+          const y = e.clientY + 14;
+          const tooltipWidth = 260;
+          const tooltipHeight = 160;
+          const finalX = (x + tooltipWidth > window.innerWidth) ? (e.clientX - tooltipWidth - 10) : x;
+          const finalY = (y + tooltipHeight > window.innerHeight) ? (e.clientY - tooltipHeight - 10) : y;
+
+          carpetTooltip.style.left = `${Math.max(10, finalX)}px`;
+          carpetTooltip.style.top = `${Math.max(10, finalY)}px`;
+          carpetTooltip.style.display = 'block';
+        } catch (err) {}
+      };
+
+      carpetCard.addEventListener('mousemove', (e) => {
+        const tile = e.target.closest('.carpet-tile');
+        if (tile) {
+          showTooltip(e, tile);
+        } else {
+          carpetTooltip.style.display = 'none';
+        }
+      });
+
+      carpetCard.addEventListener('mouseleave', () => {
+        carpetTooltip.style.display = 'none';
+      });
+    }
+
+    // Responsiveness resize listener
+    this.handleResize = () => {
+      const metrics = portfolioStore.getPortfolioMetrics();
+      this.renderMarketCarpet(metrics);
     };
     window.addEventListener('resize', this.handleResize);
   }
@@ -236,7 +473,7 @@ export class DashboardView {
     this.updateGuestBanner();
     const metrics = portfolioStore.getPortfolioMetrics();
     this.renderKPIs(metrics);
-    this.renderChart(metrics);
+    this.renderMarketCarpet(metrics);
     this.renderSectorList(metrics);
     this.renderHighlights(metrics, event);
   }
@@ -339,108 +576,179 @@ export class DashboardView {
     `;
   }
 
-  renderChart(metrics) {
-    const canvas = this.container.querySelector('#allocation-chart');
-    const countBadge = this.container.querySelector('#analytics-holdings-count');
-    if (!canvas) return;
+  renderMarketCarpet(metrics) {
+    const container = this.container.querySelector('#market-carpet-container');
+    const countBadge = this.container.querySelector('#carpet-assets-count');
+    if (!container) return;
 
     if (countBadge) {
       countBadge.textContent = `${metrics.totalHoldingsCount} Assets`;
     }
 
-    const labels = metrics.sectorBreakdown.map(s => s.sector);
-    const data = metrics.sectorBreakdown.map(s => s.value);
+    // Update active tab buttons
+    const btnStock = this.container.querySelector('#btn-carpet-mode-stock');
+    const btnSector = this.container.querySelector('#btn-carpet-mode-sector');
+    if (btnStock && btnSector) {
+      btnStock.classList.toggle('active', this.carpetMode !== 'sector');
+      btnSector.classList.toggle('active', this.carpetMode === 'sector');
+    }
 
-    if (data.length === 0) {
-      if (this.chartInstance) {
-        this.chartInstance.destroy();
-        this.chartInstance = null;
-      }
-      const ctx = canvas.getContext('2d');
-      ctx.clearRect(0, 0, canvas.width, canvas.height);
+    const btnPnl = this.container.querySelector('#btn-carpet-metric-pnl');
+    const btnDay = this.container.querySelector('#btn-carpet-metric-day');
+    if (btnPnl && btnDay) {
+      btnPnl.classList.toggle('active', this.carpetMetric !== 'day');
+      btnDay.classList.toggle('active', this.carpetMetric === 'day');
+    }
+
+    if (metrics.totalHoldingsCount === 0 || !metrics.holdings || metrics.holdings.length === 0) {
+      container.innerHTML = `
+        <div style="display: flex; align-items: center; justify-content: center; height: 100%; color: var(--text-muted); font-size: 0.85rem;">
+          No active assets in portfolio yet
+        </div>
+      `;
       return;
     }
 
-    const palette = [
-      '#6366f1', '#06b6d4', '#10b981', '#f59e0b',
-      '#ef4444', '#ec4899', '#8b5cf6', '#14b8a6',
-      '#f97316', '#3b82f6', '#84cc16', '#a855f7'
-    ];
+    const totalPortfolioVal = metrics.totalCurrentValue || 1;
+    const isDay = this.carpetMetric === 'day';
+    let rawItems = [];
 
-    const isDark = document.documentElement.getAttribute('data-theme') !== 'light';
-    const legendColor = isDark ? '#94a3b8' : '#475569';
-    const borderColor = isDark ? '#151c2e' : '#ffffff';
-    const tooltipBg = isDark ? '#1c253d' : '#ffffff';
-    const tooltipTitle = isDark ? '#ffffff' : '#0f172a';
-    const tooltipBody = isDark ? '#cbd5e1' : '#334155';
-    const tooltipBorder = isDark ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.1)';
-    const isMobile = window.innerWidth <= 768;
+    if (this.carpetMode === 'sector') {
+      // By Sector Mode
+      rawItems = (metrics.sectorBreakdown || []).map(s => {
+        const sectorHoldings = metrics.holdings.filter(h => (h.sector || 'General / Equity') === s.sector);
+        const sectorInvested = sectorHoldings.reduce((sum, h) => sum + (h.invested || 0), 0);
+        const sectorPnL = s.value - sectorInvested;
+        const sectorPnLPct = sectorInvested > 0 ? (sectorPnL / sectorInvested) * 100 : 0;
+        const sectorDayPnL = sectorHoldings.reduce((sum, h) => sum + (h.dayPnL || 0), 0);
+        const sectorPrevVal = s.value - sectorDayPnL;
+        const sectorDayPct = sectorPrevVal > 0 ? (sectorDayPnL / sectorPrevVal) * 100 : 0;
+        const returnPct = isDay ? sectorDayPct : sectorPnLPct;
 
-    if (this.chartInstance) {
-      this.chartInstance.data.labels = labels;
-      this.chartInstance.data.datasets[0].data = data;
-      this.chartInstance.data.datasets[0].backgroundColor = palette.slice(0, labels.length);
-      this.chartInstance.data.datasets[0].borderColor = borderColor;
-      this.chartInstance.options.plugins.legend.labels.color = legendColor;
-      this.chartInstance.options.plugins.legend.position = isMobile ? 'bottom' : 'right';
-      this.chartInstance.update();
-      return;
-    }
-
-    const ctx = canvas.getContext('2d');
-    this.chartInstance = new Chart(ctx, {
-      type: 'doughnut',
-      data: {
-        labels: labels,
-        datasets: [{
-          data: data,
-          backgroundColor: palette.slice(0, labels.length),
-          borderColor: borderColor,
-          borderWidth: 3,
-          hoverOffset: 6
-        }]
-      },
-      options: {
-        responsive: true,
-        maintainAspectRatio: false,
-        layout: {
-          padding: isMobile ? 4 : 8
-        },
-        plugins: {
-          legend: {
-            position: isMobile ? 'bottom' : 'right',
-            align: 'center',
-            labels: {
-              color: legendColor,
-              font: {
-                family: "'Inter', sans-serif",
-                size: isMobile ? 10 : 11,
-                weight: '500'
-              },
-              boxWidth: isMobile ? 10 : 12,
-              padding: isMobile ? 10 : 14
-            }
-          },
-          tooltip: {
-            backgroundColor: tooltipBg,
-            titleColor: tooltipTitle,
-            bodyColor: tooltipBody,
-            borderColor: tooltipBorder,
-            borderWidth: 1,
-            padding: 10,
-            callbacks: {
-              label: (item) => {
-                const val = item.raw || 0;
-                const total = metrics.totalCurrentValue || 1;
-                const pct = ((val / total) * 100).toFixed(1);
-                return ` ${portfolioStore.formatMoney(val)} (${pct}%)`;
-              }
-            }
+        return {
+          id: s.sector,
+          label: s.sector,
+          value: s.value,
+          returnPct,
+          dataInfo: {
+            title: s.sector,
+            subtitle: `${sectorHoldings.length} Holdings • ${s.percentage.toFixed(1)}% Weight`,
+            valueText: portfolioStore.formatMoney(s.value),
+            weightText: `${s.percentage.toFixed(1)}%`,
+            investedText: portfolioStore.formatMoney(sectorInvested),
+            pnl: sectorPnL,
+            pnlText: portfolioStore.formatMoney(sectorPnL),
+            pnlPctText: `${sectorPnLPct.toFixed(2)}%`,
+            dayPnL: sectorDayPnL,
+            dayText: portfolioStore.formatMoney(sectorDayPnL),
+            dayPctText: `${sectorDayPct.toFixed(2)}%`,
+            returnText: `${returnPct >= 0 ? '+' : ''}${returnPct.toFixed(2)}%`
           }
-        },
-        cutout: '68%'
+        };
+      });
+    } else {
+      // By Stock Mode
+      const validHoldings = [...metrics.holdings]
+        .filter(h => (h.current || 0) > 0)
+        .sort((a, b) => b.current - a.current);
+
+      let displayHoldings = validHoldings;
+      let othersTile = null;
+
+      if (validHoldings.length > 36) {
+        displayHoldings = validHoldings.slice(0, 32);
+        const remaining = validHoldings.slice(32);
+        const remValue = remaining.reduce((sum, h) => sum + (h.current || 0), 0);
+        const remInvested = remaining.reduce((sum, h) => sum + (h.invested || 0), 0);
+        const remPnL = remValue - remInvested;
+        const remPnLPct = remInvested > 0 ? (remPnL / remInvested) * 100 : 0;
+        const remDayPnL = remaining.reduce((sum, h) => sum + (h.dayPnL || 0), 0);
+        const remPrevVal = remValue - remDayPnL;
+        const remDayPct = remPrevVal > 0 ? (remDayPnL / remPrevVal) * 100 : 0;
+        const remReturnPct = isDay ? remDayPct : remPnLPct;
+        const remWeight = ((remValue / totalPortfolioVal) * 100).toFixed(1);
+
+        othersTile = {
+          id: '__OTHERS__',
+          label: `Others (${remaining.length})`,
+          value: remValue,
+          returnPct: remReturnPct,
+          dataInfo: {
+            title: `Others (${remaining.length} Stocks)`,
+            subtitle: `Combined smaller holdings`,
+            valueText: portfolioStore.formatMoney(remValue),
+            weightText: `${remWeight}%`,
+            investedText: portfolioStore.formatMoney(remInvested),
+            pnl: remPnL,
+            pnlText: portfolioStore.formatMoney(remPnL),
+            pnlPctText: `${remPnLPct.toFixed(2)}%`,
+            dayPnL: remDayPnL,
+            dayText: portfolioStore.formatMoney(remDayPnL),
+            dayPctText: `${remDayPct.toFixed(2)}%`,
+            returnText: `${remReturnPct >= 0 ? '+' : ''}${remReturnPct.toFixed(2)}%`
+          }
+        };
       }
-    });
+
+      rawItems = displayHoldings.map(h => {
+        const returnPct = isDay ? (h.dayChangePercent || 0) : (h.pnlPercent || 0);
+        const weightPct = ((h.current / totalPortfolioVal) * 100).toFixed(1);
+
+        return {
+          id: h.symbol,
+          label: h.symbol,
+          value: h.current,
+          returnPct,
+          dataInfo: {
+            title: `${h.symbol} (${h.exchange || 'NSE'})`,
+            subtitle: `${h.name || h.sector || 'Equity'} • ${h.quantity.toLocaleString()} shares`,
+            valueText: portfolioStore.formatMoney(h.current),
+            weightText: `${weightPct}%`,
+            investedText: portfolioStore.formatMoney(h.invested),
+            pnl: h.pnl,
+            pnlText: portfolioStore.formatMoney(h.pnl),
+            pnlPctText: `${h.pnlPercent.toFixed(2)}%`,
+            dayPnL: h.dayPnL || 0,
+            dayText: portfolioStore.formatMoney(h.dayPnL || 0),
+            dayPctText: `${(h.dayChangePercent || 0).toFixed(2)}%`,
+            returnText: `${returnPct >= 0 ? '+' : ''}${returnPct.toFixed(2)}%`
+          }
+        };
+      });
+
+      if (othersTile) {
+        rawItems.push(othersTile);
+      }
+    }
+
+    const tiles = squarify(rawItems, { x: 0, y: 0, w: 100, h: 100 });
+
+    container.innerHTML = tiles.map(t => {
+      const bgColor = getCarpetColor(t.returnPct);
+      const isLarge = t.w >= 10 && t.h >= 10;
+      const isMedium = t.w >= 6 && t.h >= 6;
+      const isCompact = t.w >= 4 && t.h >= 4;
+      const returnFormatted = `${t.returnPct >= 0 ? '+' : ''}${t.returnPct.toFixed(1)}%`;
+      const encodedInfo = encodeURIComponent(JSON.stringify(t.dataInfo));
+
+      return `
+        <div class="carpet-tile" 
+             data-carpet-info="${encodedInfo}"
+             style="left: ${t.x}%; top: ${t.y}%; width: ${t.w}%; height: ${t.h}%; background: ${bgColor};" 
+             title="${t.label}: ${returnFormatted}">
+          ${isLarge ? `
+            <div style="font-weight: 800; font-size: clamp(0.74rem, 1vw, 0.94rem); line-height: 1.1; text-shadow: 0 1px 3px rgba(0,0,0,0.85);">${t.label}</div>
+            <div style="font-family: var(--font-mono); font-weight: 700; font-size: clamp(0.68rem, 0.85vw, 0.8rem); margin-top: 2px; text-shadow: 0 1px 3px rgba(0,0,0,0.85);">${returnFormatted}</div>
+            <div style="font-size: clamp(0.62rem, 0.72vw, 0.7rem); opacity: 0.92; margin-top: 1px; text-shadow: 0 1px 3px rgba(0,0,0,0.85);">${portfolioStore.formatMoney(t.value)}</div>
+          ` : isMedium ? `
+            <div style="font-weight: 800; font-size: 0.74rem; line-height: 1.1; text-shadow: 0 1px 2px rgba(0,0,0,0.85);">${t.label}</div>
+            <div style="font-family: var(--font-mono); font-weight: 700; font-size: 0.68rem; margin-top: 1px; text-shadow: 0 1px 2px rgba(0,0,0,0.85);">${returnFormatted}</div>
+          ` : isCompact ? `
+            <div style="font-weight: 700; font-size: 0.64rem; line-height: 1; text-shadow: 0 1px 2px rgba(0,0,0,0.85);">${t.label.substring(0, 4)}</div>
+          ` : ''}
+        </div>
+      `;
+    }).join('');
   }
 
   renderSectorList(metrics) {
@@ -843,6 +1151,10 @@ export class DashboardView {
   destroy() {
     if (this.handleResize) {
       window.removeEventListener('resize', this.handleResize);
+    }
+    const tooltip = document.getElementById('market-carpet-tooltip');
+    if (tooltip) {
+      tooltip.remove();
     }
     if (this.chartInstance) {
       this.chartInstance.destroy();
