@@ -675,7 +675,6 @@ export class HoldingsView {
         <tr data-symbol="${h.symbol}" class="${rowSyncClass}">
           <td>
             <div class="stock-identity">
-              <div class="stock-symbol-chip">${h.symbol.substring(0, 3)}</div>
               <div class="stock-names">
                 <span class="stock-sym">
                   ${h.symbol}
@@ -762,7 +761,6 @@ export class HoldingsView {
         <div class="holding-mobile-card ${cardSyncClass}" data-symbol="${h.symbol}" title="Click to view ${h.symbol} transactions & details">
           <div class="mobile-card-top">
             <div class="stock-identity">
-              <div class="stock-symbol-chip">${h.symbol.substring(0, 3)}</div>
               <div class="stock-names">
                 <div class="stock-sym">
                   ${h.symbol}

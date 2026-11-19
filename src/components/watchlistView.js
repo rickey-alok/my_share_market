@@ -493,9 +493,8 @@ export class WatchlistView {
       <div class="watchlist-horizontal-card ${tickClass}" data-symbol="${w.symbol}" data-id="${w.id}">
         <!-- Top Primary Tier: Identity on Left, Live Price & Change on Right -->
         <div class="wcard-row-top">
-          <!-- Identity: Avatar, Symbol, Exchange, Sector, Company Name -->
+          <!-- Identity: Symbol, Exchange, Sector, Company Name -->
           <div class="wcard-identity">
-            <div class="stock-symbol-chip">${w.symbol.substring(0, 3)}</div>
             <div class="wcard-identity-text">
               <div class="wcard-symbol-line">
                 <span class="wcard-symbol">${w.symbol}</span>
