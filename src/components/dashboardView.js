@@ -883,7 +883,6 @@ export class DashboardView {
               <div class="highlight-stock-row" style="padding: 0.65rem 0.85rem;">
                 <div style="display: flex; align-items: center; gap: 0.65rem; min-width: 0;">
                   <span class="perf-rank-badge ${isTopTab ? 'bull' : 'bear'}">#${idx + 1}</span>
-                  <div class="stock-symbol-chip" style="width: 32px; height: 32px; font-size: 0.72rem;">${h.symbol.substring(0, 3)}</div>
                   <div style="min-width: 0;">
                     <div style="font-weight: 700; font-size: 0.92rem; display: flex; align-items: center; gap: 0.35rem;">
                       <span class="text-truncate" style="max-width: 140px;">${h.symbol}</span>
@@ -931,16 +930,13 @@ export class DashboardView {
           ${topHoldings.map(h => {
             const isProfit = h.pnl >= 0;
             return `
-              <div class="highlight-stock-row">
-                <div style="display: flex; align-items: center; gap: 0.75rem;">
-                  <div class="stock-symbol-chip">${h.symbol.substring(0, 3)}</div>
-                  <div>
-                    <div style="font-weight: 700; font-size: 0.95rem; display: flex; align-items: center; gap: 0.4rem;">
-                      ${h.symbol}
-                      <span class="exchange-tag">${h.exchange || 'NSE'}</span>
-                    </div>
-                    <div style="font-size: 0.75rem; color: var(--text-secondary);">${h.quantity} shares • ${h.sector || 'Equity'}</div>
+              <div class="highlight-stock-row" style="padding: 0.75rem 0.95rem;">
+                <div style="min-width: 0;">
+                  <div style="font-weight: 700; font-size: 0.95rem; display: flex; align-items: center; gap: 0.4rem;">
+                    ${h.symbol}
+                    <span class="exchange-tag">${h.exchange || 'NSE'}</span>
                   </div>
+                  <div style="font-size: 0.75rem; color: var(--text-secondary); margin-top: 0.12rem;">${h.quantity.toLocaleString()} shares • ${h.sector || 'Equity'}</div>
                 </div>
                 <div style="text-align: right;">
                   <div style="font-weight: 700; font-family: var(--font-mono); font-size: 0.95rem;">
@@ -1083,7 +1079,6 @@ export class DashboardView {
               <div class="highlight-stock-row" style="padding: 0.65rem 0.85rem;">
                 <div style="display: flex; align-items: center; gap: 0.65rem; min-width: 0;">
                   <span class="perf-rank-badge ${isProfitTab ? 'bull' : 'bear'}">#${idx + 1}</span>
-                  <div class="stock-symbol-chip" style="width: 32px; height: 32px; font-size: 0.72rem;">${h.symbol.substring(0, 3)}</div>
                   <div style="min-width: 0;">
                     <div style="font-weight: 700; font-size: 0.92rem; display: flex; align-items: center; gap: 0.35rem;">
                       <span class="text-truncate" style="max-width: 140px;">${h.symbol}</span>
