@@ -45,13 +45,12 @@ export class WatchlistView {
           <p class="page-subtitle">Track potential share purchases, set target buy levels, and get alerted on price dips</p>
         </div>
         <div class="page-header-actions">
-          <button id="btn-watchlist-sync-market" class="btn btn-outline btn-sm" title="Refresh Live Quotes">
-            ${icons.refreshCw}
-            <span id="watchlist-sync-market-label">Sync Market</span>
-          </button>
           <button id="btn-watchlist-add-stock" class="btn btn-primary btn-sm">
             ${icons.plus}
             <span>Add to Watchlist</span>
+          </button>
+          <button id="btn-watchlist-sync-market" class="dashboard-sync-btn" title="Refresh Live Quotes" aria-label="Refresh Live Quotes">
+            ${icons.refreshCw}
           </button>
         </div>
       </div>
@@ -135,14 +134,15 @@ export class WatchlistView {
 
     // Sync Market Button
     const btnSync = this.container.querySelector('#btn-watchlist-sync-market');
-    const syncLabel = this.container.querySelector('#watchlist-sync-market-label');
     if (btnSync) {
       btnSync.addEventListener('click', async () => {
         btnSync.classList.add('rotating');
-        if (syncLabel) syncLabel.textContent = 'Syncing...';
+        btnSync.disabled = true;
         await portfolioStore.refreshMarketQuotes(false);
         btnSync.classList.remove('rotating');
-        if (syncLabel) syncLabel.textContent = 'Sync Market';
+        btnSync.disabled = false;
+        const syncTime = liveMarketService.getLastSyncFormatted() || new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+        btnSync.setAttribute('title', `Synced at ${syncTime} - Click to Refresh`);
         this.showToast('Watchlist market quotes refreshed!', 'success');
       });
     }
