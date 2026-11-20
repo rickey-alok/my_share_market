@@ -239,10 +239,16 @@ export class HoldingsView {
         if (!isNaN(targetPage) && targetPage >= 1 && targetPage !== this.currentPage) {
           this.currentPage = targetPage;
           this.renderHoldingsTableAndCards();
+          window.scrollTo({ top: 0, behavior: 'smooth' });
+          document.documentElement.scrollTo({ top: 0, behavior: 'smooth' });
+          document.body.scrollTo({ top: 0, behavior: 'smooth' });
           const tableWrap = this.container.querySelector('.holdings-table-wrap');
           if (tableWrap) {
-            tableWrap.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+            tableWrap.scrollLeft = 0;
           }
+          requestAnimationFrame(() => {
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+          });
         }
         return;
       }
