@@ -898,7 +898,7 @@ export class DashboardView {
                     <span class="exchange-tag" style="font-size: 0.65rem; padding: 0.1rem 0.35rem;">${h.exchange || 'NSE'}</span>
                   </div>
                   <div style="font-size: 0.72rem; margin-top: 0.18rem; font-family: var(--font-mono); display: flex; align-items: center; gap: 0.35rem; color: var(--text-muted);">
-                    <span>${h.quantity.toLocaleString()} shares</span>
+                    <span>${h.quantity.toLocaleString()}</span>
                     <span style="opacity: 0.4;">|</span>
                     <span>Inv: <span style="color: var(--text-secondary);">${portfolioStore.formatMoney(h.invested)}</span></span>
                   </div>
@@ -1089,7 +1089,7 @@ export class DashboardView {
                     <span class="exchange-tag" style="font-size: 0.65rem; padding: 0.1rem 0.35rem;">${h.exchange || 'NSE'}</span>
                   </div>
                   <div style="font-size: 0.72rem; margin-top: 0.18rem; font-family: var(--font-mono); display: flex; align-items: center; gap: 0.35rem; color: var(--text-muted);">
-                    <span>${h.quantity.toLocaleString()} shares</span>
+                    <span>${h.quantity.toLocaleString()}</span>
                     <span style="opacity: 0.4;">|</span>
                     <span>Inv: <span style="color: var(--text-secondary);">${portfolioStore.formatMoney(h.invested)}</span></span>
                   </div>
