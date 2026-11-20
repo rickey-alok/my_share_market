@@ -1011,12 +1011,12 @@ export class DashboardView {
                 ${profitCount} Stocks (${profitSharePct}%)
               </span>
             </div>
-            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.6rem; font-family: var(--font-mono);">
-              <div>
+            <div style="display: flex; justify-content: space-between; align-items: flex-start; gap: 0.6rem; font-family: var(--font-mono);">
+              <div style="text-align: left;">
                 <div style="font-size: 0.68rem; color: var(--text-muted); font-family: var(--font-heading); margin-bottom: 0.12rem;">TOTAL INVESTED</div>
                 <strong style="color: var(--text-primary); font-size: 0.86rem;">${portfolioStore.formatMoney(profitInvested, 0)}</strong>
               </div>
-              <div>
+              <div style="text-align: right;">
                 <div style="font-size: 0.68rem; color: var(--text-muted); font-family: var(--font-heading); margin-bottom: 0.12rem;">CURRENT VALUE</div>
                 <strong style="color: var(--bull-green); font-size: 0.86rem;">${portfolioStore.formatMoney(profitCurrent, 0)}</strong>
               </div>
@@ -1040,12 +1040,12 @@ export class DashboardView {
                 ${lossCount} Stocks (${lossSharePct}%)
               </span>
             </div>
-            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.6rem; font-family: var(--font-mono);">
-              <div>
+            <div style="display: flex; justify-content: space-between; align-items: flex-start; gap: 0.6rem; font-family: var(--font-mono);">
+              <div style="text-align: left;">
                 <div style="font-size: 0.68rem; color: var(--text-muted); font-family: var(--font-heading); margin-bottom: 0.12rem;">TOTAL INVESTED</div>
                 <strong style="color: var(--text-primary); font-size: 0.86rem;">${portfolioStore.formatMoney(lossInvested, 0)}</strong>
               </div>
-              <div>
+              <div style="text-align: right;">
                 <div style="font-size: 0.68rem; color: var(--text-muted); font-family: var(--font-heading); margin-bottom: 0.12rem;">CURRENT VALUE</div>
                 <strong style="color: var(--bear-red); font-size: 0.86rem;">${portfolioStore.formatMoney(lossCurrent, 0)}</strong>
               </div>
