@@ -141,22 +141,13 @@ export class DashboardView {
       <!-- Page Header -->
       <div class="page-title-row">
         <div>
-          <h1 class="page-title">Portfolio Dashboard</h1>
+          <div class="page-title-with-action">
+            <h1 class="page-title">Portfolio Dashboard</h1>
+            <button id="btn-refresh-quotes" class="dashboard-sync-btn" title="Refresh Live Quotes" aria-label="Refresh Live Quotes">
+              ${icons.refreshCw}
+            </button>
+          </div>
           <p class="page-subtitle">Executive wealth overview, asset allocation, and market performance</p>
-        </div>
-        <div class="page-header-actions">
-          <button id="btn-refresh-quotes" class="btn btn-outline btn-sm" title="Refresh Live Quotes">
-            ${icons.refreshCw}
-            <span id="sync-market-label">Sync Market</span>
-          </button>
-          <button id="btn-nav-to-holdings" class="btn btn-outline btn-sm" title="View Holdings Page">
-            ${icons.layers}
-            <span>All Holdings</span>
-          </button>
-          <button id="btn-quick-add" class="btn btn-primary btn-sm">
-            ${icons.plus}
-            <span>Add Stock</span>
-          </button>
         </div>
       </div>
 
@@ -260,33 +251,17 @@ export class DashboardView {
       });
     }
 
-    // Quick Add Button
-    const btnQuickAdd = this.container.querySelector('#btn-quick-add');
-    if (btnQuickAdd) {
-      btnQuickAdd.addEventListener('click', () => {
-        if (this.onNavigateToAddHolding) this.onNavigateToAddHolding();
-      });
-    }
-
-    // Nav to Holdings Page Button
-    const btnNavHoldings = this.container.querySelector('#btn-nav-to-holdings');
-    if (btnNavHoldings) {
-      btnNavHoldings.addEventListener('click', () => {
-        if (this.onNavigateToHoldings) this.onNavigateToHoldings();
-      });
-    }
-
     // Refresh Quotes Button
     const btnRefresh = this.container.querySelector('#btn-refresh-quotes');
-    const syncLabel = this.container.querySelector('#sync-market-label');
     if (btnRefresh) {
       btnRefresh.addEventListener('click', async () => {
         btnRefresh.classList.add('rotating');
-        if (syncLabel) syncLabel.textContent = 'Syncing...';
+        btnRefresh.disabled = true;
         const syncResult = await portfolioStore.refreshMarketQuotes(false);
         btnRefresh.classList.remove('rotating');
+        btnRefresh.disabled = false;
         const syncTime = liveMarketService.getLastSyncFormatted() || new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
-        if (syncLabel) syncLabel.textContent = `Synced (${syncTime})`;
+        btnRefresh.setAttribute('title', `Synced at ${syncTime} - Click to Refresh`);
 
         // Visual toast feedback
         const count = syncResult?.totalCount || portfolioStore.holdings?.length || 0;
@@ -296,12 +271,6 @@ export class DashboardView {
           ? `Synced ${count} stocks with today's closing market data (LTP • NSE/BSE)`
           : `Live Market Synced: Updated ${count} stocks with real-time quotes (${syncTime})`;
         this.showToast(msg, 'success');
-
-        setTimeout(() => {
-          if (syncLabel && syncLabel.textContent.startsWith('Synced')) {
-            syncLabel.textContent = 'Sync Market';
-          }
-        }, 4000);
       });
     }
 
