@@ -822,10 +822,10 @@ export class DashboardView {
       groupLabel = 'Bottom 5 (%)';
     } else if (currentTab === 'weight' || currentTab === 'weight-top') {
       activeList = top5ByWeight;
-      groupLabel = 'Top 5 (Wtg)';
+      groupLabel = 'Top 5 (Val)';
     } else if (currentTab === 'weight-bottom') {
       activeList = bottom5ByWeight;
-      groupLabel = 'Bottom 5 (Wtg)';
+      groupLabel = 'Bottom 5 (Val)';
     }
 
     const activeTotalInvested = activeList.reduce((sum, h) => sum + (h.invested || 0), 0);
@@ -864,28 +864,33 @@ export class DashboardView {
     const activePnlList = isProfitTab ? profitStocks : lossStocks;
 
     container.innerHTML = `
-      <!-- Card 1: Performance Highlights (Merged Top 5 %, Bottom 5 %, and Top 5 Weight) -->
+      <!-- Card 1: Performance Highlights (Merged Top 5 %, Bottom 5 %, and Top 5 Val) -->
       <div class="analytics-card">
-        <div class="card-title-row" style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 0.5rem;">
-          <h2 class="card-title">${icons.trendingUp} Performance Highlights</h2>
+        <div class="card-title-row" style="display: flex; flex-direction: column; gap: 0.65rem;">
+          <div style="display: flex; justify-content: space-between; align-items: center; width: 100%;">
+            <h2 class="card-title" style="display: flex; align-items: center; gap: 0.45rem;">
+              ${icons.trendingUp} Performance Highlights
+            </h2>
+            <span class="brand-badge" style="font-size: 0.7rem;">Top & Bottom 5</span>
+          </div>
           
-          <!-- Tabbed Buttons for Top 5 (%) / Bottom 5 (%) / Top 5 (Wtg) / Bottom 5 (Wtg) -->
-          <div class="perf-tab-group" role="tablist">
-            <button type="button" class="perf-tab-btn ${currentTab === 'top' ? 'active tab-top' : ''}" data-perf-tab="top" title="Show Top 5 Gainers (%)">
+          <!-- Full-width Single-Line Segmented Control for Top/Bottom % and Top/Bottom Val -->
+          <div class="perf-tab-group" role="tablist" style="width: 100%; display: flex;">
+            <button type="button" class="perf-tab-btn ${currentTab === 'top' ? 'active tab-top' : ''}" data-perf-tab="top" title="Show Top 5 Gainers (%)" style="flex: 1; justify-content: center;">
               <span class="perf-dot bull">●</span>
               <span>Top 5 (%)</span>
             </button>
-            <button type="button" class="perf-tab-btn ${currentTab === 'bottom' ? 'active tab-bottom' : ''}" data-perf-tab="bottom" title="Show Bottom 5 Drawdowns (%)">
+            <button type="button" class="perf-tab-btn ${currentTab === 'bottom' ? 'active tab-bottom' : ''}" data-perf-tab="bottom" title="Show Bottom 5 Drawdowns (%)" style="flex: 1; justify-content: center;">
               <span class="perf-dot bear">●</span>
               <span>Bottom 5 (%)</span>
             </button>
-            <button type="button" class="perf-tab-btn ${(currentTab === 'weight' || currentTab === 'weight-top') ? 'active tab-weight' : ''}" data-perf-tab="weight" title="Show Top 5 Holdings by Valuation Weight">
+            <button type="button" class="perf-tab-btn ${(currentTab === 'weight' || currentTab === 'weight-top') ? 'active tab-weight' : ''}" data-perf-tab="weight" title="Show Top 5 Holdings by Current Value" style="flex: 1; justify-content: center;">
               <span class="perf-dot weight">●</span>
-              <span>Top 5 (Wtg)</span>
+              <span>Top 5 (Val)</span>
             </button>
-            <button type="button" class="perf-tab-btn ${currentTab === 'weight-bottom' ? 'active tab-weight-bottom' : ''}" data-perf-tab="weight-bottom" title="Show Bottom 5 Holdings by Valuation Weight">
+            <button type="button" class="perf-tab-btn ${currentTab === 'weight-bottom' ? 'active tab-weight-bottom' : ''}" data-perf-tab="weight-bottom" title="Show Bottom 5 Holdings by Current Value" style="flex: 1; justify-content: center;">
               <span class="perf-dot weight-bottom">●</span>
-              <span>Bottom 5 (Wtg)</span>
+              <span>Bottom 5 (Val)</span>
             </button>
           </div>
         </div>

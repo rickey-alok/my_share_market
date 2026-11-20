@@ -5843,12 +5843,19 @@ body::after {
 .perf-tab-group {
   display: inline-flex;
   align-items: center;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
   background: rgba(255, 255, 255, 0.05);
   border: 1px solid var(--border-subtle);
   border-radius: var(--radius-full);
   padding: 3px;
   gap: 3px;
+  max-width: 100%;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+
+.perf-tab-group::-webkit-scrollbar {
+  display: none;
 }
 
 [data-theme="light"] .perf-tab-group {
@@ -5859,9 +5866,10 @@ body::after {
 .perf-tab-btn {
   display: inline-flex;
   align-items: center;
-  gap: 0.4rem;
-  padding: 0.32rem 0.75rem;
-  font-size: 0.75rem;
+  justify-content: center;
+  gap: 0.35rem;
+  padding: 0.28rem 0.55rem;
+  font-size: 0.72rem;
   font-weight: 600;
   font-family: var(--font-heading);
   color: var(--text-secondary);
@@ -5871,6 +5879,7 @@ body::after {
   cursor: pointer;
   transition: all var(--transition-fast);
   white-space: nowrap;
+  flex-shrink: 0;
 }
 
 .perf-tab-btn:hover {
