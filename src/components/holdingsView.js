@@ -44,13 +44,12 @@ export class HoldingsView {
           <p class="page-subtitle">Real-time market valuation, average buy prices, live CMP, and profit/loss breakdown</p>
         </div>
         <div class="page-header-actions">
-          <button id="btn-holdings-sync-market" class="btn btn-outline btn-sm" title="Refresh Live Quotes">
-            ${icons.refreshCw}
-            <span id="holdings-sync-market-label">Sync Market</span>
-          </button>
           <button id="btn-holdings-add" class="btn btn-primary btn-sm">
             ${icons.plus}
             <span>Add Holdings</span>
+          </button>
+          <button id="btn-holdings-sync-market" class="dashboard-sync-btn" title="Refresh Live Quotes" aria-label="Refresh Live Quotes">
+            ${icons.refreshCw}
           </button>
         </div>
       </div>
@@ -140,15 +139,15 @@ export class HoldingsView {
 
     // Refresh Quotes Button
     const btnRefresh = this.container.querySelector('#btn-holdings-sync-market');
-    const syncLabel = this.container.querySelector('#holdings-sync-market-label');
     if (btnRefresh) {
       btnRefresh.addEventListener('click', async () => {
         btnRefresh.classList.add('rotating');
-        if (syncLabel) syncLabel.textContent = 'Syncing...';
+        btnRefresh.disabled = true;
         const syncResult = await portfolioStore.refreshMarketQuotes(false);
         btnRefresh.classList.remove('rotating');
+        btnRefresh.disabled = false;
         const syncTime = liveMarketService.getLastSyncFormatted() || new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
-        if (syncLabel) syncLabel.textContent = `Synced (${syncTime})`;
+        btnRefresh.setAttribute('title', `Synced at ${syncTime} - Click to Refresh`);
 
         // Visual toast feedback
         const count = syncResult?.totalCount || portfolioStore.holdings?.length || 0;
@@ -158,12 +157,6 @@ export class HoldingsView {
           ? `Synced ${count} stocks with today's closing market data (LTP • NSE/BSE)`
           : `Live Market Synced: Updated ${count} stocks with real-time quotes (${syncTime})`;
         this.showToast(msg, 'success');
-
-        setTimeout(() => {
-          if (syncLabel && syncLabel.textContent.startsWith('Synced')) {
-            syncLabel.textContent = 'Sync Market';
-          }
-        }, 4000);
       });
     }
 
