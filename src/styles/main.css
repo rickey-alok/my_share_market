@@ -5843,6 +5843,7 @@ body::after {
 .perf-tab-group {
   display: inline-flex;
   align-items: center;
+  flex-wrap: wrap;
   background: rgba(255, 255, 255, 0.05);
   border: 1px solid var(--border-subtle);
   border-radius: var(--radius-full);
@@ -5912,6 +5913,12 @@ body::after {
   background: rgba(99, 102, 241, 0.08);
 }
 
+.perf-tab-btn.active.tab-weight-bottom {
+  color: var(--accent-gold, #f59e0b) !important;
+  border-color: rgba(245, 158, 11, 0.35);
+  background: rgba(245, 158, 11, 0.08);
+}
+
 .perf-dot {
   font-size: 0.55rem;
   line-height: 1;
@@ -5927,6 +5934,10 @@ body::after {
 
 .perf-dot.weight {
   color: var(--brand-indigo, #6366f1);
+}
+
+.perf-dot.weight-bottom {
+  color: var(--accent-gold, #f59e0b);
 }
 
 .perf-rank-badge {

@@ -807,17 +807,25 @@ export class DashboardView {
       .sort((a, b) => b.current - a.current)
       .slice(0, 5);
 
+    // Bottom 5 Holdings by Valuation Weight (by current value ascending)
+    const bottom5ByWeight = [...metrics.holdings]
+      .sort((a, b) => a.current - b.current)
+      .slice(0, 5);
+
     // Active tab selection for Performance Highlights
     const currentTab = this.performanceTab || 'top';
     let activeList = top5Gainers;
-    let groupLabel = 'Top 5 %';
+    let groupLabel = 'Top 5 (%)';
 
     if (currentTab === 'bottom') {
       activeList = bottom5Losers;
-      groupLabel = 'Bottom 5 %';
-    } else if (currentTab === 'weight') {
+      groupLabel = 'Bottom 5 (%)';
+    } else if (currentTab === 'weight' || currentTab === 'weight-top') {
       activeList = top5ByWeight;
-      groupLabel = 'Top 5 Weight';
+      groupLabel = 'Top 5 (Wtg)';
+    } else if (currentTab === 'weight-bottom') {
+      activeList = bottom5ByWeight;
+      groupLabel = 'Bottom 5 (Wtg)';
     }
 
     const activeTotalInvested = activeList.reduce((sum, h) => sum + (h.invested || 0), 0);
@@ -861,19 +869,23 @@ export class DashboardView {
         <div class="card-title-row" style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 0.5rem;">
           <h2 class="card-title">${icons.trendingUp} Performance Highlights</h2>
           
-          <!-- Tabbed Buttons for Top 5 % / Bottom 5 % / Top 5 Weight -->
+          <!-- Tabbed Buttons for Top 5 (%) / Bottom 5 (%) / Top 5 (Wtg) / Bottom 5 (Wtg) -->
           <div class="perf-tab-group" role="tablist">
             <button type="button" class="perf-tab-btn ${currentTab === 'top' ? 'active tab-top' : ''}" data-perf-tab="top" title="Show Top 5 Gainers (%)">
               <span class="perf-dot bull">●</span>
-              <span>Top 5 %</span>
+              <span>Top 5 (%)</span>
             </button>
             <button type="button" class="perf-tab-btn ${currentTab === 'bottom' ? 'active tab-bottom' : ''}" data-perf-tab="bottom" title="Show Bottom 5 Drawdowns (%)">
               <span class="perf-dot bear">●</span>
-              <span>Bottom 5 %</span>
+              <span>Bottom 5 (%)</span>
             </button>
-            <button type="button" class="perf-tab-btn ${currentTab === 'weight' ? 'active tab-weight' : ''}" data-perf-tab="weight" title="Show Top 5 Holdings by Valuation Weight">
+            <button type="button" class="perf-tab-btn ${(currentTab === 'weight' || currentTab === 'weight-top') ? 'active tab-weight' : ''}" data-perf-tab="weight" title="Show Top 5 Holdings by Valuation Weight">
               <span class="perf-dot weight">●</span>
-              <span>Top 5 Weight</span>
+              <span>Top 5 (Wtg)</span>
+            </button>
+            <button type="button" class="perf-tab-btn ${currentTab === 'weight-bottom' ? 'active tab-weight-bottom' : ''}" data-perf-tab="weight-bottom" title="Show Bottom 5 Holdings by Valuation Weight">
+              <span class="perf-dot weight-bottom">●</span>
+              <span>Bottom 5 (Wtg)</span>
             </button>
           </div>
         </div>
