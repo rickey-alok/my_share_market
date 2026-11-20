@@ -317,7 +317,6 @@ export class WatchlistView {
               >
                 <span class="wl-tab-dot ${isActive ? 'pulse' : ''}">●</span>
                 <span class="wl-tab-name">${names[id]}</span>
-                <span class="wl-tab-badge ${isFull ? 'badge-full' : ''}">${count}/50</span>
                 <span class="wl-tab-rename-icon" data-rename-wlid="${id}" title="Rename ${names[id]}">
                   ${icons.edit}
                 </span>
