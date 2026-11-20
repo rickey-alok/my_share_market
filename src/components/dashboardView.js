@@ -882,7 +882,7 @@ export class DashboardView {
             </button>
             <button type="button" class="perf-tab-btn ${currentTab === 'bottom' ? 'active tab-bottom' : ''}" data-perf-tab="bottom" title="Show Bottom 5 Drawdowns (%)" style="flex: 1; justify-content: center;">
               <span class="perf-dot bear">●</span>
-              <span>Bottom 5 (%)</span>
+              <span><span class="hide-on-mobile">Bottom</span><span class="show-on-mobile">Bot</span> 5 (%)</span>
             </button>
             <button type="button" class="perf-tab-btn ${(currentTab === 'weight' || currentTab === 'weight-top') ? 'active tab-weight' : ''}" data-perf-tab="weight" title="Show Top 5 Holdings by Current Value" style="flex: 1; justify-content: center;">
               <span class="perf-dot weight">●</span>
@@ -890,7 +890,7 @@ export class DashboardView {
             </button>
             <button type="button" class="perf-tab-btn ${currentTab === 'weight-bottom' ? 'active tab-weight-bottom' : ''}" data-perf-tab="weight-bottom" title="Show Bottom 5 Holdings by Current Value" style="flex: 1; justify-content: center;">
               <span class="perf-dot weight-bottom">●</span>
-              <span>Bottom 5 (Val)</span>
+              <span><span class="hide-on-mobile">Bottom</span><span class="show-on-mobile">Bot</span> 5 (Val)</span>
             </button>
           </div>
         </div>
