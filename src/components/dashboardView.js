@@ -864,14 +864,18 @@ export class DashboardView {
 
         <!-- Total Invested & Current Value Summary for Selected Group -->
         ${activeList.length > 0 ? `
-          <div style="display: flex; justify-content: space-between; align-items: center; padding: 0.5rem 0.8rem; background: rgba(255, 255, 255, 0.03); border: 1px solid var(--border-subtle); border-radius: var(--radius-sm); font-size: 0.76rem; color: var(--text-secondary); margin-top: 0.65rem; gap: 0.5rem; flex-wrap: wrap;">
-            <div>
-              <span>Invested (${isTopTab ? 'Top 5' : 'Bottom 5'}): </span>
-              <strong style="font-family: var(--font-mono); color: var(--text-primary); font-size: 0.82rem;">${portfolioStore.formatMoney(activeTotalInvested)}</strong>
+          <div style="display: flex; justify-content: space-between; align-items: center; padding: 0.5rem 0.85rem; background: rgba(255, 255, 255, 0.03); border: 1px solid var(--border-subtle); border-radius: var(--radius-sm); margin-top: 0.65rem;">
+            <div style="text-align: left;">
+              <div style="font-size: 0.68rem; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.03em; font-family: var(--font-heading);">Invested (${isTopTab ? 'Top 5' : 'Bottom 5'})</div>
+              <div style="font-family: var(--font-mono); color: var(--text-primary); font-weight: 700; font-size: 0.88rem; margin-top: 0.12rem;">
+                ${portfolioStore.formatMoney(activeTotalInvested)}
+              </div>
             </div>
-            <div>
-              <span>Current Value: </span>
-              <strong style="font-family: var(--font-mono); color: var(--text-primary); font-size: 0.82rem;">${portfolioStore.formatMoney(activeTotalCurrent)}</strong>
+            <div style="text-align: right; margin-left: auto;">
+              <div style="font-size: 0.68rem; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.03em; font-family: var(--font-heading);">Current Value</div>
+              <div style="font-family: var(--font-mono); color: ${isTopTab ? 'var(--bull-green)' : 'var(--bear-red)'}; font-weight: 700; font-size: 0.88rem; margin-top: 0.12rem;">
+                ${portfolioStore.formatMoney(activeTotalCurrent)}
+              </div>
             </div>
           </div>
         ` : ''}
