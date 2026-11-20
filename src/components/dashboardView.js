@@ -870,16 +870,16 @@ export class DashboardView {
             <div style="text-align: left; flex-shrink: 0;">
               <div style="font-size: 0.68rem; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.03em; font-family: var(--font-heading);">Invested (${isTopTab ? 'Top 5' : 'Bottom 5'})</div>
               <div style="font-family: var(--font-mono); color: var(--text-primary); font-weight: 700; font-size: 0.88rem; margin-top: 0.12rem;">
-                ${portfolioStore.formatMoney(activeTotalInvested)}
+                ${portfolioStore.formatMoney(activeTotalInvested, 0)}
               </div>
             </div>
             <div style="text-align: right; margin-left: auto;">
               <div style="font-size: 0.68rem; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.03em; font-family: var(--font-heading);">Current Value</div>
               <div style="display: flex; align-items: center; justify-content: flex-end; gap: 0.4rem; margin-top: 0.12rem; flex-wrap: wrap;">
                 <span style="font-family: var(--font-mono); color: ${activeTotalPnl >= 0 ? 'var(--bull-green)' : 'var(--bear-red)'}; font-weight: 700; font-size: 0.88rem;">
-                  ${portfolioStore.formatMoney(activeTotalCurrent)}
+                  ${portfolioStore.formatMoney(activeTotalCurrent, 0)}
                 </span>
-                <span style="font-family: var(--font-mono); font-weight: 700; font-size: 0.72rem; padding: 0.08rem 0.38rem; border-radius: 4px; background: ${activeTotalPnl >= 0 ? 'rgba(16, 185, 129, 0.15)' : 'rgba(239, 68, 68, 0.15)'}; color: ${activeTotalPnl >= 0 ? 'var(--bull-green)' : 'var(--bear-red)'}; white-space: nowrap;" title="Net P&L: ${activeTotalPnl >= 0 ? '+' : ''}${portfolioStore.formatMoney(activeTotalPnl)}">
+                <span style="font-family: var(--font-mono); font-weight: 700; font-size: 0.72rem; padding: 0.08rem 0.38rem; border-radius: 4px; background: ${activeTotalPnl >= 0 ? 'rgba(16, 185, 129, 0.15)' : 'rgba(239, 68, 68, 0.15)'}; color: ${activeTotalPnl >= 0 ? 'var(--bull-green)' : 'var(--bear-red)'}; white-space: nowrap;" title="Net P&L: ${activeTotalPnl >= 0 ? '+' : ''}${portfolioStore.formatMoney(activeTotalPnl, 0)}">
                   ${activeTotalPnl >= 0 ? '+' : ''}${activeTotalPnlPercent.toFixed(2)}%
                 </span>
               </div>
@@ -900,7 +900,7 @@ export class DashboardView {
                   <div style="font-size: 0.72rem; margin-top: 0.18rem; font-family: var(--font-mono); display: flex; align-items: center; gap: 0.35rem; color: var(--text-muted);">
                     <span>${h.quantity.toLocaleString()}</span>
                     <span style="opacity: 0.4;">|</span>
-                    <span>Inv: <span style="color: var(--text-secondary);">${portfolioStore.formatMoney(h.invested)}</span></span>
+                    <span>Inv: <span style="color: var(--text-secondary);">${portfolioStore.formatMoney(h.invested, 0)}</span></span>
                   </div>
                 </div>
                 <div style="text-align: right; white-space: nowrap; flex-shrink: 0;">
@@ -908,7 +908,7 @@ export class DashboardView {
                     ${isProfit ? '+' : ''}${h.pnlPercent.toFixed(2)}%
                   </div>
                   <div style="font-size: 0.76rem; font-family: var(--font-mono); color: var(--text-primary); margin-top: 0.1rem;">
-                    <span style="color: var(--text-muted); font-size: 0.68rem;">Current:</span> <strong>${portfolioStore.formatMoney(h.current)}</strong>
+                    <span style="color: var(--text-muted); font-size: 0.68rem;">Current:</span> <strong>${portfolioStore.formatMoney(h.current, 0)}</strong>
                   </div>
                 </div>
               </div>
@@ -948,7 +948,7 @@ export class DashboardView {
                 </div>
                 <div style="text-align: right;">
                   <div style="font-weight: 700; font-family: var(--font-mono); font-size: 0.95rem;">
-                    ${portfolioStore.formatMoney(h.current)}
+                    ${portfolioStore.formatMoney(h.current, 0)}
                   </div>
                   <div class="return-badge ${isProfit ? 'bull' : 'bear'}" style="font-size: 0.72rem; padding: 0.15rem 0.45rem; margin-top: 0.15rem; display: inline-block;">
                     ${isProfit ? '+' : ''}${h.pnlPercent.toFixed(2)}%
@@ -1014,17 +1014,17 @@ export class DashboardView {
             <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.6rem; font-family: var(--font-mono);">
               <div>
                 <div style="font-size: 0.68rem; color: var(--text-muted); font-family: var(--font-heading); margin-bottom: 0.12rem;">TOTAL INVESTED</div>
-                <strong style="color: var(--text-primary); font-size: 0.86rem;">${portfolioStore.formatMoney(profitInvested)}</strong>
+                <strong style="color: var(--text-primary); font-size: 0.86rem;">${portfolioStore.formatMoney(profitInvested, 0)}</strong>
               </div>
               <div>
                 <div style="font-size: 0.68rem; color: var(--text-muted); font-family: var(--font-heading); margin-bottom: 0.12rem;">CURRENT VALUE</div>
-                <strong style="color: var(--bull-green); font-size: 0.86rem;">${portfolioStore.formatMoney(profitCurrent)}</strong>
+                <strong style="color: var(--bull-green); font-size: 0.86rem;">${portfolioStore.formatMoney(profitCurrent, 0)}</strong>
               </div>
             </div>
             <div style="margin-top: 0.6rem; padding-top: 0.5rem; border-top: 1px solid rgba(16, 185, 129, 0.15); display: flex; justify-content: space-between; align-items: center; font-size: 0.74rem;">
               <span style="color: var(--text-secondary);">Unrealized Gain:</span>
               <strong style="font-family: var(--font-mono); color: var(--bull-green); font-size: 0.84rem;">
-                +${portfolioStore.formatMoney(profitNet)} (+${profitNetPct.toFixed(2)}%)
+                +${portfolioStore.formatMoney(profitNet, 0)} (+${profitNetPct.toFixed(2)}%)
               </strong>
             </div>
           </div>
@@ -1043,17 +1043,17 @@ export class DashboardView {
             <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.6rem; font-family: var(--font-mono);">
               <div>
                 <div style="font-size: 0.68rem; color: var(--text-muted); font-family: var(--font-heading); margin-bottom: 0.12rem;">TOTAL INVESTED</div>
-                <strong style="color: var(--text-primary); font-size: 0.86rem;">${portfolioStore.formatMoney(lossInvested)}</strong>
+                <strong style="color: var(--text-primary); font-size: 0.86rem;">${portfolioStore.formatMoney(lossInvested, 0)}</strong>
               </div>
               <div>
                 <div style="font-size: 0.68rem; color: var(--text-muted); font-family: var(--font-heading); margin-bottom: 0.12rem;">CURRENT VALUE</div>
-                <strong style="color: var(--bear-red); font-size: 0.86rem;">${portfolioStore.formatMoney(lossCurrent)}</strong>
+                <strong style="color: var(--bear-red); font-size: 0.86rem;">${portfolioStore.formatMoney(lossCurrent, 0)}</strong>
               </div>
             </div>
             <div style="margin-top: 0.6rem; padding-top: 0.5rem; border-top: 1px solid rgba(239, 68, 68, 0.15); display: flex; justify-content: space-between; align-items: center; font-size: 0.74rem;">
               <span style="color: var(--text-secondary);">Unrealized Loss:</span>
               <strong style="font-family: var(--font-mono); color: var(--bear-red); font-size: 0.84rem;">
-                ${portfolioStore.formatMoney(lossNet)} (${lossNetPct.toFixed(2)}%)
+                ${portfolioStore.formatMoney(lossNet, 0)} (${lossNetPct.toFixed(2)}%)
               </strong>
             </div>
           </div>
@@ -1091,7 +1091,7 @@ export class DashboardView {
                   <div style="font-size: 0.72rem; margin-top: 0.18rem; font-family: var(--font-mono); display: flex; align-items: center; gap: 0.35rem; color: var(--text-muted);">
                     <span>${h.quantity.toLocaleString()}</span>
                     <span style="opacity: 0.4;">|</span>
-                    <span>Inv: <span style="color: var(--text-secondary);">${portfolioStore.formatMoney(h.invested)}</span></span>
+                    <span>Inv: <span style="color: var(--text-secondary);">${portfolioStore.formatMoney(h.invested, 0)}</span></span>
                   </div>
                 </div>
                 <div style="text-align: right; white-space: nowrap; flex-shrink: 0;">
@@ -1099,7 +1099,7 @@ export class DashboardView {
                     ${isProfit ? '+' : ''}${h.pnlPercent.toFixed(2)}%
                   </div>
                   <div style="font-size: 0.76rem; font-family: var(--font-mono); color: var(--text-primary); margin-top: 0.1rem;">
-                    <span style="color: var(--text-muted); font-size: 0.68rem;">Current:</span> <strong>${portfolioStore.formatMoney(h.current)}</strong>
+                    <span style="color: var(--text-muted); font-size: 0.68rem;">Current:</span> <strong>${portfolioStore.formatMoney(h.current, 0)}</strong>
                   </div>
                 </div>
               </div>

@@ -1149,7 +1149,9 @@ class PortfolioStore {
   }
 
   formatMoney(amount, decimals = 2) {
-    if (amount === undefined || amount === null || isNaN(amount)) return '₹ 0.00';
+    if (amount === undefined || amount === null || isNaN(amount)) {
+      return decimals > 0 ? '₹ 0.00' : '₹ 0';
+    }
     // Indian numbering format (e.g. ₹ 1,00,000.00)
     return '₹ ' + Number(amount).toLocaleString('en-IN', {
       minimumFractionDigits: decimals,
