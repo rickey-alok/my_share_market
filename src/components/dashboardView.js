@@ -973,17 +973,7 @@ export class DashboardView {
             </div>
           </div>
 
-          <!-- Tabbed Buttons for In Profit / In Loss -->
-          <div class="perf-tab-group" role="tablist">
-            <button type="button" class="perf-tab-btn ${isProfitTab ? 'active tab-top' : ''}" data-pnl-tab="profit" title="Show All In-Profit Stocks">
-              <span class="perf-dot bull">●</span>
-              <span>In Profit (${profitCount})</span>
-            </button>
-            <button type="button" class="perf-tab-btn ${!isProfitTab ? 'active tab-bottom' : ''}" data-pnl-tab="loss" title="Show All In-Loss Stocks">
-              <span class="perf-dot bear">●</span>
-              <span>In Loss (${lossCount})</span>
-            </button>
-          </div>
+          <span class="brand-badge">${totalCount} Total Stocks</span>
         </div>
 
         <!-- Win/Loss Ratio Progress Bar -->
@@ -1005,7 +995,7 @@ export class DashboardView {
         </div>
 
         <!-- Dual Comparison Metric Cards -->
-        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 0.85rem; margin-bottom: 1rem;">
+        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 0.85rem; margin-bottom: 0.85rem;">
           <!-- Left: Stocks in Profit Summary -->
           <div style="padding: 0.85rem 1rem; background: rgba(16, 185, 129, 0.05); border: 1px solid rgba(16, 185, 129, 0.22); border-radius: var(--radius-md);">
             <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.6rem;">
@@ -1065,13 +1055,21 @@ export class DashboardView {
           </div>
         </div>
 
-        <!-- Section Label for Selected Tab List -->
-        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.55rem; padding: 0 0.15rem;">
-          <span style="font-size: 0.78rem; font-weight: 600; color: var(--text-secondary);">
-            All ${activePnlList.length} ${isProfitTab ? 'Stocks in Profit (Gainers)' : 'Stocks in Loss (Drawdowns)'}:
-          </span>
-          <span style="font-size: 0.72rem; color: var(--text-muted); font-family: var(--font-mono);">
-            ${activePnlList.length} of ${totalCount}
+        <!-- Selector Buttons for In Profit / In Loss (Moved below Stocks in Loss card) -->
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 0.35rem; margin-bottom: 0.65rem; flex-wrap: wrap; gap: 0.5rem;">
+          <div class="perf-tab-group" role="tablist">
+            <button type="button" class="perf-tab-btn ${isProfitTab ? 'active tab-top' : ''}" data-pnl-tab="profit" title="Show All In-Profit Stocks">
+              <span class="perf-dot bull">●</span>
+              <span>In Profit (${profitCount})</span>
+            </button>
+            <button type="button" class="perf-tab-btn ${!isProfitTab ? 'active tab-bottom' : ''}" data-pnl-tab="loss" title="Show All In-Loss Stocks">
+              <span class="perf-dot bear">●</span>
+              <span>In Loss (${lossCount})</span>
+            </button>
+          </div>
+
+          <span style="font-size: 0.74rem; color: var(--text-muted); font-family: var(--font-mono);">
+            Showing ${activePnlList.length} of ${totalCount} Stocks
           </span>
         </div>
 
