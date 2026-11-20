@@ -233,15 +233,6 @@ export class DashboardView {
             <span style="font-family: var(--font-mono); font-size: 0.68rem;">Tile Area = Valuation Weight</span>
           </div>
         </div>
-
-        <div class="analytics-card">
-          <div class="card-title-row">
-            <h2 class="card-title">${icons.layers} Sector Exposure</h2>
-          </div>
-          <div class="sector-list" id="sector-list-container">
-            <!-- Dynamically injected -->
-          </div>
-        </div>
       </div>
 
       <!-- Portfolio Highlights & Holdings Overview Grid -->
@@ -474,7 +465,6 @@ export class DashboardView {
     const metrics = portfolioStore.getPortfolioMetrics();
     this.renderKPIs(metrics);
     this.renderMarketCarpet(metrics);
-    this.renderSectorList(metrics);
     this.renderHighlights(metrics, event);
   }
 
@@ -749,26 +739,6 @@ export class DashboardView {
         </div>
       `;
     }).join('');
-  }
-
-  renderSectorList(metrics) {
-    const listContainer = this.container.querySelector('#sector-list-container');
-    if (!listContainer) return;
-
-    if (metrics.sectorBreakdown.length === 0) {
-      listContainer.innerHTML = `<div style="color: var(--text-muted); padding: 1rem;">No holdings available</div>`;
-      return;
-    }
-
-    listContainer.innerHTML = metrics.sectorBreakdown.map(s => `
-      <div class="sector-item">
-        <span class="sector-name">${s.sector}</span>
-        <div class="sector-meta">
-          <span style="color: var(--text-primary);">${portfolioStore.formatMoney(s.value)}</span>
-          <span class="sector-pct">${s.percentage.toFixed(1)}%</span>
-        </div>
-      </div>
-    `).join('');
   }
 
   renderHighlights(metrics) {

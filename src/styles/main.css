@@ -1274,7 +1274,7 @@ body::after {
 /* Visual Analytics & Breakdown Section */
 .analytics-section {
   display: grid;
-  grid-template-columns: 2fr 1fr;
+  grid-template-columns: 1fr;
   gap: 1.25rem;
   margin-bottom: 2rem;
   min-width: 0;
