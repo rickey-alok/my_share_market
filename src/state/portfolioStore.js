@@ -1,4 +1,4 @@
-import { POPULAR_STOCKS } from '../data/stocksDatabase.js';
+import { POPULAR_STOCKS, NIFTY_50_STOCKS } from '../data/stocksDatabase.js';
 import { firebaseService } from '../services/firebase.js';
 import { authService } from '../services/authService.js';
 import { liveMarketService } from '../services/liveMarketService.js';
@@ -889,6 +889,69 @@ class PortfolioStore {
 
     this.notify({ type: 'WATCHLIST_UPDATED', watchlist: this.watchlist, item });
     return item;
+  }
+
+  async addNifty50ToWatchlist(watchlistId = null) {
+    const targetWlId = Number(watchlistId) || this.activeWatchlistId || 1;
+    if (!Array.isArray(this.watchlist)) this.watchlist = [];
+
+    const currentList = this.watchlist.filter(w => (Number(w.watchlistId) || 1) === targetWlId);
+    const existingSymbols = new Set(currentList.map(w => (w.symbol || '').toUpperCase().trim()));
+
+    const remainingSlots = 50 - currentList.length;
+    if (remainingSlots <= 0) {
+      throw new Error(`Watchlist "${this.getWatchlistName(targetWlId)}" has reached its maximum capacity of 50 stocks.`);
+    }
+
+    const toAdd = (NIFTY_50_STOCKS || []).filter(s => !existingSymbols.has(s.symbol.toUpperCase())).slice(0, remainingSlots);
+    if (toAdd.length === 0) {
+      throw new Error(`All NIFTY 50 stocks are already in this watchlist.`);
+    }
+
+    const newItems = [];
+    for (const stock of toAdd) {
+      const sym = stock.symbol.toUpperCase();
+      const refStock = POPULAR_STOCKS.find(s => s.symbol.toUpperCase() === sym) || stock;
+      const cmp = parseFloat(refStock.cmp || 100);
+      const target = parseFloat((cmp * 0.97).toFixed(2));
+      const id = 'w_' + Date.now() + '_' + Math.random().toString(36).substr(2, 6);
+
+      const item = {
+        id,
+        watchlistId: targetWlId,
+        symbol: sym,
+        name: refStock.name || stock.name || sym,
+        exchange: refStock.exchange || stock.exchange || 'NSE',
+        sector: refStock.sector || stock.sector || 'General / Equity',
+        cmp,
+        prevClose: parseFloat(refStock.prevClose || cmp),
+        dayHigh: parseFloat(refStock.dayHigh || cmp),
+        dayLow: parseFloat(refStock.dayLow || cmp),
+        week52High: parseFloat(refStock.week52High || (cmp * 1.25)),
+        week52Low: parseFloat(refStock.week52Low || (cmp * 0.75)),
+        dayChangePercent: parseFloat(refStock.dayChangePercent || 0),
+        targetPrice: target,
+        notes: 'NIFTY 50 Constituent',
+        addedDate: new Date().toISOString().split('T')[0]
+      };
+      this.watchlist.push(item);
+      newItems.push(item);
+    }
+
+    this.saveWatchlist(this.watchlist);
+
+    if (firebaseService.isConfigured && !this.isInspectingOtherUser) {
+      const u = this.getActiveUser();
+      const uid = this.getActiveUserId();
+      if (uid && uid !== 'usr_local_guest') {
+        for (const item of newItems) {
+          firebaseService.saveUserWatchlistStock(uid, item, u?.email).catch(() => {});
+        }
+      }
+    }
+
+    this.notify({ type: 'WATCHLIST_UPDATED', watchlist: this.watchlist });
+    return newItems.length;
   }
 
   async updateWatchlistItem(id, updates = {}) {

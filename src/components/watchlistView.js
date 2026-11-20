@@ -608,9 +608,14 @@ export class WatchlistView {
         Save Indian stocks you're interested in, configure target entry prices, and track real-time dips before investing.
       </p>
 
-      <button type="button" class="btn btn-primary" id="btn-empty-add-watchlist" style="margin: 0 auto 1.5rem; justify-content: center;">
-        ${icons.plus} Add Stock to Watchlist
-      </button>
+      <div style="display: flex; gap: 0.75rem; justify-content: center; align-items: center; flex-wrap: wrap; margin: 0 auto 1.5rem;">
+        <button type="button" class="btn btn-primary" id="btn-empty-add-watchlist" style="justify-content: center;">
+          ${icons.plus} Add Stock to Watchlist
+        </button>
+        <button type="button" class="btn btn-nifty-quick-add" id="btn-empty-add-nifty50" style="justify-content: center;">
+          ${icons.trendingUp || icons.sparkles} Add All NIFTY 50 Stocks
+        </button>
+      </div>
 
       <!-- 1-Click Quick Add Popular Stocks -->
       <div style="margin-top: 1.5rem; border-top: 1px dashed var(--border-subtle); padding-top: 1.5rem;">
@@ -639,6 +644,26 @@ export class WatchlistView {
     if (btnEmptyAdd) {
       btnEmptyAdd.addEventListener('click', () => {
         this.addToWatchlistModal.open(null, () => this.update());
+      });
+    }
+
+    const btnEmptyNifty50 = this.container.querySelector('#btn-empty-add-nifty50');
+    if (btnEmptyNifty50) {
+      btnEmptyNifty50.addEventListener('click', async () => {
+        const activeId = portfolioStore.getActiveWatchlistId();
+        const activeName = portfolioStore.getWatchlistName(activeId);
+        try {
+          btnEmptyNifty50.disabled = true;
+          btnEmptyNifty50.innerHTML = `<span class="rotating" style="display:inline-flex; width:14px; height:14px; margin-right: 0.35rem;">${icons.refreshCw}</span> Adding NIFTY 50...`;
+          const count = await portfolioStore.addNifty50ToWatchlist(activeId);
+          this.showToast(`✅ Added ${count} NIFTY 50 stocks to "${activeName}"!`, 'success');
+          // Fetch live market quotes in background
+          portfolioStore.refreshMarketQuotes(false).catch(() => {});
+        } catch (err) {
+          alert(err.message);
+          btnEmptyNifty50.disabled = false;
+          btnEmptyNifty50.innerHTML = `${icons.trendingUp || icons.sparkles} Add All NIFTY 50 Stocks`;
+        }
       });
     }
 

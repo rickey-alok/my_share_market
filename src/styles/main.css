@@ -9077,6 +9077,59 @@ body::after {
   box-shadow: 0 2px 10px rgba(79, 70, 229, 0.35);
 }
 
+/* 1-Click Add All NIFTY 50 Button in Empty State */
+.btn-nifty-quick-add {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  background: rgba(99, 102, 241, 0.12);
+  border: 1px solid var(--brand-indigo);
+  color: var(--brand-indigo-light);
+  font-family: var(--font-heading);
+  font-size: 0.85rem;
+  font-weight: 700;
+  padding: 0.55rem 1.15rem;
+  border-radius: var(--radius-md);
+  cursor: pointer;
+  transition: all var(--transition-fast);
+  white-space: nowrap;
+}
+
+.btn-nifty-quick-add svg {
+  width: 15px;
+  height: 15px;
+}
+
+.btn-nifty-quick-add:hover:not(:disabled) {
+  background: linear-gradient(135deg, #4f46e5 0%, #3b82f6 100%);
+  color: #ffffff;
+  border-color: transparent;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 14px rgba(79, 70, 229, 0.4);
+}
+
+.btn-nifty-quick-add:active:not(:disabled) {
+  transform: translateY(0);
+}
+
+.btn-nifty-quick-add:disabled {
+  opacity: 0.65;
+  cursor: not-allowed;
+}
+
+[data-theme="light"] .btn-nifty-quick-add {
+  background: rgba(99, 102, 241, 0.08);
+  border-color: #6366f1;
+  color: #4338ca;
+}
+
+[data-theme="light"] .btn-nifty-quick-add:hover:not(:disabled) {
+  background: linear-gradient(135deg, #4f46e5 0%, #3b82f6 100%);
+  color: #ffffff;
+  border-color: transparent;
+}
+
 /* Watchlist Stock Preview in Modal */
 .watchlist-stock-preview {
   background: rgba(255, 255, 255, 0.03);
