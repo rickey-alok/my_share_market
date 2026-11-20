@@ -1086,6 +1086,30 @@ body::after {
   justify-content: space-between;
 }
 
+.kpi-dual-col-right,
+.kpi-dual-col:last-child {
+  align-items: flex-end;
+  text-align: right;
+}
+
+.kpi-dual-col-right .kpi-mini-header,
+.kpi-dual-col:last-child .kpi-mini-header {
+  justify-content: flex-end;
+  width: 100%;
+}
+
+.kpi-dual-col-right .kpi-mini-value,
+.kpi-dual-col:last-child .kpi-mini-value {
+  text-align: right;
+  width: 100%;
+}
+
+.kpi-dual-col-right .kpi-mini-footer,
+.kpi-dual-col:last-child .kpi-mini-footer {
+  justify-content: flex-end;
+  width: 100%;
+}
+
 .kpi-dual-divider {
   width: 1px;
   background: var(--border-subtle);

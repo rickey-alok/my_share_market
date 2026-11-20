@@ -469,7 +469,7 @@ export class DashboardView {
         <div class="kpi-dual-divider"></div>
 
         <!-- Right Side: Current Portfolio Value -->
-        <div class="kpi-dual-col">
+        <div class="kpi-dual-col kpi-dual-col-right">
           <div class="kpi-mini-header">
             <span class="kpi-mini-title">${icons.sparkles} Current Value</span>
           </div>
@@ -498,7 +498,7 @@ export class DashboardView {
         <div class="kpi-dual-divider"></div>
 
         <!-- Right Side: Today's P&L -->
-        <div class="kpi-dual-col">
+        <div class="kpi-dual-col kpi-dual-col-right">
           <div class="kpi-mini-header">
             <span class="kpi-mini-title">${isDayProfit ? icons.arrowUpRight : icons.arrowDownRight} Today's P&L</span>
           </div>
