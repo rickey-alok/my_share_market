@@ -5799,9 +5799,10 @@ body::after {
   grid-template-columns: 1fr 1fr;
   gap: 1.5rem;
   margin-top: 1.5rem;
+  align-items: start;
 }
 
-@media (max-width: 900px) {
+@media (max-width: 1024px) {
   .dashboard-highlights-grid {
     grid-template-columns: 1fr;
     gap: 1.25rem;
@@ -5905,6 +5906,12 @@ body::after {
   background: rgba(239, 68, 68, 0.08);
 }
 
+.perf-tab-btn.active.tab-weight {
+  color: var(--brand-indigo, #6366f1) !important;
+  border-color: rgba(99, 102, 241, 0.35);
+  background: rgba(99, 102, 241, 0.08);
+}
+
 .perf-dot {
   font-size: 0.55rem;
   line-height: 1;
@@ -5916,6 +5923,10 @@ body::after {
 
 .perf-dot.bear {
   color: var(--bear-red);
+}
+
+.perf-dot.weight {
+  color: var(--brand-indigo, #6366f1);
 }
 
 .perf-rank-badge {
@@ -5948,7 +5959,7 @@ body::after {
 
 /* Profit vs Loss Breakdown Card */
 .pnl-breakdown-card {
-  grid-column: 1 / -1;
+  min-width: 0;
 }
 
 .pnl-stocks-scroll {

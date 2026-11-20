@@ -802,18 +802,28 @@ export class DashboardView {
       .sort((a, b) => a.pnlPercent - b.pnlPercent)
       .slice(0, 5);
 
-    // Active tab list
-    const isTopTab = this.performanceTab !== 'bottom';
-    const activeList = isTopTab ? top5Gainers : bottom5Losers;
+    // Top 5 Holdings by Valuation Weight (by current value descending)
+    const top5ByWeight = [...metrics.holdings]
+      .sort((a, b) => b.current - a.current)
+      .slice(0, 5);
+
+    // Active tab selection for Performance Highlights
+    const currentTab = this.performanceTab || 'top';
+    let activeList = top5Gainers;
+    let groupLabel = 'Top 5 %';
+
+    if (currentTab === 'bottom') {
+      activeList = bottom5Losers;
+      groupLabel = 'Bottom 5 %';
+    } else if (currentTab === 'weight') {
+      activeList = top5ByWeight;
+      groupLabel = 'Top 5 Weight';
+    }
+
     const activeTotalInvested = activeList.reduce((sum, h) => sum + (h.invested || 0), 0);
     const activeTotalCurrent = activeList.reduce((sum, h) => sum + (h.current || 0), 0);
     const activeTotalPnl = activeTotalCurrent - activeTotalInvested;
     const activeTotalPnlPercent = activeTotalInvested > 0 ? (activeTotalPnl / activeTotalInvested) * 100 : 0;
-
-    // Top 4 largest holdings by current value
-    const topHoldings = [...metrics.holdings]
-      .sort((a, b) => b.current - a.current)
-      .slice(0, 4);
 
     // All Stocks Profit vs Loss Breakdown
     const profitStocks = [...metrics.holdings]
@@ -846,20 +856,24 @@ export class DashboardView {
     const activePnlList = isProfitTab ? profitStocks : lossStocks;
 
     container.innerHTML = `
-      <!-- Card 1: Top 5 and Bottom 5 Movers in Tabbed Button Form -->
+      <!-- Card 1: Performance Highlights (Merged Top 5 %, Bottom 5 %, and Top 5 Weight) -->
       <div class="analytics-card">
         <div class="card-title-row" style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 0.5rem;">
           <h2 class="card-title">${icons.trendingUp} Performance Highlights</h2>
           
-          <!-- Tabbed Buttons for Top 5 / Bottom 5 -->
+          <!-- Tabbed Buttons for Top 5 % / Bottom 5 % / Top 5 Weight -->
           <div class="perf-tab-group" role="tablist">
-            <button type="button" class="perf-tab-btn ${isTopTab ? 'active tab-top' : ''}" data-perf-tab="top" title="Show Top 5 Gainers">
+            <button type="button" class="perf-tab-btn ${currentTab === 'top' ? 'active tab-top' : ''}" data-perf-tab="top" title="Show Top 5 Gainers (%)">
               <span class="perf-dot bull">●</span>
-              <span>Top 5</span>
+              <span>Top 5 %</span>
             </button>
-            <button type="button" class="perf-tab-btn ${!isTopTab ? 'active tab-bottom' : ''}" data-perf-tab="bottom" title="Show Bottom 5 Drawdowns">
+            <button type="button" class="perf-tab-btn ${currentTab === 'bottom' ? 'active tab-bottom' : ''}" data-perf-tab="bottom" title="Show Bottom 5 Drawdowns (%)">
               <span class="perf-dot bear">●</span>
-              <span>Bottom 5</span>
+              <span>Bottom 5 %</span>
+            </button>
+            <button type="button" class="perf-tab-btn ${currentTab === 'weight' ? 'active tab-weight' : ''}" data-perf-tab="weight" title="Show Top 5 Holdings by Valuation Weight">
+              <span class="perf-dot weight">●</span>
+              <span>Top 5 Weight</span>
             </button>
           </div>
         </div>
@@ -868,7 +882,7 @@ export class DashboardView {
         ${activeList.length > 0 ? `
           <div style="display: flex; justify-content: space-between; align-items: center; padding: 0.5rem 0.85rem; background: rgba(255, 255, 255, 0.03); border: 1px solid var(--border-subtle); border-radius: var(--radius-sm); margin-top: 0.65rem; gap: 0.5rem;">
             <div style="text-align: left; flex-shrink: 0;">
-              <div style="font-size: 0.68rem; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.03em; font-family: var(--font-heading);">Invested (${isTopTab ? 'Top 5' : 'Bottom 5'})</div>
+              <div style="font-size: 0.68rem; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.03em; font-family: var(--font-heading);">Invested (${groupLabel})</div>
               <div style="font-family: var(--font-mono); color: var(--text-primary); font-weight: 700; font-size: 0.88rem; margin-top: 0.12rem;">
                 ${portfolioStore.formatMoney(activeTotalInvested, 0)}
               </div>
@@ -915,57 +929,20 @@ export class DashboardView {
             `;
           }).join('') : `
             <div style="padding: 1.5rem; text-align: center; color: var(--text-secondary); font-size: 0.85rem;">
-              No ${isTopTab ? 'gainers' : 'drawdown stocks'} in portfolio yet.
+              No ${currentTab === 'top' ? 'gainers' : currentTab === 'bottom' ? 'drawdown stocks' : 'holdings'} in portfolio yet.
             </div>
           `}
 
-          <!-- Quick Navigation Link to Analysis -->
-          <button id="btn-dashboard-header-view-holdings" class="btn btn-outline btn-sm" style="width: 100%; justify-content: center; margin-top: 0.5rem;">
+          <!-- Quick Navigation Link to Holdings -->
+          <button id="btn-dashboard-header-view-holdings" class="btn btn-outline btn-sm" style="width: 100%; justify-content: center; margin-top: 0.5rem; gap: 0.4rem;">
             ${icons.layers}
-            <span>Open Holdings Page</span>
-          </button>
-        </div>
-      </div>
-
-      <!-- Card 2: Largest Holdings Snapshot -->
-      <div class="analytics-card">
-        <div class="card-title-row">
-          <h2 class="card-title">${icons.wallet} Top Holdings by Weight</h2>
-          <span class="brand-badge">${metrics.totalHoldingsCount} Total</span>
-        </div>
-
-        <div style="display: flex; flex-direction: column; gap: 0.5rem; margin-top: 0.5rem;">
-          ${topHoldings.map(h => {
-            const isProfit = h.pnl >= 0;
-            return `
-              <div class="highlight-stock-row" style="padding: 0.75rem 0.95rem;">
-                <div style="min-width: 0;">
-                  <div style="font-weight: 700; font-size: 0.95rem; display: flex; align-items: center; gap: 0.4rem;">
-                    ${h.symbol}
-                    <span class="exchange-tag">${h.exchange || 'NSE'}</span>
-                  </div>
-                  <div style="font-size: 0.75rem; color: var(--text-secondary); margin-top: 0.12rem;">${h.quantity.toLocaleString()} shares • ${h.sector || 'Equity'}</div>
-                </div>
-                <div style="text-align: right;">
-                  <div style="font-weight: 700; font-family: var(--font-mono); font-size: 0.95rem;">
-                    ${portfolioStore.formatMoney(h.current, 0)}
-                  </div>
-                  <div class="return-badge ${isProfit ? 'bull' : 'bear'}" style="font-size: 0.72rem; padding: 0.15rem 0.45rem; margin-top: 0.15rem; display: inline-block;">
-                    ${isProfit ? '+' : ''}${h.pnlPercent.toFixed(2)}%
-                  </div>
-                </div>
-              </div>
-            `;
-          }).join('')}
-
-          <button id="btn-dashboard-view-all-holdings" class="btn btn-primary" style="margin-top: 1rem; width: 100%; justify-content: center; gap: 0.5rem;">
-            <span>View All ${metrics.totalHoldingsCount} Holdings in Table</span>
+            <span>View All ${totalCount} Holdings in Table</span>
             <span>→</span>
           </button>
         </div>
       </div>
 
-      <!-- Card 3: All Stocks Profit vs Loss Breakdown -->
+      <!-- Card 2: All Stocks Profit vs Loss Breakdown -->
       <div class="analytics-card pnl-breakdown-card">
         <div class="card-title-row" style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 0.5rem;">
           <div>
