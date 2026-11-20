@@ -69,12 +69,6 @@ export class AddHoldingView {
           <h1 class="page-title">Add Holdings</h1>
           <p class="page-subtitle">Add individual stock positions or bulk import from Excel / CSV / JSON spreadsheets</p>
         </div>
-        <div class="page-header-actions">
-          <button id="btn-back-dashboard" class="btn btn-outline btn-sm">
-            ${icons.layoutDashboard}
-            <span>Back to Dashboard</span>
-          </button>
-        </div>
       </div>
 
       <!-- Mode Switcher Tabs: Single Stock vs Bulk Import -->
@@ -471,14 +465,6 @@ export class AddHoldingView {
   }
 
   attachEventListeners() {
-    // Back to dashboard
-    const btnBack = this.container.querySelector('#btn-back-dashboard');
-    if (btnBack) {
-      btnBack.addEventListener('click', () => {
-        if (this.onNavigateToDashboard) this.onNavigateToDashboard();
-      });
-    }
-
     // Mode Switcher Tabs (Single vs Bulk)
     const modeTabs = this.container.querySelectorAll('.mode-tab-btn');
     modeTabs.forEach(tab => {
