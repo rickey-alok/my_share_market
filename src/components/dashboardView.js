@@ -807,6 +807,8 @@ export class DashboardView {
     const activeList = isTopTab ? top5Gainers : bottom5Losers;
     const activeTotalInvested = activeList.reduce((sum, h) => sum + (h.invested || 0), 0);
     const activeTotalCurrent = activeList.reduce((sum, h) => sum + (h.current || 0), 0);
+    const activeTotalPnl = activeTotalCurrent - activeTotalInvested;
+    const activeTotalPnlPercent = activeTotalInvested > 0 ? (activeTotalPnl / activeTotalInvested) * 100 : 0;
 
     // Top 4 largest holdings by current value
     const topHoldings = [...metrics.holdings]
@@ -864,8 +866,8 @@ export class DashboardView {
 
         <!-- Total Invested & Current Value Summary for Selected Group -->
         ${activeList.length > 0 ? `
-          <div style="display: flex; justify-content: space-between; align-items: center; padding: 0.5rem 0.85rem; background: rgba(255, 255, 255, 0.03); border: 1px solid var(--border-subtle); border-radius: var(--radius-sm); margin-top: 0.65rem;">
-            <div style="text-align: left;">
+          <div style="display: flex; justify-content: space-between; align-items: center; padding: 0.5rem 0.85rem; background: rgba(255, 255, 255, 0.03); border: 1px solid var(--border-subtle); border-radius: var(--radius-sm); margin-top: 0.65rem; gap: 0.5rem;">
+            <div style="text-align: left; flex-shrink: 0;">
               <div style="font-size: 0.68rem; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.03em; font-family: var(--font-heading);">Invested (${isTopTab ? 'Top 5' : 'Bottom 5'})</div>
               <div style="font-family: var(--font-mono); color: var(--text-primary); font-weight: 700; font-size: 0.88rem; margin-top: 0.12rem;">
                 ${portfolioStore.formatMoney(activeTotalInvested)}
@@ -873,8 +875,13 @@ export class DashboardView {
             </div>
             <div style="text-align: right; margin-left: auto;">
               <div style="font-size: 0.68rem; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.03em; font-family: var(--font-heading);">Current Value</div>
-              <div style="font-family: var(--font-mono); color: ${isTopTab ? 'var(--bull-green)' : 'var(--bear-red)'}; font-weight: 700; font-size: 0.88rem; margin-top: 0.12rem;">
-                ${portfolioStore.formatMoney(activeTotalCurrent)}
+              <div style="display: flex; align-items: center; justify-content: flex-end; gap: 0.4rem; margin-top: 0.12rem; flex-wrap: wrap;">
+                <span style="font-family: var(--font-mono); color: ${activeTotalPnl >= 0 ? 'var(--bull-green)' : 'var(--bear-red)'}; font-weight: 700; font-size: 0.88rem;">
+                  ${portfolioStore.formatMoney(activeTotalCurrent)}
+                </span>
+                <span style="font-family: var(--font-mono); font-weight: 700; font-size: 0.72rem; padding: 0.08rem 0.38rem; border-radius: 4px; background: ${activeTotalPnl >= 0 ? 'rgba(16, 185, 129, 0.15)' : 'rgba(239, 68, 68, 0.15)'}; color: ${activeTotalPnl >= 0 ? 'var(--bull-green)' : 'var(--bear-red)'}; white-space: nowrap;" title="Net P&L: ${activeTotalPnl >= 0 ? '+' : ''}${portfolioStore.formatMoney(activeTotalPnl)}">
+                  ${activeTotalPnl >= 0 ? '+' : ''}${activeTotalPnlPercent.toFixed(2)}%
+                </span>
               </div>
             </div>
           </div>
