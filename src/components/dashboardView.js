@@ -490,7 +490,7 @@ export class DashboardView {
           </div>
           <div class="kpi-mini-footer">
             <span class="return-badge-sm ${isTotalProfit ? 'bull' : 'bear'}">
-              ${isTotalProfit ? '+' : ''}${metrics.totalPnLPercent.toFixed(2)}% all-time
+              ${isTotalProfit ? '+' : ''}${metrics.totalPnLPercent.toFixed(2)}%
             </span>
           </div>
         </div>
@@ -507,7 +507,7 @@ export class DashboardView {
           </div>
           <div class="kpi-mini-footer">
             <span class="return-badge-sm ${isDayProfit ? 'bull' : 'bear'}">
-              ${isDayProfit ? '+' : ''}${metrics.totalDayPnLPercent.toFixed(2)}% session
+              ${isDayProfit ? '+' : ''}${metrics.totalDayPnLPercent.toFixed(2)}%
             </span>
           </div>
         </div>
