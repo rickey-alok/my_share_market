@@ -732,17 +732,17 @@ export class DashboardView {
     // Active tab selection for Performance Highlights
     const currentTab = this.performanceTab || 'profit-pct';
     let activeList = profit5ByPct;
-    let groupLabel = 'Top 5 Invested Profit (%)';
+    let groupSubLabel = 'Profit by (%)';
 
     if (currentTab === 'loss-pct' || currentTab === 'bottom') {
       activeList = loss5ByPct;
-      groupLabel = 'Top 5 Invested Loss (%)';
+      groupSubLabel = 'Loss by (%)';
     } else if (currentTab === 'profit-amt' || currentTab === 'weight' || currentTab === 'weight-top') {
       activeList = profit5ByAmt;
-      groupLabel = 'Top 5 Invested Profit (Amt)';
+      groupSubLabel = 'Profit by (Amt)';
     } else if (currentTab === 'loss-amt' || currentTab === 'weight-bottom') {
       activeList = loss5ByAmt;
-      groupLabel = 'Top 5 Invested Loss (Amt)';
+      groupSubLabel = 'Loss by (Amt)';
     }
 
     const activeTotalInvested = activeList.reduce((sum, h) => sum + (h.invested || 0), 0);
@@ -816,7 +816,10 @@ export class DashboardView {
         ${activeList.length > 0 ? `
           <div class="perf-summary-card ${activeTotalPnl >= 0 ? 'bull' : 'bear'}">
             <div class="perf-summary-left">
-              <div class="perf-summary-label">${groupLabel}</div>
+              <div class="perf-summary-label">
+                <div>TOP 5 INVESTED</div>
+                <div class="perf-summary-sublabel">${groupSubLabel}</div>
+              </div>
               <div class="perf-summary-val-inv">
                 ${portfolioStore.formatMoney(activeTotalInvested, 0)}
               </div>
