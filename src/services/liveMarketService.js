@@ -1,5 +1,6 @@
 // Live Market Price Service (NSE & BSE Real-time Quotes)
 import { POPULAR_STOCKS } from '../data/stocksDatabase.js';
+import { INDICES_DATA } from '../data/marketAnalysisData.js';
 
 const STORAGE_KEY_CUSTOM_PROXY = 'apna_share_market_proxy_url_v1';
 const STORAGE_KEY_AUTO_REFRESH = 'apna_share_auto_refresh_enabled_v1';
@@ -584,6 +585,101 @@ class LiveMarketService {
     }
 
     throw new Error(lastError ? `Connection failed: ${lastError.message}` : 'Proxy did not return valid JSON. Check URL and CORS headers.');
+  }
+
+  /**
+   * Fetch real-time quotes for major Benchmark and Sectoral Indices
+   * Uses direct CORS-enabled Moneycontrol pricefeed endpoints with zero proxy requirements
+   */
+  async fetchLiveIndices() {
+    const INDEX_FEED_MAP = {
+      nifty: 'in;NSX',
+      sensex: 'in;SEN',
+      bank_nifty: 'in;nbx',
+      nifty_it: 'in;cnit',
+      nifty_auto: 'in;cnxa',
+      nifty_fmcg: 'in;cfm',
+      nifty_pharma: 'in;cpr',
+      nifty_metal: 'in;CNXM',
+      nifty_midcap: 'in;ccx'
+    };
+
+    const results = {};
+    const fetchPromises = Object.entries(INDEX_FEED_MAP).map(async ([key, mcId]) => {
+      try {
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 4500);
+        const res = await fetch(`https://priceapi.moneycontrol.com/pricefeed/notapplicable/inidicesindia/${encodeURIComponent(mcId)}`, {
+          signal: controller.signal,
+          headers: { 'Accept': 'application/json' }
+        });
+        clearTimeout(timeoutId);
+
+        if (res.ok) {
+          const json = await res.json();
+          if (json && json.data && json.data.pricecurrent) {
+            const d = json.data;
+            const cmp = parseFloat(d.pricecurrent);
+            if (!isNaN(cmp) && cmp > 0) {
+              const prevClose = parseFloat(d.priceprevclose || cmp);
+              const dayChange = parseFloat(d.pricechange || (cmp - prevClose).toFixed(2));
+              const dayChangePercent = parseFloat(d.pricepercentchange || (prevClose > 0 ? (((cmp - prevClose) / prevClose) * 100).toFixed(2) : '0'));
+              const dayHigh = parseFloat(d.HIGH || cmp);
+              const dayLow = parseFloat(d.LOW || cmp);
+              const week52High = parseFloat(d['52wkhi'] || dayHigh);
+              const week52Low = parseFloat(d['52wklow'] || dayLow);
+
+              results[key] = {
+                key,
+                name: d.company || key,
+                cmp,
+                prevClose,
+                dayChange,
+                dayChangePercent,
+                dayHigh,
+                dayLow,
+                week52High,
+                week52Low
+              };
+            }
+          }
+        }
+      } catch (err) {
+        // Ignore single index lookup failure
+      }
+    });
+
+    await Promise.all(fetchPromises);
+
+    // Update in-memory INDICES_DATA in marketAnalysisData
+    if (Object.keys(results).length > 0 && INDICES_DATA) {
+      try {
+        Object.entries(results).forEach(([key, q]) => {
+          ['day', 'week', 'month', 'year', '3year', '5year'].forEach(tf => {
+            if (INDICES_DATA[tf] && INDICES_DATA[tf][key]) {
+              const item = INDICES_DATA[tf][key];
+              item.current = q.cmp;
+              if (Array.isArray(item.points) && item.points.length > 0) {
+                item.points[item.points.length - 1] = q.cmp;
+              }
+              if (tf === 'day') {
+                item.low = q.dayLow;
+                item.high = q.dayHigh;
+                item.changePct = q.dayChangePercent;
+              } else if (tf === 'year') {
+                item.low = q.week52Low;
+                item.high = q.week52High;
+              }
+            }
+          });
+        });
+      } catch (e) {
+        console.error('Failed to update INDICES_DATA in memory:', e);
+      }
+    }
+
+    this.notify({ type: 'INDICES_UPDATED', indices: results });
+    return results;
   }
 
   startAutoRefresh(intervalMs = 30000) {

@@ -1,5 +1,6 @@
 // Market & Portfolio Analysis View Component (Page 4)
 import { portfolioStore } from '../state/portfolioStore.js';
+import { liveMarketService } from '../services/liveMarketService.js';
 import { icons } from '../utils/icons.js';
 import { getFiiDiiMetrics, INDICES_DATA, getStockAnalysisData } from '../data/marketAnalysisData.js';
 import Chart from 'chart.js/auto';
@@ -44,10 +45,24 @@ export class AnalysisView {
     this.attachEventListeners();
     this.updateAll();
 
-    // Subscribe to store updates (e.g. price ticks, added/sold holdings)
+    // Fetch live benchmark indices data in background and update view
+    liveMarketService.fetchLiveIndices().then(() => {
+      if (this.container.classList.contains('active') && this.activeTab === 'indices') {
+        this.renderIndexSection();
+      }
+    }).catch(err => console.warn('AnalysisView initial live indices fetch failed:', err));
+
+    // Listen to liveMarketService updates (e.g. background polling or indices refresh)
+    this.unsubscribeLiveMarket = liveMarketService.subscribe((event) => {
+      if (event.type === 'INDICES_UPDATED' && this.container.classList.contains('active') && this.activeTab === 'indices') {
+        this.renderIndexSection();
+      }
+    });
+
+    // Subscribe to store updates (e.g. price ticks, added/deleted holdings)
     this.unsubscribe = portfolioStore.subscribe((event) => {
       if (!this.container.classList.contains('active')) return;
-      if (event.type === 'HOLDING_ADDED' || event.type === 'HOLDING_SOLD' || event.type === 'HOLDING_DELETED') {
+      if (event.type === 'HOLDING_ADDED' || event.type === 'HOLDING_DELETED') {
         this.updateStockSelector();
         this.renderStockAnalysis();
       } else if (event.type === 'PRICE_TICK') {
@@ -232,7 +247,7 @@ export class AnalysisView {
         btn.setAttribute('title', 'Syncing live market data...');
         try {
           await portfolioStore.refreshMarketQuotes(false);
-          if (onSync) onSync();
+          if (onSync) await onSync();
           else this.updateAll();
           btn.setAttribute('title', successMsg);
         } catch (err) {
@@ -252,7 +267,8 @@ export class AnalysisView {
     setupSyncButton('#btn-analysis-sync', 'FII & DII Flow Synced!', 'Refresh FII / DII Data');
 
     // 2. Benchmark & Sectoral Indices sync button
-    setupSyncButton('#btn-index-sync', 'Indices Data Synced!', 'Refresh Indices Live Data', () => {
+    setupSyncButton('#btn-index-sync', 'Indices Data Synced!', 'Refresh Indices Live Data', async () => {
+      await liveMarketService.fetchLiveIndices();
       this.renderIndexSection();
     });
 
@@ -380,6 +396,11 @@ export class AnalysisView {
       requestAnimationFrame(() => {
         if (this.indexChart) this.indexChart.resize();
       });
+      liveMarketService.fetchLiveIndices().then(() => {
+        if (this.container.classList.contains('active') && this.activeTab === 'indices') {
+          this.renderIndexSection();
+        }
+      }).catch(err => console.warn('Failed to refresh indices on tab switch:', err));
     } else if (tabKey === 'holdings') {
       this.updateStockSelector();
       this.renderStockAnalysis();
@@ -1385,6 +1406,9 @@ export class AnalysisView {
     }
     if (this.unsubscribe) {
       this.unsubscribe();
+    }
+    if (this.unsubscribeLiveMarket) {
+      this.unsubscribeLiveMarket();
     }
   }
 }
