@@ -751,15 +751,22 @@ class LiveMarketService {
         let points = [];
 
         if (timeframe === 'year') {
-          // Group by calendar month for clean past 12-month representation
-          const byMonth = {};
+          // Group by unique calendar month (YYYY-MM) so starting month is preserved and not overwritten by ending month
+          const byMonthYear = {};
           for (let i = 0; i < data.t.length; i++) {
             const d = new Date(data.t[i] * 1000);
-            const m = d.toLocaleString('en-US', { month: 'short' });
-            byMonth[m] = parseFloat(data.c[i].toFixed(2));
+            const k = d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0');
+            const label = d.toLocaleString('en-US', { month: 'short' });
+            if (!byMonthYear[k]) byMonthYear[k] = { label, close: data.c[i] };
+            byMonthYear[k].close = parseFloat(data.c[i].toFixed(2));
           }
-          labels = Object.keys(byMonth);
-          points = Object.values(byMonth);
+          const entries = Object.entries(byMonthYear);
+          labels = entries.map(([k, v], idx) => {
+            if (idx === 0) return v.label + ' \'' + k.slice(2, 4);
+            if (idx === entries.length - 1) return 'Current';
+            return v.label;
+          });
+          points = entries.map(([k, v]) => v.close);
         } else if (timeframe === 'month') {
           const step = Math.max(1, Math.floor(data.c.length / 8));
           for (let i = 0; i < data.c.length; i += step) {
@@ -773,11 +780,12 @@ class LiveMarketService {
           const byDay = {};
           for (let i = 0; i < data.t.length; i++) {
             const d = new Date(data.t[i] * 1000);
-            const dayKey = d.toLocaleString('en-US', { weekday: 'short' });
-            byDay[dayKey] = parseFloat(data.c[i].toFixed(2));
+            const dayKey = d.toISOString().split('T')[0];
+            const label = d.toLocaleString('en-US', { weekday: 'short' });
+            byDay[dayKey] = { label, close: parseFloat(data.c[i].toFixed(2)) };
           }
-          labels = Object.keys(byDay);
-          points = Object.values(byDay);
+          labels = Object.values(byDay).map(v => v.label);
+          points = Object.values(byDay).map(v => v.close);
         } else if (timeframe === 'day') {
           const step = Math.max(1, Math.floor(data.c.length / 8));
           for (let i = 0; i < data.c.length; i += step) {
