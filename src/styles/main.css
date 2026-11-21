@@ -6011,13 +6011,19 @@ body::after {
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
 }
 
-.perf-tab-btn.active.tab-top {
+.perf-tab-btn.active.tab-top,
+.perf-tab-btn.active.tab-profit,
+.perf-tab-btn.active.tab-profit-pct,
+.perf-tab-btn.active.tab-profit-amt {
   color: var(--bull-green) !important;
   border-color: rgba(16, 185, 129, 0.35);
   background: rgba(16, 185, 129, 0.08);
 }
 
-.perf-tab-btn.active.tab-bottom {
+.perf-tab-btn.active.tab-bottom,
+.perf-tab-btn.active.tab-loss,
+.perf-tab-btn.active.tab-loss-pct,
+.perf-tab-btn.active.tab-loss-amt {
   color: var(--bear-red) !important;
   border-color: rgba(239, 68, 68, 0.35);
   background: rgba(239, 68, 68, 0.08);

@@ -112,7 +112,7 @@ export class DashboardView {
     this.onNavigateToAddHolding = onNavigateToAddHolding;
     this.onNavigateToHoldings = onNavigateToHoldings;
     this.chartInstance = null;
-    this.performanceTab = 'top';
+    this.performanceTab = 'profit-pct';
     this.pnlBreakdownTab = 'profit';
     this.carpetMode = 'stock'; // 'stock' | 'sector'
     this.carpetMetric = 'pnl'; // 'pnl' | 'day'
@@ -710,40 +710,40 @@ export class DashboardView {
       return;
     }
 
-    // Top 5 Gainers (by pnlPercent descending)
-    const top5Gainers = [...metrics.holdings]
+    // Top 5 Gainers by % (pnlPercent descending)
+    const profit5ByPct = [...metrics.holdings]
       .sort((a, b) => b.pnlPercent - a.pnlPercent)
       .slice(0, 5);
 
-    // Bottom 5 Losers/Drawdowns (by pnlPercent ascending)
-    const bottom5Losers = [...metrics.holdings]
+    // Top 5 Drawdowns by % (pnlPercent ascending)
+    const loss5ByPct = [...metrics.holdings]
       .sort((a, b) => a.pnlPercent - b.pnlPercent)
       .slice(0, 5);
 
-    // Top 5 Holdings by Valuation Weight (by current value descending)
-    const top5ByWeight = [...metrics.holdings]
-      .sort((a, b) => b.current - a.current)
+    // Top 5 Gainers by Profit Amount in ₹ (pnl descending)
+    const profit5ByAmt = [...metrics.holdings]
+      .sort((a, b) => b.pnl - a.pnl)
       .slice(0, 5);
 
-    // Bottom 5 Holdings by Valuation Weight (by current value ascending)
-    const bottom5ByWeight = [...metrics.holdings]
-      .sort((a, b) => a.current - b.current)
+    // Top 5 Losers by Loss Amount in ₹ (pnl ascending)
+    const loss5ByAmt = [...metrics.holdings]
+      .sort((a, b) => a.pnl - b.pnl)
       .slice(0, 5);
 
     // Active tab selection for Performance Highlights
-    const currentTab = this.performanceTab || 'top';
-    let activeList = top5Gainers;
-    let groupLabel = 'Top 5 (%)';
+    const currentTab = this.performanceTab || 'profit-pct';
+    let activeList = profit5ByPct;
+    let groupLabel = 'Profit (%)';
 
-    if (currentTab === 'bottom') {
-      activeList = bottom5Losers;
-      groupLabel = 'Bottom 5 (%)';
-    } else if (currentTab === 'weight' || currentTab === 'weight-top') {
-      activeList = top5ByWeight;
-      groupLabel = 'Top 5 (Val)';
-    } else if (currentTab === 'weight-bottom') {
-      activeList = bottom5ByWeight;
-      groupLabel = 'Bottom 5 (Val)';
+    if (currentTab === 'loss-pct' || currentTab === 'bottom') {
+      activeList = loss5ByPct;
+      groupLabel = 'Loss (%)';
+    } else if (currentTab === 'profit-amt' || currentTab === 'weight' || currentTab === 'weight-top') {
+      activeList = profit5ByAmt;
+      groupLabel = 'Profit (Amt)';
+    } else if (currentTab === 'loss-amt' || currentTab === 'weight-bottom') {
+      activeList = loss5ByAmt;
+      groupLabel = 'Loss (Amt)';
     }
 
     const activeTotalInvested = activeList.reduce((sum, h) => sum + (h.invested || 0), 0);
@@ -789,26 +789,26 @@ export class DashboardView {
             <h2 class="card-title" style="display: flex; align-items: center; gap: 0.45rem;">
               ${icons.trendingUp} Performance Highlights
             </h2>
-            <span class="brand-badge" style="font-size: 0.7rem;">Top & Bottom 5</span>
+            <span class="brand-badge" style="font-size: 0.7rem;">Profit & Loss 5</span>
           </div>
           
-          <!-- Full-width Single-Line Segmented Control for Top/Bottom % and Top/Bottom Val -->
+          <!-- Full-width Single-Line Segmented Control for Profit/Loss % and Profit/Loss Amt -->
           <div class="perf-tab-group" role="tablist" style="width: 100%; display: flex;">
-            <button type="button" class="perf-tab-btn ${currentTab === 'top' ? 'active tab-top' : ''}" data-perf-tab="top" title="Show Top 5 Gainers (%)" style="flex: 1; justify-content: center;">
+            <button type="button" class="perf-tab-btn ${(currentTab === 'profit-pct' || currentTab === 'top') ? 'active tab-profit-pct' : ''}" data-perf-tab="profit-pct" title="Show Top 5 Gainers by % Return" style="flex: 1; justify-content: center;">
               <span class="perf-dot bull">●</span>
-              <span>Top 5 (%)</span>
+              <span>Profit (%)</span>
             </button>
-            <button type="button" class="perf-tab-btn ${currentTab === 'bottom' ? 'active tab-bottom' : ''}" data-perf-tab="bottom" title="Show Bottom 5 Drawdowns (%)" style="flex: 1; justify-content: center;">
+            <button type="button" class="perf-tab-btn ${(currentTab === 'loss-pct' || currentTab === 'bottom') ? 'active tab-loss-pct' : ''}" data-perf-tab="loss-pct" title="Show Top 5 Drawdowns by % Return" style="flex: 1; justify-content: center;">
               <span class="perf-dot bear">●</span>
-              <span><span class="hide-on-mobile">Bottom</span><span class="show-on-mobile">Bot</span> 5 (%)</span>
+              <span>Loss (%)</span>
             </button>
-            <button type="button" class="perf-tab-btn ${(currentTab === 'weight' || currentTab === 'weight-top') ? 'active tab-weight' : ''}" data-perf-tab="weight" title="Show Top 5 Holdings by Current Value" style="flex: 1; justify-content: center;">
-              <span class="perf-dot weight">●</span>
-              <span>Top 5 (Val)</span>
+            <button type="button" class="perf-tab-btn ${(currentTab === 'profit-amt' || currentTab === 'weight') ? 'active tab-profit-amt' : ''}" data-perf-tab="profit-amt" title="Show Top 5 Gainers by Profit Amount (₹)" style="flex: 1; justify-content: center;">
+              <span class="perf-dot bull">●</span>
+              <span>Profit (Amt)</span>
             </button>
-            <button type="button" class="perf-tab-btn ${currentTab === 'weight-bottom' ? 'active tab-weight-bottom' : ''}" data-perf-tab="weight-bottom" title="Show Bottom 5 Holdings by Current Value" style="flex: 1; justify-content: center;">
-              <span class="perf-dot weight-bottom">●</span>
-              <span><span class="hide-on-mobile">Bottom</span><span class="show-on-mobile">Bot</span> 5 (Val)</span>
+            <button type="button" class="perf-tab-btn ${(currentTab === 'loss-amt' || currentTab === 'weight-bottom') ? 'active tab-loss-amt' : ''}" data-perf-tab="loss-amt" title="Show Top 5 Losers by Loss Amount (₹)" style="flex: 1; justify-content: center;">
+              <span class="perf-dot bear">●</span>
+              <span>Loss (Amt)</span>
             </button>
           </div>
         </div>
