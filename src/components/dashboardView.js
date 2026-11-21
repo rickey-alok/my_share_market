@@ -899,7 +899,7 @@ export class DashboardView {
           <!-- Quick Navigation Link to Holdings -->
           <button id="btn-dashboard-header-view-holdings" class="btn btn-outline btn-sm" style="width: 100%; justify-content: center; margin-top: 0.5rem; gap: 0.4rem;">
             ${icons.layers}
-            <span>View All ${totalCount} Holdings in Table</span>
+            <span>View All ${totalCount} Holdings</span>
             <span>→</span>
           </button>
         </div>
@@ -1029,7 +1029,7 @@ export class DashboardView {
         <!-- Action Button to Open Holdings Table -->
         <button id="btn-dashboard-pnl-view-holdings" class="btn btn-outline btn-sm" style="margin-top: 0.85rem; width: 100%; justify-content: center; gap: 0.5rem;">
           ${icons.layers}
-          <span>View All ${totalCount} Holdings in Table</span>
+          <span>View All ${totalCount} Holdings</span>
           <span>→</span>
         </button>
       </div>
