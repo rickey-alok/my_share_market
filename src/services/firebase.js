@@ -179,6 +179,26 @@ class FirebaseService {
     try {
       const delPromises = [];
 
+      // Collect all possible symbol representations and historical aliases
+      const targetSymbols = new Set();
+      if (symbol) {
+        let s = String(symbol).toUpperCase().trim();
+        if (s.endsWith('.NS') || s.endsWith('.BO')) s = s.slice(0, -3).trim();
+        if (s.endsWith('-EQ') || s.endsWith('-BE') || s.endsWith('-BL') || s.endsWith('-BZ')) s = s.slice(0, -3).trim();
+        targetSymbols.add(s);
+        if (s === 'ETERNAL' || s === 'ZOMATO') {
+          targetSymbols.add('ETERNAL');
+          targetSymbols.add('ZOMATO');
+        } else if (s === 'TATAMOTORS' || s === 'TMCV' || s === 'TMPV') {
+          targetSymbols.add('TATAMOTORS');
+          targetSymbols.add('TMCV');
+          targetSymbols.add('TMPV');
+        } else if (s === 'M&M' || s === 'MM') {
+          targetSymbols.add('M&M');
+          targetSymbols.add('MM');
+        }
+      }
+
       // 1. Direct document delete by holding ID
       if (holdingId) {
         const hIdStr = String(holdingId);
@@ -192,9 +212,8 @@ class FirebaseService {
         delPromises.push(deleteDoc(legacyDocRef).catch(() => {}));
       }
 
-      // 2. Direct document delete by symbol
-      if (symbol) {
-        const symClean = String(symbol).toUpperCase().trim();
+      // 2. Direct document delete by all alias symbol representations
+      for (const symClean of targetSymbols) {
         const userSymDocRef = doc(this.db, 'users', userId, 'holdings', symClean);
         delPromises.push(deleteDoc(userSymDocRef).catch(() => {}));
 
@@ -205,17 +224,22 @@ class FirebaseService {
         delPromises.push(deleteDoc(legacySymDocRef).catch(() => {}));
       }
 
-      // 3. Scan user's subcollection to purge any documents matching id or symbol
+      // 3. Scan user's subcollection to purge any documents matching id or symbol/alias
       try {
         const userHoldingsRef = collection(this.db, 'users', userId, 'holdings');
         const snap = await getDocs(userHoldingsRef);
         snap.forEach(d => {
-          const data = d.data();
+          const data = d.data() || {};
+          let dSym = String(data.symbol || d.id || '').toUpperCase().trim();
+          if (dSym.endsWith('.NS') || dSym.endsWith('.BO')) dSym = dSym.slice(0, -3).trim();
+          if (dSym.endsWith('-EQ') || dSym.endsWith('-BE') || dSym.endsWith('-BL') || dSym.endsWith('-BZ')) dSym = dSym.slice(0, -3).trim();
+          if (dSym === 'ZOMATO') dSym = 'ETERNAL';
+          if (dSym === 'TMCV' || dSym === 'TMPV') dSym = 'TATAMOTORS';
+          if (dSym === 'MM') dSym = 'M&M';
+
           const matchId = holdingId && (d.id === String(holdingId) || data.id === String(holdingId));
-          const matchSym = symbol && (
-            (data.symbol && data.symbol.toUpperCase().trim() === String(symbol).toUpperCase().trim()) ||
-            d.id.toUpperCase().trim() === String(symbol).toUpperCase().trim()
-          );
+          const matchSym = targetSymbols.has(dSym) || (data.symbol && targetSymbols.has(String(data.symbol).toUpperCase().trim()));
+
           if (matchId || matchSym) {
             delPromises.push(deleteDoc(d.ref).catch(() => {}));
             delPromises.push(deleteDoc(doc(this.db, 'holdings', `${userId}_${d.id}`)).catch(() => {}));
@@ -433,6 +457,9 @@ class FirebaseService {
       }
       if (tx.realizedPnLPercent !== undefined && tx.realizedPnLPercent !== null) {
         payload.realizedPnLPercent = Number(tx.realizedPnLPercent);
+      }
+      if (tx.isFullExit !== undefined && tx.isFullExit !== null) {
+        payload.isFullExit = Boolean(tx.isFullExit);
       }
 
       const userDocRef = doc(this.db, 'users', userId, 'transactions', tx.id);

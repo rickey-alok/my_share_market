@@ -258,7 +258,7 @@ export class AverageCalculatorModal {
 
     // Form submit
     if (form) {
-      form.addEventListener('submit', (e) => {
+      form.addEventListener('submit', async (e) => {
         e.preventDefault();
         const currentHolding = portfolioStore.getHoldingBySymbol(this.currentSymbol) || holding;
         const qty = parseFloat(inputQty.value);
@@ -271,7 +271,7 @@ export class AverageCalculatorModal {
 
         try {
           if (this.tradeMode === 'BUY') {
-            portfolioStore.addOrUpdateHolding({
+            await portfolioStore.addOrUpdateHolding({
               symbol: currentHolding.symbol,
               name: currentHolding.name,
               exchange: currentHolding.exchange,
@@ -291,7 +291,7 @@ export class AverageCalculatorModal {
               return;
             }
 
-            portfolioStore.sellHolding({
+            await portfolioStore.sellHolding({
               id: currentHolding.id,
               symbol: currentHolding.symbol,
               quantity: qty,

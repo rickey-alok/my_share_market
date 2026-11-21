@@ -1254,6 +1254,44 @@ class PortfolioStore {
     return sym;
   }
 
+  /**
+   * Checks whether a stock position has been fully sold/exited by the user
+   * @param {string} symbol
+   * @returns {boolean}
+   */
+  isPositionExited(symbol) {
+    if (!symbol) return false;
+    const cleanSym = this.canonicalizeSymbol(symbol);
+    if (!Array.isArray(this.transactions) || this.transactions.length === 0) return false;
+
+    // Filter transactions for this stock, sorted newest first
+    const txs = this.transactions
+      .filter(t => t.symbol && this.canonicalizeSymbol(t.symbol) === cleanSym)
+      .sort((a, b) => {
+        const timeA = a.timestamp || (a.date ? new Date(a.date).getTime() : 0);
+        const timeB = b.timestamp || (b.date ? new Date(b.date).getTime() : 0);
+        return timeB - timeA;
+      });
+
+    if (txs.length === 0) return false;
+    const latestTx = txs[0];
+    const latestType = (latestTx.type || '').toUpperCase();
+
+    if (latestType === 'SELL') {
+      const isFull = Boolean(latestTx.isFullExit) || (latestTx.notes && latestTx.notes.toLowerCase().includes('full position exit'));
+      const notInHoldings = !this.holdings.some(h => this.canonicalizeSymbol(h.symbol) === cleanSym && (parseFloat(h.quantity) || 0) > 0);
+      if (isFull || notInHoldings) {
+        return true;
+      }
+      const totalBought = txs.filter(t => (t.type || '').toUpperCase() === 'BUY').reduce((s, t) => s + (Number(t.quantity) || 0), 0);
+      const totalSold = txs.filter(t => (t.type || '').toUpperCase() === 'SELL').reduce((s, t) => s + (Number(t.quantity) || 0), 0);
+      if (totalSold > 0 && totalBought > 0 && totalSold >= totalBought) {
+        return true;
+      }
+    }
+    return false;
+  }
+
   reconcileAndDeduplicateHoldings(rawHoldings = []) {
     if (!Array.isArray(rawHoldings) || rawHoldings.length === 0) {
       return { uniqueHoldings: [], duplicatesToRemove: [] };
@@ -1268,6 +1306,13 @@ class PortfolioStore {
       const isin = (raw.isin || '').toUpperCase().trim();
       const lookupKey = cleanSym || isin;
       if (!lookupKey) continue;
+
+      const rawQty = parseFloat(raw.quantity) || 0;
+      // 1. Any holding with 0 shares, negative shares, or whose position was fully exited must be purged
+      if (rawQty <= 0 || this.isPositionExited(cleanSym)) {
+        duplicatesToRemove.push(raw);
+        continue;
+      }
 
       if (!map.has(lookupKey)) {
         map.set(lookupKey, {
@@ -1522,7 +1567,7 @@ class PortfolioStore {
    * Records a sell order for an existing holding, updates quantity or removes on full exit, and tracks realized P&L
    * Supports both object ({ symbol, id, quantity, sellPrice, sellDate, notes }) and positional (idOrSymbol, quantity, sellPrice, notes, sellDate)
    */
-  sellHolding(firstArg, qtyArg, priceArg, notesArg, dateArg) {
+  async sellHolding(firstArg, qtyArg, priceArg, notesArg, dateArg) {
     let symbol, quantity, sellPrice, sellDate, notes, holdingId;
 
     if (typeof firstArg === 'object' && firstArg !== null) {
@@ -1576,7 +1621,7 @@ class PortfolioStore {
     const realizedPnL = (price - costBasisPerShare) * qtyToSell;
     const realizedPnLPercent = costBasisPerShare > 0 ? ((price - costBasisPerShare) / costBasisPerShare) * 100 : 0;
     const totalAmount = qtyToSell * price;
-    const isFullExit = qtyToSell === holding.quantity;
+    const isFullExit = qtyToSell >= holding.quantity || Math.abs(qtyToSell - holding.quantity) < 0.001;
 
     // Record Transaction
     const newTx = {
@@ -1591,6 +1636,7 @@ class PortfolioStore {
       realizedPnLPercent: parseFloat(realizedPnLPercent.toFixed(2)),
       date: sellDate || new Date().toISOString().split('T')[0],
       totalAmount: totalAmount,
+      isFullExit: isFullExit,
       notes: notes || (isFullExit ? 'Full position exit' : `Sold ${qtyToSell} shares @ ₹${price}`),
       timestamp: Date.now()
     };
@@ -1599,22 +1645,38 @@ class PortfolioStore {
     this.saveTransactions(this.transactions);
 
     if (isFullExit) {
-      // Remove holding from portfolio
-      const removedHolding = this.holdings.splice(holdingIndex, 1)[0];
+      // Remove ALL matching entries for this stock from in-memory holdings
+      const cleanSym = this.canonicalizeSymbol(sym);
+      const removedHoldings = this.holdings.filter(h => 
+        String(h.id) === String(holding.id) || 
+        this.canonicalizeSymbol(h.symbol) === cleanSym
+      );
+      this.holdings = this.holdings.filter(h => 
+        String(h.id) !== String(holding.id) && 
+        this.canonicalizeSymbol(h.symbol) !== cleanSym
+      );
       this.saveHoldings(this.holdings);
 
       if (firebaseService.isConfigured && !this.isInspectingOtherUser) {
         const u = this.getActiveUser();
         const uid = this.getActiveUserId();
-        firebaseService.removeUserHolding(uid, holding.id);
-        firebaseService.recordUserTransaction(uid, newTx, u?.email);
+        try {
+          await firebaseService.removeUserHolding(uid, holding.id, holding.symbol || sym);
+        } catch (delErr) {
+          console.error('Failed to remove user holding from Firestore:', delErr);
+        }
+        try {
+          await firebaseService.recordUserTransaction(uid, newTx, u?.email);
+        } catch (txErr) {
+          console.error('Failed to record user transaction to Firestore:', txErr);
+        }
       }
 
       this.notify({
         type: 'HOLDING_SOLD',
         symbol: sym,
         isFullExit: true,
-        soldHolding: removedHolding,
+        soldHolding: removedHoldings[0] || holding,
         realizedPnL,
         realizedPnLPercent,
         transaction: newTx
@@ -1640,8 +1702,12 @@ class PortfolioStore {
       if (firebaseService.isConfigured && !this.isInspectingOtherUser) {
         const u = this.getActiveUser();
         const uid = this.getActiveUserId();
-        firebaseService.saveUserHolding(uid, this.holdings[holdingIndex], u?.email);
-        firebaseService.recordUserTransaction(uid, newTx, u?.email);
+        try {
+          await firebaseService.saveUserHolding(uid, this.holdings[holdingIndex], u?.email);
+        } catch (saveErr) {}
+        try {
+          await firebaseService.recordUserTransaction(uid, newTx, u?.email);
+        } catch (txErr) {}
       }
 
       this.notify({
@@ -1670,14 +1736,19 @@ class PortfolioStore {
 
   async deleteHolding(id, symbol = null) {
     const symMatch = symbol ? this.canonicalizeSymbol(symbol) : null;
-    const idx = this.holdings.findIndex(h => 
-      String(h.id) === String(id) || 
-      (symMatch && this.canonicalizeSymbol(h.symbol) === symMatch)
-    );
+    const cleanSym = symMatch || (id ? this.canonicalizeSymbol(this.getHoldingById(id)?.symbol) : null);
 
     let deleted = null;
-    if (idx !== -1) {
-      deleted = this.holdings.splice(idx, 1)[0];
+    const removed = this.holdings.filter(h => 
+      String(h.id) === String(id) || 
+      (cleanSym && this.canonicalizeSymbol(h.symbol) === cleanSym)
+    );
+    if (removed.length > 0) {
+      deleted = removed[0];
+      this.holdings = this.holdings.filter(h => 
+        String(h.id) !== String(id) && 
+        (!cleanSym || this.canonicalizeSymbol(h.symbol) !== cleanSym)
+      );
     } else {
       deleted = { id, symbol: symMatch };
     }
@@ -1689,7 +1760,7 @@ class PortfolioStore {
       const uid = this.getActiveUserId();
       if (uid && uid !== 'usr_local_guest') {
         try {
-          await firebaseService.removeUserHolding(uid, deleted.id || id, deleted.symbol || symMatch);
+          await firebaseService.removeUserHolding(uid, deleted.id || id, deleted.symbol || symMatch || cleanSym);
         } catch (err) {
           console.error('Failed to delete holding from Firestore:', err);
         }
