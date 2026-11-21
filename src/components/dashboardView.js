@@ -815,23 +815,23 @@ export class DashboardView {
         <!-- Total Invested & Current Value Summary for Selected Group -->
         ${activeList.length > 0 ? `
           <div class="perf-summary-card ${activeTotalPnl >= 0 ? 'bull' : 'bear'}">
-            <div class="perf-summary-left">
-              <div class="perf-summary-group-title ${activeTotalPnl >= 0 ? 'bull' : 'bear'}">${groupTitle}</div>
-              <div class="perf-summary-label">Invested Amount</div>
-              <div class="perf-summary-val-inv">
-                ${portfolioStore.formatMoney(activeTotalInvested, 0)}
-              </div>
+            <div class="perf-summary-row row-header">
+              <span class="perf-summary-group-title ${activeTotalPnl >= 0 ? 'bull' : 'bear'}">${groupTitle}</span>
+              <span class="perf-summary-badge ${activeTotalPnl >= 0 ? 'bull' : 'bear'}" title="Net P&L: ${activeTotalPnl >= 0 ? '+' : '-'}${portfolioStore.formatMoney(Math.abs(activeTotalPnl), 0)}">
+                ${activeTotalPnl >= 0 ? '+' : ''}${activeTotalPnlPercent.toFixed(2)}% (${activeTotalPnl >= 0 ? '+' : '-'}${portfolioStore.formatMoney(Math.abs(activeTotalPnl), 0)})
+              </span>
             </div>
-            <div class="perf-summary-right">
-              <div class="perf-summary-label">Current Value</div>
-              <div class="perf-summary-val-row">
-                <span class="perf-summary-val-cur ${activeTotalPnl >= 0 ? 'bull' : 'bear'}">
-                  ${portfolioStore.formatMoney(activeTotalCurrent, 0)}
-                </span>
-                <span class="perf-summary-badge ${activeTotalPnl >= 0 ? 'bull' : 'bear'}" title="Net P&L: ${activeTotalPnl >= 0 ? '+' : '-'}${portfolioStore.formatMoney(Math.abs(activeTotalPnl), 0)}">
-                  ${activeTotalPnl >= 0 ? '+' : ''}${activeTotalPnlPercent.toFixed(2)}% (${activeTotalPnl >= 0 ? '+' : '-'}${portfolioStore.formatMoney(Math.abs(activeTotalPnl), 0)})
-                </span>
-              </div>
+            <div class="perf-summary-row row-labels">
+              <span class="perf-summary-label">Invested Amount</span>
+              <span class="perf-summary-label text-right">Current Value</span>
+            </div>
+            <div class="perf-summary-row row-values">
+              <span class="perf-summary-val-inv">
+                ${portfolioStore.formatMoney(activeTotalInvested, 0)}
+              </span>
+              <span class="perf-summary-val-cur ${activeTotalPnl >= 0 ? 'bull' : 'bear'} text-right">
+                ${portfolioStore.formatMoney(activeTotalCurrent, 0)}
+              </span>
             </div>
           </div>
         ` : ''}
