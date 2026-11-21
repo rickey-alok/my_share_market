@@ -22,6 +22,7 @@ export class AnalysisView {
     this.fiiDiiTimeframe = 'week';
     this.indexTimeframe = 'week';
     this.selectedIndex = 'nifty';
+    this.superimposedIndices = new Set(); // Multi-index comparison overlays ('bank_nifty', 'nifty_it')
     this.stockTimeframe = 'month';
     this.selectedSymbol = null;
     this.slideDirection = null; // 'next' or 'prev' for smooth slide animation
@@ -64,7 +65,7 @@ export class AnalysisView {
       if (event.type === 'INDICES_UPDATED') {
         this.renderIndexSection();
       } else if (event.type === 'INDEX_HISTORY_UPDATED') {
-        if (event.indexKey === this.selectedIndex && event.timeframe === this.indexTimeframe) {
+        if ((event.indexKey === this.selectedIndex || this.superimposedIndices.has(event.indexKey)) && event.timeframe === this.indexTimeframe) {
           this.renderIndexSection();
         }
       }
@@ -169,18 +170,17 @@ export class AnalysisView {
             </div>
           </div>
 
-          <!-- Scrollable Index Selector Chips -->
+          <!-- Index Selector & Superimpose Chips (NIFTY 50 + BANK NIFTY + NIFTY IT) -->
           <div class="index-chips-scroll" id="index-switch-toggle" role="tablist">
-            <button type="button" class="index-chip active" data-index="nifty">NIFTY 50</button>
-            <button type="button" class="index-chip" data-index="sensex">SENSEX</button>
-            <button type="button" class="index-chip" data-index="bank_nifty">BANK NIFTY</button>
-            <button type="button" class="index-chip" data-index="nifty_it">NIFTY IT</button>
-            <button type="button" class="index-chip" data-index="nifty_auto">NIFTY AUTO</button>
-            <button type="button" class="index-chip" data-index="nifty_fmcg">NIFTY FMCG</button>
-            <button type="button" class="index-chip" data-index="nifty_chemical">CHEMICALS</button>
-            <button type="button" class="index-chip" data-index="nifty_pharma">PHARMA</button>
-            <button type="button" class="index-chip" data-index="nifty_metal">METAL</button>
-            <button type="button" class="index-chip" data-index="nifty_midcap">MIDCAP 100</button>
+            <button type="button" class="index-chip active" data-index="nifty" title="Base benchmark index">
+              <span class="index-chip-dot nifty"></span> NIFTY 50
+            </button>
+            <button type="button" class="index-chip" data-index="bank_nifty" title="Click to superimpose BANK NIFTY over NIFTY 50">
+              + <span class="index-chip-dot bank"></span> BANK NIFTY
+            </button>
+            <button type="button" class="index-chip" data-index="nifty_it" title="Click to superimpose NIFTY IT over NIFTY 50">
+              + <span class="index-chip-dot it"></span> NIFTY IT
+            </button>
           </div>
 
           <!-- Index Level Summary & High-Low Range Bar -->
@@ -280,7 +280,10 @@ export class AnalysisView {
     // 2. Benchmark & Sectoral Indices sync button
     setupSyncButton('#btn-index-sync', 'Indices Data Synced!', 'Refresh Indices Live Data', async () => {
       await liveMarketService.fetchLiveIndices();
-      await liveMarketService.fetchIndexHistory(this.selectedIndex, this.indexTimeframe);
+      await liveMarketService.fetchIndexHistory('nifty', this.indexTimeframe);
+      for (const overlayKey of this.superimposedIndices) {
+        await liveMarketService.fetchIndexHistory(overlayKey, this.indexTimeframe);
+      }
       this.renderIndexSection();
     });
 
@@ -301,21 +304,37 @@ export class AnalysisView {
       });
     });
 
-    // Index Switcher Chips
-    const indexBtns = this.container.querySelectorAll('#index-switch-toggle [data-index]');
-    indexBtns.forEach(btn => {
-      btn.addEventListener('click', () => {
-        indexBtns.forEach(b => b.classList.remove('active'));
-        btn.classList.add('active');
-        this.selectedIndex = btn.getAttribute('data-index');
-        this.renderIndexSection();
-        liveMarketService.fetchIndexHistory(this.selectedIndex, this.indexTimeframe).then(res => {
-          if (res && this.container.classList.contains('active') && this.activeTab === 'indices') {
+    // Index Switcher & Superimpose Chips (NIFTY 50 + BANK NIFTY + NIFTY IT)
+    const indexToggle = this.container.querySelector('#index-switch-toggle');
+    if (indexToggle) {
+      indexToggle.addEventListener('click', (e) => {
+        const btn = e.target.closest('[data-index]');
+        if (!btn) return;
+        const idxKey = btn.getAttribute('data-index');
+
+        if (idxKey === 'nifty') {
+          // If overlays are active, clicking NIFTY 50 clears overlays back to pure Nifty 50
+          if (this.superimposedIndices.size > 0) {
+            this.superimposedIndices.clear();
             this.renderIndexSection();
           }
-        });
+        } else if (idxKey === 'bank_nifty' || idxKey === 'nifty_it') {
+          // Toggle superimposing this index over NIFTY 50
+          if (this.superimposedIndices.has(idxKey)) {
+            this.superimposedIndices.delete(idxKey);
+            this.renderIndexSection();
+          } else {
+            this.superimposedIndices.add(idxKey);
+            this.renderIndexSection();
+            liveMarketService.fetchIndexHistory(idxKey, this.indexTimeframe).then(res => {
+              if (res && this.container.classList.contains('active') && this.activeTab === 'indices') {
+                this.renderIndexSection();
+              }
+            });
+          }
+        }
       });
-    });
+    }
 
     // Index Timeframe Pills
     const indexPills = this.container.querySelectorAll('#index-timeframe-pills .filter-pill');
@@ -325,10 +344,18 @@ export class AnalysisView {
         pill.classList.add('active');
         this.indexTimeframe = pill.getAttribute('data-timeframe');
         this.renderIndexSection();
-        liveMarketService.fetchIndexHistory(this.selectedIndex, this.indexTimeframe).then(res => {
+
+        liveMarketService.fetchIndexHistory('nifty', this.indexTimeframe).then(res => {
           if (res && this.container.classList.contains('active') && this.activeTab === 'indices') {
             this.renderIndexSection();
           }
+        });
+        this.superimposedIndices.forEach(overlayKey => {
+          liveMarketService.fetchIndexHistory(overlayKey, this.indexTimeframe).then(res => {
+            if (res && this.container.classList.contains('active') && this.activeTab === 'indices') {
+              this.renderIndexSection();
+            }
+          });
         });
       });
     });
@@ -597,20 +624,37 @@ export class AnalysisView {
     });
   }
 
-  // 2. Render Benchmark Index Section (NIFTY 50 / SENSEX) with High/Low Gauge Bar
+  // 2. Render Benchmark Index Section (NIFTY 50 with optional BANK NIFTY and NIFTY IT superimposed)
   renderIndexSection() {
     const timeframeData = INDICES_DATA[this.indexTimeframe] || INDICES_DATA.week;
-    const indexInfo = timeframeData[this.selectedIndex] || timeframeData.nifty;
+    const niftyInfo = timeframeData.nifty;
+    const hasOverlays = this.superimposedIndices.size > 0;
+
+    // Update chips state in DOM
+    const niftyBtn = this.container.querySelector('#index-switch-toggle [data-index="nifty"]');
+    const bankBtn = this.container.querySelector('#index-switch-toggle [data-index="bank_nifty"]');
+    const itBtn = this.container.querySelector('#index-switch-toggle [data-index="nifty_it"]');
+
+    if (niftyBtn) {
+      niftyBtn.classList.toggle('active', true);
+    }
+    if (bankBtn) {
+      const isBankOn = this.superimposedIndices.has('bank_nifty');
+      bankBtn.classList.toggle('active-bank', isBankOn);
+      bankBtn.classList.toggle('active', isBankOn);
+      bankBtn.innerHTML = `${isBankOn ? '✓' : '+'} <span class="index-chip-dot bank"></span> BANK NIFTY`;
+      bankBtn.setAttribute('title', isBankOn ? 'Click to remove BANK NIFTY overlay' : 'Click to superimpose BANK NIFTY over NIFTY 50');
+    }
+    if (itBtn) {
+      const isItOn = this.superimposedIndices.has('nifty_it');
+      itBtn.classList.toggle('active-it', isItOn);
+      itBtn.classList.toggle('active', isItOn);
+      itBtn.innerHTML = `${isItOn ? '✓' : '+'} <span class="index-chip-dot it"></span> NIFTY IT`;
+      itBtn.setAttribute('title', isItOn ? 'Click to remove NIFTY IT overlay' : 'Click to superimpose NIFTY IT over NIFTY 50');
+    }
 
     const summaryContainer = this.container.querySelector('#index-summary-container');
     if (summaryContainer) {
-      const isPositive = indexInfo.changePct >= 0;
-      const low = indexInfo.low;
-      const high = indexInfo.high;
-      const current = indexInfo.current;
-      const rangeSpan = high - low || 1;
-      const pointerPositionPct = Math.min(96, Math.max(4, ((current - low) / rangeSpan) * 100));
-
       const tfLabel = {
         day: '1D',
         week: '1W',
@@ -619,6 +663,63 @@ export class AnalysisView {
         '3year': '3Y',
         '5year': '5Y'
       }[this.indexTimeframe] || this.indexTimeframe.toUpperCase();
+
+      let summaryHtml = '';
+
+      // If overlays are active, show a multi-index comparison bar with live CMP & % returns
+      if (hasOverlays) {
+        summaryHtml += `<div class="index-superimpose-bar">`;
+        const niftyPos = niftyInfo.changePct >= 0;
+        summaryHtml += `
+          <div class="index-comp-pill nifty">
+            <span class="pill-dot"></span>
+            <span><strong>NIFTY 50</strong></span>
+            <span class="mono">₹${niftyInfo.current.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</span>
+            <span class="return-badge ${niftyPos ? 'bull' : 'bear'}" style="font-size: 0.74rem; padding: 0.12rem 0.45rem;">
+              ${niftyPos ? '+' : ''}${niftyInfo.changePct.toFixed(2)}% (${tfLabel})
+            </span>
+          </div>
+        `;
+
+        if (this.superimposedIndices.has('bank_nifty')) {
+          const bankInfo = timeframeData.bank_nifty || { current: 64635.20, changePct: 9.86 };
+          const bankPos = bankInfo.changePct >= 0;
+          summaryHtml += `
+            <div class="index-comp-pill bank">
+              <span class="pill-dot"></span>
+              <span><strong>BANK NIFTY</strong></span>
+              <span class="mono">₹${bankInfo.current.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</span>
+              <span class="return-badge ${bankPos ? 'bull' : 'bear'}" style="font-size: 0.74rem; padding: 0.12rem 0.45rem;">
+                ${bankPos ? '+' : ''}${bankInfo.changePct.toFixed(2)}% (${tfLabel})
+              </span>
+            </div>
+          `;
+        }
+
+        if (this.superimposedIndices.has('nifty_it')) {
+          const itInfo = timeframeData.nifty_it || { current: 31322.65, changePct: -15.43 };
+          const itPos = itInfo.changePct >= 0;
+          summaryHtml += `
+            <div class="index-comp-pill it">
+              <span class="pill-dot"></span>
+              <span><strong>NIFTY IT</strong></span>
+              <span class="mono">₹${itInfo.current.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</span>
+              <span class="return-badge ${itPos ? 'bull' : 'bear'}" style="font-size: 0.74rem; padding: 0.12rem 0.45rem;">
+                ${itPos ? '+' : ''}${itInfo.changePct.toFixed(2)}% (${tfLabel})
+              </span>
+            </div>
+          `;
+        }
+        summaryHtml += `</div>`;
+      }
+
+      // NIFTY 50 Main Summary & Range Gauge
+      const isPositive = niftyInfo.changePct >= 0;
+      const low = niftyInfo.low;
+      const high = niftyInfo.high;
+      const current = niftyInfo.current;
+      const rangeSpan = high - low || 1;
+      const pointerPositionPct = Math.min(96, Math.max(4, ((current - low) / rangeSpan) * 100));
 
       let indexLowTitle = 'Period Low';
       let indexHighTitle = 'Period High';
@@ -636,18 +737,17 @@ export class AnalysisView {
         indexHighTitle = '5-Year High';
       }
 
-      summaryContainer.innerHTML = `
+      summaryHtml += `
         <div class="index-compact-card">
-          <!-- Top Row: Index Name + CMP + Return Badge + Range -->
           <div class="index-compact-top">
             <div class="index-compact-val-block">
-              <span class="index-current-name">${indexInfo.name}</span>
+              <span class="index-current-name">${niftyInfo.name}</span>
               <span class="index-current-val mono">${current.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</span>
             </div>
             <div class="index-compact-return-block">
               <span class="return-badge ${isPositive ? 'bull' : 'bear'}" style="font-size: 0.84rem; padding: 0.28rem 0.65rem;">
                 ${isPositive ? icons.trendingUp : icons.trendingDown}
-                ${isPositive ? '+' : ''}${indexInfo.changePct.toFixed(2)}% (${tfLabel})
+                ${isPositive ? '+' : ''}${niftyInfo.changePct.toFixed(2)}% (${tfLabel})
               </span>
               <span class="index-range-subtext mono">
                 Range: ${low.toLocaleString()} — ${high.toLocaleString()}
@@ -655,7 +755,6 @@ export class AnalysisView {
             </div>
           </div>
 
-          <!-- Bottom Row: High - Low Range Bar Gauge (Compact) -->
           <div class="range-gauge-compact">
             <div class="gauge-compact-labels">
               <span class="gauge-bound-text"><strong>${indexLowTitle}</strong> <span class="mono">${low.toLocaleString('en-IN', { minimumFractionDigits: 1 })}</span></span>
@@ -677,6 +776,8 @@ export class AnalysisView {
           </div>
         </div>
       `;
+
+      summaryContainer.innerHTML = summaryHtml;
     }
 
     // Chart.js Line Chart for Index
@@ -687,57 +788,181 @@ export class AnalysisView {
     const gridColor = isLight ? 'rgba(0,0,0,0.06)' : 'rgba(255,255,255,0.06)';
     const textColor = isLight ? '#64748b' : '#94a3b8';
 
-    const isBull = indexInfo.changePct >= 0;
-    const lineColor = isBull ? '#10b981' : '#ef4444';
-    const pointColor = isBull ? '#10b981' : '#ef4444';
-
-    const ctx = canvas.getContext('2d');
-    const gradient = ctx.createLinearGradient(0, 0, 0, 300);
-    if (isBull) {
-      gradient.addColorStop(0, 'rgba(16, 185, 129, 0.28)');
-      gradient.addColorStop(1, 'rgba(16, 185, 129, 0.0)');
-    } else {
-      gradient.addColorStop(0, 'rgba(239, 68, 68, 0.25)');
-      gradient.addColorStop(1, 'rgba(239, 68, 68, 0.0)');
+    // Destroy existing chart instance to cleanly switch datasets and scales
+    if (this.indexChart) {
+      this.indexChart.destroy();
+      this.indexChart = null;
     }
 
-    if (this.indexChart) {
-      this.indexChart.data.labels = timeframeData.labels;
-      this.indexChart.data.datasets[0].label = `${indexInfo.name} Level`;
-      this.indexChart.data.datasets[0].data = indexInfo.points;
-      this.indexChart.data.datasets[0].borderColor = lineColor;
-      this.indexChart.data.datasets[0].backgroundColor = gradient;
-      this.indexChart.data.datasets[0].pointBackgroundColor = pointColor;
-      this.indexChart.update();
+    const ctx = canvas.getContext('2d');
+
+    // Case 1: Pure Single NIFTY 50 mode
+    if (!hasOverlays) {
+      const isBull = niftyInfo.changePct >= 0;
+      const lineColor = isBull ? '#10b981' : '#ef4444';
+      const pointColor = isBull ? '#10b981' : '#ef4444';
+
+      const gradient = ctx.createLinearGradient(0, 0, 0, 300);
+      if (isBull) {
+        gradient.addColorStop(0, 'rgba(16, 185, 129, 0.28)');
+        gradient.addColorStop(1, 'rgba(16, 185, 129, 0.0)');
+      } else {
+        gradient.addColorStop(0, 'rgba(239, 68, 68, 0.25)');
+        gradient.addColorStop(1, 'rgba(239, 68, 68, 0.0)');
+      }
+
+      this.indexChart = new Chart(ctx, {
+        type: 'line',
+        data: {
+          labels: timeframeData.labels,
+          datasets: [{
+            label: `${niftyInfo.name} Level`,
+            indexKey: 'nifty',
+            data: niftyInfo.points,
+            borderColor: lineColor,
+            backgroundColor: gradient,
+            fill: true,
+            tension: 0.35,
+            borderWidth: 2.5,
+            pointRadius: 4,
+            pointBackgroundColor: pointColor,
+            pointBorderColor: '#ffffff',
+            pointHoverRadius: 6
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: {
+            legend: { display: false },
+            tooltip: {
+              callbacks: {
+                label: (item) => ` ${niftyInfo.name}: ₹${item.raw.toLocaleString('en-IN', { minimumFractionDigits: 2 })}`
+              }
+            }
+          },
+          scales: {
+            x: {
+              grid: { display: false },
+              ticks: { color: textColor, font: { family: "'Inter', sans-serif", size: 11 } }
+            },
+            y: {
+              grid: { color: gridColor },
+              ticks: {
+                color: textColor,
+                font: { family: "'JetBrains Mono', monospace", size: 11 },
+                callback: (val) => val.toLocaleString('en-IN')
+              }
+            }
+          }
+        }
+      });
       return;
+    }
+
+    // Case 2: Superimposed Mode (Normalized % Return Performance Overlay)
+    const niftyRaw = niftyInfo.points;
+    const niftyBase = niftyRaw[0] || 1;
+    const niftyPct = niftyRaw.map(p => parseFloat((((p - niftyBase) / niftyBase) * 100).toFixed(2)));
+
+    const datasets = [
+      {
+        label: 'NIFTY 50',
+        indexKey: 'nifty',
+        data: niftyPct,
+        borderColor: '#10b981', // Emerald green
+        backgroundColor: 'transparent',
+        fill: false,
+        tension: 0.35,
+        borderWidth: 2.8,
+        pointRadius: 3.5,
+        pointBackgroundColor: '#10b981',
+        pointBorderColor: '#ffffff',
+        pointHoverRadius: 6
+      }
+    ];
+
+    let bankRaw = null;
+    if (this.superimposedIndices.has('bank_nifty')) {
+      const bankInfo = timeframeData.bank_nifty || { points: [] };
+      bankRaw = bankInfo.points;
+      const bankBase = bankRaw[0] || 1;
+      const bankPct = bankRaw.map(p => parseFloat((((p - bankBase) / bankBase) * 100).toFixed(2)));
+
+      datasets.push({
+        label: 'BANK NIFTY',
+        indexKey: 'bank_nifty',
+        data: bankPct,
+        borderColor: '#8b5cf6', // Violet purple
+        backgroundColor: 'transparent',
+        fill: false,
+        tension: 0.35,
+        borderWidth: 2.8,
+        pointRadius: 3.5,
+        pointBackgroundColor: '#8b5cf6',
+        pointBorderColor: '#ffffff',
+        pointHoverRadius: 6
+      });
+    }
+
+    let itRaw = null;
+    if (this.superimposedIndices.has('nifty_it')) {
+      const itInfo = timeframeData.nifty_it || { points: [] };
+      itRaw = itInfo.points;
+      const itBase = itRaw[0] || 1;
+      const itPct = itRaw.map(p => parseFloat((((p - itBase) / itBase) * 100).toFixed(2)));
+
+      datasets.push({
+        label: 'NIFTY IT',
+        indexKey: 'nifty_it',
+        data: itPct,
+        borderColor: '#f59e0b', // Amber orange
+        backgroundColor: 'transparent',
+        fill: false,
+        tension: 0.35,
+        borderWidth: 2.8,
+        pointRadius: 3.5,
+        pointBackgroundColor: '#f59e0b',
+        pointBorderColor: '#ffffff',
+        pointHoverRadius: 6
+      });
     }
 
     this.indexChart = new Chart(ctx, {
       type: 'line',
       data: {
         labels: timeframeData.labels,
-        datasets: [{
-          label: `${indexInfo.name} Level`,
-          data: indexInfo.points,
-          borderColor: lineColor,
-          backgroundColor: gradient,
-          fill: true,
-          tension: 0.35,
-          borderWidth: 2.5,
-          pointRadius: 4,
-          pointBackgroundColor: pointColor,
-          pointBorderColor: '#ffffff',
-          pointHoverRadius: 6
-        }]
+        datasets
       },
       options: {
         responsive: true,
         maintainAspectRatio: false,
+        interaction: {
+          mode: 'index',
+          intersect: false
+        },
         plugins: {
-          legend: { display: false },
+          legend: {
+            display: true,
+            position: 'top',
+            labels: {
+              color: textColor,
+              font: { family: "'Inter', sans-serif", size: 11, weight: '700' },
+              boxWidth: 12,
+              padding: 12
+            }
+          },
           tooltip: {
             callbacks: {
-              label: (item) => ` ${indexInfo.name}: ${item.raw.toLocaleString('en-IN', { minimumFractionDigits: 2 })}`
+              label: (item) => {
+                const idx = item.dataIndex;
+                let rawVal = null;
+                if (item.dataset.indexKey === 'nifty') rawVal = niftyRaw[idx];
+                else if (item.dataset.indexKey === 'bank_nifty' && bankRaw) rawVal = bankRaw[idx];
+                else if (item.dataset.indexKey === 'nifty_it' && itRaw) rawVal = itRaw[idx];
+                const rawStr = rawVal ? ` (₹${rawVal.toLocaleString('en-IN', { minimumFractionDigits: 2 })})` : '';
+                return ` ${item.dataset.label}: ${item.raw >= 0 ? '+' : ''}${item.raw.toFixed(2)}%${rawStr}`;
+              }
             }
           }
         },
@@ -751,7 +976,7 @@ export class AnalysisView {
             ticks: {
               color: textColor,
               font: { family: "'JetBrains Mono', monospace", size: 11 },
-              callback: (val) => val.toLocaleString('en-IN')
+              callback: (val) => `${val >= 0 ? '+' : ''}${val}%`
             }
           }
         }

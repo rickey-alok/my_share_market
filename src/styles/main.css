@@ -3853,6 +3853,66 @@ body::after {
   border-color: var(--brand-indigo);
 }
 
+/* Superimposed Index Chips & Multi-Overlay Styling */
+.index-chip-dot {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  margin-right: 4px;
+  vertical-align: middle;
+}
+.index-chip-dot.nifty { background: #10b981; }
+.index-chip-dot.bank { background: #8b5cf6; }
+.index-chip-dot.it { background: #f59e0b; }
+
+.index-chip.active-bank {
+  background: #8b5cf6 !important;
+  border-color: #8b5cf6 !important;
+  color: #ffffff !important;
+  box-shadow: 0 2px 8px rgba(139, 92, 246, 0.4) !important;
+}
+
+.index-chip.active-it {
+  background: #f59e0b !important;
+  border-color: #f59e0b !important;
+  color: #ffffff !important;
+  box-shadow: 0 2px 8px rgba(245, 158, 11, 0.4) !important;
+}
+
+.index-superimpose-bar {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-bottom: 0.65rem;
+}
+
+.index-comp-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  padding: 0.35rem 0.65rem;
+  background: var(--bg-surface-elevated);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  font-size: 0.8rem;
+  font-weight: 600;
+}
+[data-theme="light"] .index-comp-pill {
+  background: #f8fafc;
+  border-color: #e2e8f0;
+}
+.index-comp-pill .pill-dot {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+}
+.index-comp-pill.nifty .pill-dot { background: #10b981; }
+.index-comp-pill.bank .pill-dot { background: #8b5cf6; }
+.index-comp-pill.it .pill-dot { background: #f59e0b; }
+
 /* Compact Index Card & Gauge */
 .index-summary-box {
   margin-bottom: 0.85rem;
