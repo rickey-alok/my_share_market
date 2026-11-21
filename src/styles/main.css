@@ -6618,6 +6618,297 @@ body::after {
   box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.15), 0 8px 10px -6px rgba(0, 0, 0, 0.1);
 }
 
+/* Stock Details Modal on Dashboard */
+.stock-detail-modal-card {
+  background: var(--bg-surface);
+  border: 1px solid var(--border-active);
+  border-radius: var(--radius-xl);
+  box-shadow: 0 25px 60px rgba(0, 0, 0, 0.6);
+  color: var(--text-primary);
+}
+
+.stock-detail-sector-badge {
+  font-size: 0.72rem;
+  color: var(--text-muted);
+  background: rgba(255, 255, 255, 0.05);
+  padding: 0.15rem 0.5rem;
+  border-radius: 4px;
+  border: 1px solid var(--border-subtle);
+  font-weight: 500;
+}
+
+.stock-detail-hero-box {
+  background: var(--bg-surface-elevated, rgba(255, 255, 255, 0.03));
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-lg);
+  padding: 0.85rem 1.15rem;
+  margin-bottom: 1rem;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.stock-detail-hero-label {
+  font-size: 0.66rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--text-muted);
+  font-weight: 700;
+  font-family: var(--font-heading);
+}
+
+.stock-detail-hero-val {
+  font-size: 1.35rem;
+  font-weight: 800;
+  font-family: var(--font-body);
+  font-variant-numeric: tabular-nums;
+  margin-top: 0.15rem;
+  color: var(--text-primary);
+}
+
+.stock-detail-hero-day {
+  font-size: 0.98rem;
+  font-weight: 700;
+  font-family: var(--font-body);
+  font-variant-numeric: tabular-nums;
+  margin-top: 0.15rem;
+}
+
+.stock-detail-hero-day.bull {
+  color: var(--bull-green);
+}
+
+.stock-detail-hero-day.bear {
+  color: var(--bear-red);
+}
+
+.stock-detail-metrics-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.65rem;
+  margin-bottom: 1rem;
+}
+
+.stock-detail-stat-card {
+  background: var(--bg-surface-elevated, rgba(255, 255, 255, 0.03));
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  padding: 0.7rem 0.85rem;
+}
+
+.stock-detail-stat-card .stat-label {
+  font-size: 0.65rem;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  font-family: var(--font-heading);
+}
+
+.stock-detail-stat-card .stat-val {
+  font-size: 1.05rem;
+  font-weight: 800;
+  color: var(--text-primary);
+  margin-top: 0.15rem;
+  font-variant-numeric: tabular-nums;
+  font-family: var(--font-body);
+}
+
+.stock-detail-stat-card .stat-val.bull {
+  color: var(--bull-green);
+}
+
+.stock-detail-stat-card .stat-val.bear {
+  color: var(--bear-red);
+}
+
+.stock-detail-stat-card .stat-sub {
+  font-size: 0.68rem;
+  color: var(--text-secondary);
+  margin-top: 0.12rem;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.stock-detail-pnl-card {
+  border-radius: var(--radius-lg);
+  padding: 0.95rem 1.15rem;
+  margin-bottom: 1rem;
+  transition: all var(--transition-fast);
+}
+
+.stock-detail-pnl-card.bull {
+  background: linear-gradient(135deg, rgba(16, 185, 129, 0.12) 0%, rgba(99, 102, 241, 0.06) 100%);
+  border: 1.5px solid rgba(16, 185, 129, 0.35);
+  box-shadow: 0 4px 16px rgba(16, 185, 129, 0.1);
+}
+
+.stock-detail-pnl-card.bear {
+  background: linear-gradient(135deg, rgba(239, 68, 68, 0.12) 0%, rgba(245, 158, 11, 0.06) 100%);
+  border: 1.5px solid rgba(239, 68, 68, 0.35);
+  box-shadow: 0 4px 16px rgba(239, 68, 68, 0.1);
+}
+
+.stock-detail-pnl-title {
+  font-size: 0.72rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  font-family: var(--font-heading);
+}
+
+.stock-detail-pnl-title.bull {
+  color: var(--bull-green);
+}
+
+.stock-detail-pnl-title.bear {
+  color: var(--bear-red);
+}
+
+.stock-detail-pnl-badge {
+  font-family: var(--font-body);
+  font-weight: 800;
+  font-size: 0.82rem;
+  padding: 0.15rem 0.55rem;
+  border-radius: 6px;
+  font-variant-numeric: tabular-nums;
+}
+
+.stock-detail-pnl-badge.bull {
+  background: rgba(16, 185, 129, 0.2);
+  color: #34d399;
+  border: 1px solid rgba(16, 185, 129, 0.35);
+}
+
+.stock-detail-pnl-badge.bear {
+  background: rgba(239, 68, 68, 0.2);
+  color: #f87171;
+  border: 1px solid rgba(239, 68, 68, 0.35);
+}
+
+.stock-detail-pnl-amount {
+  font-size: 1.5rem;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+  font-family: var(--font-body);
+  margin-top: 0.3rem;
+  line-height: 1.2;
+}
+
+.stock-detail-pnl-amount.bull {
+  color: var(--bull-green);
+}
+
+.stock-detail-pnl-amount.bear {
+  color: var(--bear-red);
+}
+
+.stock-detail-pnl-footer {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-top: 0.45rem;
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  border-top: 1px dashed var(--border-subtle);
+  padding-top: 0.45rem;
+}
+
+.stock-detail-ranges-card {
+  background: var(--bg-surface-elevated, rgba(255, 255, 255, 0.03));
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-lg);
+  padding: 0.95rem 1.15rem;
+  margin-bottom: 1rem;
+}
+
+.stock-detail-range-rail {
+  height: 6px;
+  background: rgba(255, 255, 255, 0.08);
+  border-radius: 3px;
+  position: relative;
+  overflow: visible;
+}
+
+.stock-detail-range-pin {
+  position: absolute;
+  top: -3px;
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  transform: translateX(-50%);
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.4);
+}
+
+.stock-detail-range-pin.pin-day {
+  background: var(--brand-indigo);
+  border: 2px solid #ffffff;
+}
+
+.stock-detail-range-pin.pin-52w {
+  background: var(--bull-green);
+  border: 2px solid #ffffff;
+}
+
+/* Light Theme overrides for Stock Details Modal */
+[data-theme="light"] .stock-detail-modal-card {
+  background: #ffffff;
+  border-color: #e2e8f0;
+  box-shadow: 0 25px 60px rgba(0, 0, 0, 0.15);
+}
+
+[data-theme="light"] .stock-detail-sector-badge {
+  background: #f1f5f9;
+  border-color: #cbd5e1;
+  color: #475569;
+}
+
+[data-theme="light"] .stock-detail-hero-box,
+[data-theme="light"] .stock-detail-stat-card,
+[data-theme="light"] .stock-detail-ranges-card {
+  background: #f8fafc;
+  border-color: #e2e8f0;
+}
+
+[data-theme="light"] .stock-detail-range-rail {
+  background: #e2e8f0;
+}
+
+[data-theme="light"] .stock-detail-pnl-card.bull {
+  background: linear-gradient(135deg, #e6f9f0 0%, #f0fdf4 100%);
+  border: 1.5px solid #6ee7b7;
+  box-shadow: 0 3px 12px rgba(16, 185, 129, 0.16);
+}
+
+[data-theme="light"] .stock-detail-pnl-card.bear {
+  background: linear-gradient(135deg, #fff1f2 0%, #fef2f2 100%);
+  border: 1.5px solid #fda4af;
+  box-shadow: 0 3px 12px rgba(239, 68, 68, 0.16);
+}
+
+[data-theme="light"] .stock-detail-pnl-badge.bull {
+  background: #10b981;
+  color: #ffffff;
+  border: none;
+}
+
+[data-theme="light"] .stock-detail-pnl-badge.bear {
+  background: #ef4444;
+  color: #ffffff;
+  border: none;
+}
+
+.highlight-stock-row.interactive {
+  cursor: pointer;
+  transition: background-color var(--transition-fast), transform var(--transition-fast);
+}
+
+.highlight-stock-row.interactive:hover {
+  background-color: var(--bg-hover) !important;
+  transform: translateX(2px);
+}
+
 /* Holdings Summary Banner in Dedicated Holdings View */
 .holdings-summary-banner {
   display: flex;

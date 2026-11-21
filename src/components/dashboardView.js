@@ -4,6 +4,7 @@ import { liveMarketService } from '../services/liveMarketService.js';
 import { authService } from '../services/authService.js';
 import { icons } from '../utils/icons.js';
 import Chart from 'chart.js/auto';
+import { AverageCalculatorModal } from './averageCalculatorModal.js';
 
 // Squarified Treemap Layout Algorithm for Market Carpet
 function squarify(children, rect) {
@@ -116,11 +117,37 @@ export class DashboardView {
     this.pnlBreakdownTab = 'profit';
     this.carpetMode = 'stock'; // 'stock' | 'sector'
     this.carpetMetric = 'pnl'; // 'pnl' | 'day'
+    this.averageModal = new AverageCalculatorModal('modal-dashboard-avg-calc');
+    this.stockModalEl = null;
 
     this.init();
   }
 
   init() {
+    // Setup Stock Detail Modal Backdrop in DOM
+    let modalEl = document.getElementById('modal-stock-details');
+    if (!modalEl) {
+      modalEl = document.createElement('div');
+      modalEl.id = 'modal-stock-details';
+      modalEl.className = 'modal-backdrop';
+      modalEl.style.display = 'none';
+      document.body.appendChild(modalEl);
+    }
+    this.stockModalEl = modalEl;
+
+    // Close on backdrop click or close button
+    this.stockModalEl.addEventListener('click', (e) => {
+      if (e.target === this.stockModalEl || e.target.closest('#btn-close-stock-detail')) {
+        this.closeStockDetailModal();
+      }
+    });
+
+    window.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape' && this.isStockModalOpen()) {
+        this.closeStockDetailModal();
+      }
+    });
+
     this.renderSkeleton();
     this.attachEventListeners();
     this.update();
@@ -289,6 +316,13 @@ export class DashboardView {
           return;
         }
 
+        // Stock row click to inspect stock details on same page
+        const hlRow = e.target.closest('.highlight-stock-row');
+        if (hlRow && hlRow.dataset.symbol) {
+          this.showStockDetailModal(hlRow.dataset.symbol);
+          return;
+        }
+
         // Tab button for Profit vs Loss Breakdown
         const pnlTabBtn = e.target.closest('[data-pnl-tab]');
         if (pnlTabBtn) {
@@ -344,7 +378,17 @@ export class DashboardView {
 
         const tile = e.target.closest('.carpet-tile');
         if (tile) {
-          if (this.onNavigateToHoldings) this.onNavigateToHoldings();
+          const carpetId = tile.dataset.carpetId;
+          let info = null;
+          try {
+            if (tile.dataset.carpetInfo) info = JSON.parse(decodeURIComponent(tile.dataset.carpetInfo));
+          } catch (err) {}
+
+          if (info && (info.isSector || info.isOthers) && info.holdingSymbols) {
+            this.showGroupStocksModal(info.title, info.subtitle, info.holdingSymbols);
+          } else if (carpetId && carpetId !== '__OTHERS__') {
+            this.showStockDetailModal(carpetId);
+          }
         }
       });
 
@@ -571,6 +615,9 @@ export class DashboardView {
           value: s.value,
           returnPct,
           dataInfo: {
+            isSector: true,
+            sector: s.sector,
+            holdingSymbols: sectorHoldings.map(h => h.symbol),
             title: s.sector,
             subtitle: `${sectorHoldings.length} Holdings • ${s.percentage.toFixed(1)}% Weight`,
             valueText: portfolioStore.formatMoney(s.value),
@@ -614,6 +661,8 @@ export class DashboardView {
           value: remValue,
           returnPct: remReturnPct,
           dataInfo: {
+            isOthers: true,
+            holdingSymbols: remaining.map(h => h.symbol),
             title: `Others (${remaining.length} Stocks)`,
             subtitle: `Combined smaller holdings`,
             valueText: portfolioStore.formatMoney(remValue),
@@ -673,6 +722,7 @@ export class DashboardView {
 
       return `
         <div class="carpet-tile" 
+             data-carpet-id="${t.id}"
              data-carpet-info="${encodedInfo}"
              style="left: ${t.x}%; top: ${t.y}%; width: ${t.w}%; height: ${t.h}%; background: ${bgColor};" 
              title="${t.label}: ${returnFormatted}">
@@ -843,7 +893,7 @@ export class DashboardView {
           ${activeList.length > 0 ? activeList.map(h => {
             const isProfit = h.pnlPercent >= 0;
             return `
-              <div class="highlight-stock-row" style="padding: 0.65rem 0.85rem;">
+              <div class="highlight-stock-row interactive" data-symbol="${h.symbol}" title="Click to view ${h.symbol} details" style="padding: 0.65rem 0.85rem; cursor: pointer;">
                 <div style="min-width: 0;">
                   <div style="font-weight: 700; font-size: 0.92rem; display: flex; align-items: center; gap: 0.35rem;">
                     <span class="text-truncate" style="max-width: 150px;">${h.symbol}</span>
@@ -998,7 +1048,7 @@ export class DashboardView {
           ${activePnlList.length > 0 ? activePnlList.map(h => {
             const isProfit = h.pnlPercent >= 0;
             return `
-              <div class="highlight-stock-row" style="padding: 0.65rem 0.85rem;">
+              <div class="highlight-stock-row interactive" data-symbol="${h.symbol}" title="Click to view ${h.symbol} details" style="padding: 0.65rem 0.85rem; cursor: pointer;">
                 <div style="min-width: 0;">
                   <div style="font-weight: 700; font-size: 0.92rem; display: flex; align-items: center; gap: 0.35rem;">
                     <span class="text-truncate" style="max-width: 150px;">${h.symbol}</span>
@@ -1038,6 +1088,297 @@ export class DashboardView {
     `;
   }
 
+  showStockDetailModal(symbol) {
+    if (!this.stockModalEl || !symbol) return;
+    const holding = portfolioStore.getHoldingBySymbol(symbol);
+    if (!holding) {
+      this.showToast(`Holding details not found for ${symbol}`, 'info');
+      return;
+    }
+
+    const cmp = Number(holding.cmp) || Number(holding.avgPrice) || 0;
+    const qty = Number(holding.quantity) || 0;
+    const invested = Number(holding.invested) || (qty * Number(holding.avgPrice || 0));
+    const currentVal = Number(holding.current) || (qty * cmp);
+    const totalPnl = currentVal - invested;
+    const totalPnlPercent = invested > 0 ? (totalPnl / invested) * 100 : 0;
+    const isTotalProfit = totalPnl >= 0;
+
+    const prevClose = Number(holding.prevClose) || cmp;
+    const dayChangePrice = cmp - prevClose;
+    const dayChangePct = prevClose > 0 ? (dayChangePrice / prevClose) * 100 : 0;
+    const dayPnL = qty * dayChangePrice;
+    const isDayProfit = dayPnL >= 0;
+
+    const metrics = portfolioStore.getPortfolioMetrics();
+    const totalPortfolioVal = metrics.totalCurrentValue || 1;
+    const weightPct = ((currentVal / totalPortfolioVal) * 100).toFixed(1);
+
+    // Range Indicators
+    let dayLow = Number(holding.dayLow) || Number(holding.low) || (cmp * 0.985);
+    let dayHigh = Number(holding.dayHigh) || Number(holding.high) || (cmp * 1.015);
+    if (cmp > 0) {
+      dayHigh = Math.max(dayHigh, cmp);
+      dayLow = Math.min(dayLow, cmp);
+    }
+    if (dayHigh <= dayLow) dayHigh = dayLow + (dayLow * 0.02 || 1);
+    const daySpan = dayHigh - dayLow;
+    const dayCmpPct = Math.max(3, Math.min(97, ((cmp - dayLow) / daySpan) * 100));
+
+    let w52Low = Number(holding.week52Low) || (cmp * 0.75);
+    let w52High = Number(holding.week52High) || (cmp * 1.25);
+    if (cmp > 0) {
+      w52High = Math.max(w52High, dayHigh, cmp);
+      w52Low = Math.min(w52Low, dayLow, cmp);
+    }
+    if (w52High <= w52Low) w52High = w52Low + (w52Low * 0.1 || 1);
+    const w52Span = w52High - w52Low;
+    const w52CmpPct = Math.max(3, Math.min(97, ((cmp - w52Low) / w52Span) * 100));
+
+    let isInWatchlist = portfolioStore.isInWatchlist(holding.symbol);
+
+    this.stockModalEl.innerHTML = `
+      <div class="modal-card stock-detail-modal-card" style="max-width: 540px; width: 95%; max-height: 90vh; overflow-y: auto; padding: 1.5rem; border-radius: var(--radius-xl);">
+        <!-- Header -->
+        <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 1.15rem;">
+          <div>
+            <div style="display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap;">
+              <h2 style="font-size: 1.35rem; font-weight: 800; margin: 0; color: var(--text-primary); letter-spacing: -0.01em;">${holding.symbol}</h2>
+              <span class="exchange-tag" style="font-size: 0.72rem; padding: 0.15rem 0.45rem;">${holding.exchange || 'NSE'}</span>
+              <span class="stock-detail-sector-badge">${holding.sector || 'Equity'}</span>
+            </div>
+            <div style="font-size: 0.88rem; color: var(--text-secondary); margin-top: 0.25rem; font-weight: 500;">
+              ${holding.name || holding.symbol}
+            </div>
+          </div>
+          <button type="button" class="modal-close-btn" id="btn-close-stock-detail" style="font-size: 1.6rem; line-height: 1; padding: 0.2rem 0.5rem; border: none; background: none; cursor: pointer; color: var(--text-muted);">&times;</button>
+        </div>
+
+        <!-- Live CMP Hero Banner -->
+        <div class="stock-detail-hero-box">
+          <div>
+            <div class="stock-detail-hero-label">Current Market Price (CMP)</div>
+            <div class="stock-detail-hero-val">${portfolioStore.formatMoney(cmp)}</div>
+          </div>
+          <div style="text-align: right;">
+            <div class="stock-detail-hero-label">Today's Move</div>
+            <div class="stock-detail-hero-day ${isDayProfit ? 'bull' : 'bear'}">
+              ${isDayProfit ? '+' : ''}${portfolioStore.formatMoney(dayChangePrice)} (${isDayProfit ? '+' : ''}${dayChangePct.toFixed(2)}%)
+            </div>
+          </div>
+        </div>
+
+        <!-- 4 Position Metric Cards -->
+        <div class="stock-detail-metrics-grid">
+          <div class="stock-detail-stat-card">
+            <div class="stat-label">Shares Held</div>
+            <div class="stat-val">${qty.toLocaleString()}</div>
+            <div class="stat-sub">${holding.sector || 'Equity'}</div>
+          </div>
+          <div class="stock-detail-stat-card">
+            <div class="stat-label">Avg Buy Price</div>
+            <div class="stat-val">${portfolioStore.formatMoney(holding.avgPrice)}</div>
+            <div class="stat-sub">Break-even unit price</div>
+          </div>
+          <div class="stock-detail-stat-card">
+            <div class="stat-label">Total Invested</div>
+            <div class="stat-val">${portfolioStore.formatMoney(invested)}</div>
+            <div class="stat-sub">${qty.toLocaleString()} × ${portfolioStore.formatMoney(holding.avgPrice, 0)}</div>
+          </div>
+          <div class="stock-detail-stat-card">
+            <div class="stat-label">Current Value</div>
+            <div class="stat-val ${isTotalProfit ? 'bull' : 'bear'}">${portfolioStore.formatMoney(currentVal)}</div>
+            <div class="stat-sub">${weightPct}% of Portfolio</div>
+          </div>
+        </div>
+
+        <!-- Total Unrealized Returns Card -->
+        <div class="stock-detail-pnl-card ${isTotalProfit ? 'bull' : 'bear'}">
+          <div style="display: flex; justify-content: space-between; align-items: center;">
+            <span class="stock-detail-pnl-title ${isTotalProfit ? 'bull' : 'bear'}">
+              Total Unrealized Returns
+            </span>
+            <span class="stock-detail-pnl-badge ${isTotalProfit ? 'bull' : 'bear'}">
+              ${isTotalProfit ? '+' : ''}${totalPnlPercent.toFixed(2)}%
+            </span>
+          </div>
+          <div class="stock-detail-pnl-amount ${isTotalProfit ? 'bull' : 'bear'}">
+            ${isTotalProfit ? '+' : '-'}${portfolioStore.formatMoney(Math.abs(totalPnl))}
+          </div>
+          <div class="stock-detail-pnl-footer">
+            <span>Portfolio Weight: <strong style="color: var(--text-primary); font-family: var(--font-mono);">${weightPct}%</strong></span>
+            <span>Today's P&L: <strong class="${isDayProfit ? 'bull' : 'bear'}">${isDayProfit ? '+' : '-'}${portfolioStore.formatMoney(Math.abs(dayPnL))}</strong></span>
+          </div>
+        </div>
+
+        <!-- Price Ranges -->
+        <div class="stock-detail-ranges-card">
+          <div style="font-size: 0.72rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.04em; color: var(--text-secondary); margin-bottom: 0.75rem;">
+            Market Price Ranges
+          </div>
+          <!-- Day Range -->
+          <div style="margin-bottom: 0.85rem;">
+            <div style="display: flex; justify-content: space-between; font-size: 0.72rem; color: var(--text-muted); margin-bottom: 0.35rem;">
+              <span>Day Low: <strong style="color: var(--text-primary); font-family: var(--font-mono);">${portfolioStore.formatMoney(dayLow)}</strong></span>
+              <span style="font-weight: 600; color: var(--text-secondary);">Day Range</span>
+              <span>Day High: <strong style="color: var(--text-primary); font-family: var(--font-mono);">${portfolioStore.formatMoney(dayHigh)}</strong></span>
+            </div>
+            <div class="stock-detail-range-rail">
+              <div class="stock-detail-range-pin pin-day" style="left: ${dayCmpPct}%;" title="CMP: ${portfolioStore.formatMoney(cmp)}"></div>
+            </div>
+          </div>
+          <!-- 52-Week Range -->
+          <div>
+            <div style="display: flex; justify-content: space-between; font-size: 0.72rem; color: var(--text-muted); margin-bottom: 0.35rem;">
+              <span>52W Low: <strong style="color: var(--text-primary); font-family: var(--font-mono);">${portfolioStore.formatMoney(w52Low)}</strong></span>
+              <span style="font-weight: 600; color: var(--text-secondary);">52-Week Range</span>
+              <span>52W High: <strong style="color: var(--text-primary); font-family: var(--font-mono);">${portfolioStore.formatMoney(w52High)}</strong></span>
+            </div>
+            <div class="stock-detail-range-rail">
+              <div class="stock-detail-range-pin pin-52w" style="left: ${w52CmpPct}%;" title="CMP: ${portfolioStore.formatMoney(cmp)}"></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Actions Bar -->
+        <div style="display: flex; gap: 0.65rem; margin-top: 1.15rem;">
+          <button type="button" class="btn btn-outline btn-sm" id="btn-stock-detail-watchlist" style="flex: 1; justify-content: center; padding: 0.65rem 0.85rem;">
+            <span id="stock-detail-wl-icon">${isInWatchlist ? icons.starFilled : icons.star}</span>
+            <span id="stock-detail-wl-text">${isInWatchlist ? 'In Watchlist' : 'Add to Watchlist'}</span>
+          </button>
+          <button type="button" class="btn btn-primary btn-sm" id="btn-stock-detail-avg" style="flex: 1.25; justify-content: center; padding: 0.65rem 0.85rem;">
+            ${icons.calculator || icons.plus}
+            <span>Average / Buy More</span>
+          </button>
+        </div>
+      </div>
+    `;
+
+    // Watchlist toggle inside modal
+    const wlBtn = this.stockModalEl.querySelector('#btn-stock-detail-watchlist');
+    if (wlBtn) {
+      wlBtn.addEventListener('click', async () => {
+        if (portfolioStore.isInWatchlist(holding.symbol)) {
+          await portfolioStore.removeFromWatchlist(holding.symbol);
+          isInWatchlist = false;
+          this.showToast(`Removed ${holding.symbol} from Watchlist`, 'info');
+        } else {
+          try {
+            await portfolioStore.addToWatchlist({
+              symbol: holding.symbol,
+              name: holding.name || holding.symbol,
+              exchange: holding.exchange || 'NSE',
+              sector: holding.sector
+            });
+            isInWatchlist = true;
+            this.showToast(`Saved ${holding.symbol} to Watchlist!`, 'success');
+          } catch (err) {
+            alert(err.message);
+          }
+        }
+        const iconSpan = this.stockModalEl.querySelector('#stock-detail-wl-icon');
+        const textSpan = this.stockModalEl.querySelector('#stock-detail-wl-text');
+        if (iconSpan) iconSpan.innerHTML = isInWatchlist ? icons.starFilled : icons.star;
+        if (textSpan) textSpan.textContent = isInWatchlist ? 'In Watchlist' : 'Add to Watchlist';
+      });
+    }
+
+    // Average Calculator inside modal
+    const avgBtn = this.stockModalEl.querySelector('#btn-stock-detail-avg');
+    if (avgBtn) {
+      avgBtn.addEventListener('click', () => {
+        this.closeStockDetailModal();
+        setTimeout(() => {
+          if (this.averageModal) {
+            this.averageModal.open(holding.symbol);
+          }
+        }, 150);
+      });
+    }
+
+    this.stockModalEl.style.display = 'flex';
+    requestAnimationFrame(() => {
+      this.stockModalEl.classList.add('open');
+    });
+  }
+
+  showGroupStocksModal(title, subtitle, holdingSymbols) {
+    if (!this.stockModalEl || !holdingSymbols || holdingSymbols.length === 0) return;
+    const holdings = holdingSymbols
+      .map(sym => portfolioStore.getHoldingBySymbol(sym))
+      .filter(Boolean);
+
+    this.stockModalEl.innerHTML = `
+      <div class="modal-card" style="max-width: 580px; width: 95%; max-height: 85vh; overflow-y: auto; padding: 1.5rem; border-radius: var(--radius-xl);">
+        <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 1rem; border-bottom: 1px solid var(--border-subtle); padding-bottom: 0.85rem;">
+          <div>
+            <h2 style="font-size: 1.25rem; font-weight: 800; margin: 0; color: var(--text-primary);">${title}</h2>
+            <div style="font-size: 0.82rem; color: var(--text-secondary); margin-top: 0.2rem;">${subtitle} • Tap any stock to view full details</div>
+          </div>
+          <button type="button" class="modal-close-btn" id="btn-close-stock-detail" style="font-size: 1.6rem; line-height: 1; padding: 0.2rem 0.5rem; border: none; background: none; cursor: pointer; color: var(--text-muted);">&times;</button>
+        </div>
+        <div style="display: flex; flex-direction: column; gap: 0.5rem;">
+          ${holdings.map(h => {
+            const isProfit = h.pnlPercent >= 0;
+            return `
+              <div class="highlight-stock-row interactive" data-symbol="${h.symbol}" style="padding: 0.65rem 0.85rem; cursor: pointer;">
+                <div style="min-width: 0;">
+                  <div style="font-weight: 700; font-size: 0.92rem; display: flex; align-items: center; gap: 0.35rem;">
+                    <span class="text-truncate" style="max-width: 150px;">${h.symbol}</span>
+                    <span class="exchange-tag" style="font-size: 0.65rem; padding: 0.1rem 0.35rem;">${h.exchange || 'NSE'}</span>
+                  </div>
+                  <div style="font-size: 0.72rem; margin-top: 0.18rem; font-family: var(--font-mono); display: flex; align-items: center; gap: 0.35rem; color: var(--text-muted);">
+                    <span>${h.quantity.toLocaleString()}</span>
+                    <span style="opacity: 0.4;">|</span>
+                    <span>Inv: <span style="color: var(--text-secondary);">${portfolioStore.formatMoney(h.invested, 0)}</span></span>
+                  </div>
+                </div>
+                <div style="text-align: right; white-space: nowrap; flex-shrink: 0;">
+                  <div style="font-weight: 700; font-family: var(--font-mono); font-size: 0.90rem; color: ${isProfit ? 'var(--bull-green)' : 'var(--bear-red)'}; display: flex; align-items: baseline; justify-content: flex-end; gap: 0.35rem;">
+                    <span>${isProfit ? '+' : ''}${h.pnlPercent.toFixed(2)}%</span>
+                    <span style="font-size: 0.78rem; font-weight: 600; opacity: 0.92;">(${isProfit ? '+' : '-'}${portfolioStore.formatMoney(Math.abs(h.pnl), 0)})</span>
+                  </div>
+                  <div style="font-size: 0.76rem; font-family: var(--font-mono); color: var(--text-primary); margin-top: 0.1rem;">
+                    <span style="color: var(--text-muted); font-size: 0.68rem;">Current:</span> <strong>${portfolioStore.formatMoney(h.current, 0)}</strong>
+                  </div>
+                </div>
+              </div>
+            `;
+          }).join('')}
+        </div>
+      </div>
+    `;
+
+    this.stockModalEl.querySelectorAll('.highlight-stock-row').forEach(row => {
+      row.addEventListener('click', () => {
+        const sym = row.dataset.symbol;
+        if (sym) this.showStockDetailModal(sym);
+      });
+    });
+
+    this.stockModalEl.style.display = 'flex';
+    requestAnimationFrame(() => {
+      this.stockModalEl.classList.add('open');
+    });
+  }
+
+  closeStockDetailModal() {
+    if (!this.stockModalEl) return;
+    this.stockModalEl.classList.remove('open');
+    setTimeout(() => {
+      if (!this.stockModalEl || !this.stockModalEl.classList.contains('open')) {
+        if (this.stockModalEl) {
+          this.stockModalEl.style.display = 'none';
+          this.stockModalEl.innerHTML = '';
+        }
+      }
+    }, 250);
+  }
+
+  isStockModalOpen() {
+    return this.stockModalEl && this.stockModalEl.classList.contains('open');
+  }
+
   showToast(message, type = 'success') {
     let container = document.querySelector('.toast-container');
     if (!container) {
@@ -1064,6 +1405,10 @@ export class DashboardView {
   }
 
   destroy() {
+    if (this.stockModalEl) {
+      this.stockModalEl.remove();
+      this.stockModalEl = null;
+    }
     if (this.handleResize) {
       window.removeEventListener('resize', this.handleResize);
     }
