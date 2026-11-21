@@ -665,9 +665,9 @@ export class DashboardView {
 
     container.innerHTML = tiles.map(t => {
       const bgColor = getCarpetColor(t.returnPct);
-      const isLarge = t.w >= 10 && t.h >= 10;
-      const isMedium = t.w >= 6 && t.h >= 6;
-      const isCompact = t.w >= 4 && t.h >= 4;
+      const isLarge = t.w >= 8 && t.h >= 7;
+      const isMedium = t.w >= 4.5 && t.h >= 4.5;
+      const isCompact = t.w >= 3 && t.h >= 3;
       const returnFormatted = `${t.returnPct >= 0 ? '+' : ''}${t.returnPct.toFixed(1)}%`;
       const encodedInfo = encodeURIComponent(JSON.stringify(t.dataInfo));
 
@@ -677,14 +677,14 @@ export class DashboardView {
              style="left: ${t.x}%; top: ${t.y}%; width: ${t.w}%; height: ${t.h}%; background: ${bgColor};" 
              title="${t.label}: ${returnFormatted}">
           ${isLarge ? `
-            <div style="font-weight: 800; font-size: clamp(0.74rem, 1vw, 0.94rem); line-height: 1.1; text-shadow: 0 1px 3px rgba(0,0,0,0.85);">${t.label}</div>
-            <div style="font-family: var(--font-mono); font-weight: 700; font-size: clamp(0.68rem, 0.85vw, 0.8rem); margin-top: 2px; text-shadow: 0 1px 3px rgba(0,0,0,0.85);">${returnFormatted}</div>
-            <div style="font-size: clamp(0.62rem, 0.72vw, 0.7rem); opacity: 0.92; margin-top: 1px; text-shadow: 0 1px 3px rgba(0,0,0,0.85);">${portfolioStore.formatMoney(t.value)}</div>
+            <div style="font-weight: 800; font-size: clamp(0.75rem, 1vw, 0.95rem); line-height: 1.15; text-shadow: 0 1px 3px rgba(0,0,0,0.85); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%;">${t.label}</div>
+            <div style="font-family: var(--font-mono); font-weight: 700; font-size: clamp(0.68rem, 0.85vw, 0.82rem); margin-top: 2px; text-shadow: 0 1px 3px rgba(0,0,0,0.85); white-space: nowrap;">${returnFormatted}</div>
           ` : isMedium ? `
-            <div style="font-weight: 800; font-size: 0.74rem; line-height: 1.1; text-shadow: 0 1px 2px rgba(0,0,0,0.85);">${t.label}</div>
-            <div style="font-family: var(--font-mono); font-weight: 700; font-size: 0.68rem; margin-top: 1px; text-shadow: 0 1px 2px rgba(0,0,0,0.85);">${returnFormatted}</div>
+            <div style="font-weight: 800; font-size: 0.72rem; line-height: 1.1; text-shadow: 0 1px 2px rgba(0,0,0,0.85); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%;">${t.label}</div>
+            <div style="font-family: var(--font-mono); font-weight: 700; font-size: 0.65rem; margin-top: 1px; text-shadow: 0 1px 2px rgba(0,0,0,0.85); white-space: nowrap;">${returnFormatted}</div>
           ` : isCompact ? `
-            <div style="font-weight: 700; font-size: 0.64rem; line-height: 1; text-shadow: 0 1px 2px rgba(0,0,0,0.85);">${t.label.substring(0, 4)}</div>
+            <div style="font-weight: 700; font-size: 0.58rem; line-height: 1; text-shadow: 0 1px 2px rgba(0,0,0,0.85); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%;">${t.label}</div>
+            <div style="font-family: var(--font-mono); font-weight: 700; font-size: 0.55rem; margin-top: 1px; text-shadow: 0 1px 2px rgba(0,0,0,0.85); white-space: nowrap;">${returnFormatted}</div>
           ` : ''}
         </div>
       `;
