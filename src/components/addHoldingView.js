@@ -67,7 +67,6 @@ export class AddHoldingView {
       <div class="page-title-row">
         <div>
           <h1 class="page-title">Add Holdings</h1>
-          <p class="page-subtitle">Add individual stock positions or bulk import from Excel / CSV / JSON spreadsheets</p>
         </div>
       </div>
 

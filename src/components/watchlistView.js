@@ -42,7 +42,6 @@ export class WatchlistView {
             <h1 class="page-title">My Watchlist</h1>
             <span class="brand-badge" id="watchlist-header-count">0 Stocks</span>
           </div>
-          <p class="page-subtitle">Track potential share purchases, set target buy levels, and get alerted on price dips</p>
         </div>
         <div class="page-header-actions">
           <button id="btn-watchlist-add-stock" class="btn btn-primary btn-sm">

@@ -40,7 +40,6 @@ export class HoldingsView {
             <h1 class="page-title">My Stock Holdings</h1>
             <span class="brand-badge" id="holdings-header-count">0 Assets</span>
           </div>
-          <p class="page-subtitle">Real-time market valuation, average buy prices, live CMP, and profit/loss breakdown</p>
         </div>
         <div class="page-header-actions">
           <button id="btn-holdings-add" class="btn btn-primary btn-sm">

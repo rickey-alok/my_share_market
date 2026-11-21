@@ -89,7 +89,6 @@ export class AnalysisView {
       <div class="page-title-row">
         <div>
           <h1 class="page-title">Market & Holdings Analysis</h1>
-          <p class="page-subtitle">FII / DII institutional flow sentiment, benchmark indices, and portfolio range positions</p>
         </div>
       </div>
 

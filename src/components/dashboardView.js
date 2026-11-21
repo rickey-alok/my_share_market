@@ -147,7 +147,6 @@ export class DashboardView {
               ${icons.refreshCw}
             </button>
           </div>
-          <p class="page-subtitle">Executive wealth overview, asset allocation, and market performance</p>
         </div>
       </div>
 
