@@ -122,6 +122,7 @@ export class HoldingsView {
       { value: 'pnl-desc', label: 'Highest Profit %' },
       { value: 'pnl-asc', label: 'Lowest Profit %' },
       { value: 'day-desc', label: 'Top Day Gainers' },
+      { value: 'day-asc', label: 'Top Day Losers' },
       { value: 'symbol-asc', label: 'Symbol A-Z' }
     ];
 
@@ -670,6 +671,7 @@ export class HoldingsView {
         case 'pnl-desc': return b.pnlPercent - a.pnlPercent;
         case 'pnl-asc': return a.pnlPercent - b.pnlPercent;
         case 'day-desc': return b.dayChangePercent - a.dayChangePercent;
+        case 'day-asc': return a.dayChangePercent - b.dayChangePercent;
         case 'symbol-asc': return a.symbol.localeCompare(b.symbol);
         default: return 0;
       }
