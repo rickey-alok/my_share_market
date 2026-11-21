@@ -890,33 +890,7 @@ export class DashboardView {
         ` : ''}
 
         <div style="display: flex; flex-direction: column; gap: 0.5rem; margin-top: 0.65rem;">
-          ${activeList.length > 0 ? activeList.map(h => {
-            const isProfit = h.pnlPercent >= 0;
-            return `
-              <div class="highlight-stock-row interactive" data-symbol="${h.symbol}" title="Click to view ${h.symbol} details" style="padding: 0.65rem 0.85rem; cursor: pointer;">
-                <div style="min-width: 0;">
-                  <div style="font-weight: 700; font-size: 0.92rem; display: flex; align-items: center; gap: 0.35rem;">
-                    <span class="text-truncate" style="max-width: 150px;">${h.symbol}</span>
-                    <span class="exchange-tag" style="font-size: 0.65rem; padding: 0.1rem 0.35rem;">${h.exchange || 'NSE'}</span>
-                  </div>
-                  <div style="font-size: 0.72rem; margin-top: 0.18rem; font-family: var(--font-mono); display: flex; align-items: center; gap: 0.35rem; color: var(--text-muted);">
-                    <span>${h.quantity.toLocaleString()}</span>
-                    <span style="opacity: 0.4;">|</span>
-                    <span>Inv: <span style="color: var(--text-secondary);">${portfolioStore.formatMoney(h.invested, 0)}</span></span>
-                  </div>
-                </div>
-                <div style="text-align: right; white-space: nowrap; flex-shrink: 0;">
-                  <div style="font-weight: 700; font-family: var(--font-mono); font-size: 0.90rem; color: ${isProfit ? 'var(--bull-green)' : 'var(--bear-red)'}; display: flex; align-items: baseline; justify-content: flex-end; gap: 0.35rem;">
-                    <span>${isProfit ? '+' : ''}${h.pnlPercent.toFixed(2)}%</span>
-                    <span style="font-size: 0.78rem; font-weight: 600; opacity: 0.92;">(${isProfit ? '+' : '-'}${portfolioStore.formatMoney(Math.abs(h.pnl), 0)})</span>
-                  </div>
-                  <div style="font-size: 0.76rem; font-family: var(--font-mono); color: var(--text-primary); margin-top: 0.1rem;">
-                    <span style="color: var(--text-muted); font-size: 0.68rem;">Current:</span> <strong>${portfolioStore.formatMoney(h.current, 0)}</strong>
-                  </div>
-                </div>
-              </div>
-            `;
-          }).join('') : `
+          ${activeList.length > 0 ? activeList.map(h => this.renderDashboardStockCard(h)).join('') : `
             <div style="padding: 1.5rem; text-align: center; color: var(--text-secondary); font-size: 0.85rem;">
               No ${currentTab === 'top' ? 'gainers' : currentTab === 'bottom' ? 'drawdown stocks' : 'holdings'} in portfolio yet.
             </div>
@@ -1045,33 +1019,7 @@ export class DashboardView {
 
         <!-- Scrollable List of All Stocks in Active Tab -->
         <div class="pnl-stocks-scroll">
-          ${activePnlList.length > 0 ? activePnlList.map(h => {
-            const isProfit = h.pnlPercent >= 0;
-            return `
-              <div class="highlight-stock-row interactive" data-symbol="${h.symbol}" title="Click to view ${h.symbol} details" style="padding: 0.65rem 0.85rem; cursor: pointer;">
-                <div style="min-width: 0;">
-                  <div style="font-weight: 700; font-size: 0.92rem; display: flex; align-items: center; gap: 0.35rem;">
-                    <span class="text-truncate" style="max-width: 150px;">${h.symbol}</span>
-                    <span class="exchange-tag" style="font-size: 0.65rem; padding: 0.1rem 0.35rem;">${h.exchange || 'NSE'}</span>
-                  </div>
-                  <div style="font-size: 0.72rem; margin-top: 0.18rem; font-family: var(--font-mono); display: flex; align-items: center; gap: 0.35rem; color: var(--text-muted);">
-                    <span>${h.quantity.toLocaleString()}</span>
-                    <span style="opacity: 0.4;">|</span>
-                    <span>Inv: <span style="color: var(--text-secondary);">${portfolioStore.formatMoney(h.invested, 0)}</span></span>
-                  </div>
-                </div>
-                <div style="text-align: right; white-space: nowrap; flex-shrink: 0;">
-                  <div style="font-weight: 700; font-family: var(--font-mono); font-size: 0.90rem; color: ${isProfit ? 'var(--bull-green)' : 'var(--bear-red)'}; display: flex; align-items: baseline; justify-content: flex-end; gap: 0.35rem;">
-                    <span>${isProfit ? '+' : ''}${h.pnlPercent.toFixed(2)}%</span>
-                    <span style="font-size: 0.78rem; font-weight: 600; opacity: 0.92;">(${isProfit ? '+' : '-'}${portfolioStore.formatMoney(Math.abs(h.pnl), 0)})</span>
-                  </div>
-                  <div style="font-size: 0.76rem; font-family: var(--font-mono); color: var(--text-primary); margin-top: 0.1rem;">
-                    <span style="color: var(--text-muted); font-size: 0.68rem;">Current:</span> <strong>${portfolioStore.formatMoney(h.current, 0)}</strong>
-                  </div>
-                </div>
-              </div>
-            `;
-          }).join('') : `
+          ${activePnlList.length > 0 ? activePnlList.map(h => this.renderDashboardStockCard(h)).join('') : `
             <div style="padding: 2rem 1rem; text-align: center; color: var(--text-secondary); font-size: 0.85rem;">
               No stocks found in ${isProfitTab ? 'profit' : 'loss'}.
             </div>
@@ -1084,6 +1032,67 @@ export class DashboardView {
           <span>View All ${totalCount} Holdings in Table</span>
           <span>→</span>
         </button>
+      </div>
+    `;
+  }
+
+  renderDashboardStockCard(h) {
+    const isProfit = (h.pnl || 0) >= 0;
+    const isDayProfit = (h.dayChangePercent || 0) >= 0;
+    const cmp = Number(h.cmp) || Number(h.avgPrice) || 0;
+    const prevClose = Number(h.prevClose) || cmp;
+    const dayDiff = h.dayChangePerShare !== undefined 
+      ? h.dayChangePerShare 
+      : (cmp - prevClose);
+
+    return `
+      <div class="highlight-stock-row interactive" data-symbol="${h.symbol}" title="Click to view ${h.symbol} details" style="padding: 0.75rem 0.95rem; cursor: pointer;">
+        <!-- Zerodha Kite-style 3-row Holding Layout -->
+        <div class="kite-holding-view">
+          <!-- Row 1: Qty | Avg on Left, LTP + Day Change on Right -->
+          <div class="kite-row kite-row-top">
+            <div class="kite-col-left">
+              <span class="kite-dim-label">Qty</span>
+              <span class="kite-val">${(h.quantity || 0).toLocaleString()}</span>
+              <span class="kite-divider" aria-hidden="true"></span>
+              <span class="kite-dim-label">Avg</span>
+              <span class="kite-val">${portfolioStore.formatMoney(h.avgPrice || 0, 2).replace('₹ ', '')}</span>
+            </div>
+            <div class="kite-col-right">
+              <span class="kite-dim-label">LTP</span>
+              <span class="kite-val cmp-val">${portfolioStore.formatMoney(cmp, 2).replace('₹ ', '')}</span>
+              <span class="kite-day-chg ${isDayProfit ? 'bull' : 'bear'}">
+                ${isDayProfit ? '↑' : '↓'} ${Math.abs(dayDiff).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} (${Math.abs(h.dayChangePercent || 0).toFixed(2)}%)
+              </span>
+            </div>
+          </div>
+
+          <!-- Row 2: Symbol on Left, P/L on Right -->
+          <div class="kite-row kite-row-mid">
+            <div class="kite-col-left">
+              <strong class="kite-symbol">${h.symbol}</strong>
+              ${h.exchange && h.exchange !== 'NSE' ? `<span class="kite-exchange">${h.exchange}</span>` : ''}
+            </div>
+            <div class="kite-col-right">
+              <span class="kite-dim-label">P/L</span>
+              <strong class="kite-pnl-val ${isProfit ? 'bull' : 'bear'}">
+                ${isProfit ? '' : '-'}${portfolioStore.formatMoney(Math.abs(h.pnl || 0), 2).replace('₹ ', '')} (${isProfit ? '' : '-'}${Math.abs(h.pnlPercent || 0).toFixed(2)}%)
+              </strong>
+            </div>
+          </div>
+
+          <!-- Row 3: Invested on Left, Current on Right -->
+          <div class="kite-row kite-row-bottom">
+            <div class="kite-col-left">
+              <span class="kite-dim-label">Invested</span>
+              <span class="kite-money">${portfolioStore.formatMoney(h.invested || 0, 2).replace('₹ ', '₹')}</span>
+            </div>
+            <div class="kite-col-right">
+              <span class="kite-dim-label">Current</span>
+              <span class="kite-money current-highlight">${portfolioStore.formatMoney(h.current || 0, 2).replace('₹ ', '₹')}</span>
+            </div>
+          </div>
+        </div>
       </div>
     `;
   }
@@ -1318,33 +1327,7 @@ export class DashboardView {
           <button type="button" class="modal-close-btn" id="btn-close-stock-detail" style="font-size: 1.6rem; line-height: 1; padding: 0.2rem 0.5rem; border: none; background: none; cursor: pointer; color: var(--text-muted);">&times;</button>
         </div>
         <div style="display: flex; flex-direction: column; gap: 0.5rem;">
-          ${holdings.map(h => {
-            const isProfit = h.pnlPercent >= 0;
-            return `
-              <div class="highlight-stock-row interactive" data-symbol="${h.symbol}" style="padding: 0.65rem 0.85rem; cursor: pointer;">
-                <div style="min-width: 0;">
-                  <div style="font-weight: 700; font-size: 0.92rem; display: flex; align-items: center; gap: 0.35rem;">
-                    <span class="text-truncate" style="max-width: 150px;">${h.symbol}</span>
-                    <span class="exchange-tag" style="font-size: 0.65rem; padding: 0.1rem 0.35rem;">${h.exchange || 'NSE'}</span>
-                  </div>
-                  <div style="font-size: 0.72rem; margin-top: 0.18rem; font-family: var(--font-mono); display: flex; align-items: center; gap: 0.35rem; color: var(--text-muted);">
-                    <span>${h.quantity.toLocaleString()}</span>
-                    <span style="opacity: 0.4;">|</span>
-                    <span>Inv: <span style="color: var(--text-secondary);">${portfolioStore.formatMoney(h.invested, 0)}</span></span>
-                  </div>
-                </div>
-                <div style="text-align: right; white-space: nowrap; flex-shrink: 0;">
-                  <div style="font-weight: 700; font-family: var(--font-mono); font-size: 0.90rem; color: ${isProfit ? 'var(--bull-green)' : 'var(--bear-red)'}; display: flex; align-items: baseline; justify-content: flex-end; gap: 0.35rem;">
-                    <span>${isProfit ? '+' : ''}${h.pnlPercent.toFixed(2)}%</span>
-                    <span style="font-size: 0.78rem; font-weight: 600; opacity: 0.92;">(${isProfit ? '+' : '-'}${portfolioStore.formatMoney(Math.abs(h.pnl), 0)})</span>
-                  </div>
-                  <div style="font-size: 0.76rem; font-family: var(--font-mono); color: var(--text-primary); margin-top: 0.1rem;">
-                    <span style="color: var(--text-muted); font-size: 0.68rem;">Current:</span> <strong>${portfolioStore.formatMoney(h.current, 0)}</strong>
-                  </div>
-                </div>
-              </div>
-            `;
-          }).join('')}
+          ${holdings.map(h => this.renderDashboardStockCard(h)).join('')}
         </div>
       </div>
     `;
