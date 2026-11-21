@@ -764,12 +764,15 @@ export class HoldingsView {
             <!-- Row 1: Qty | Avg on Left, LTP + Day Change on Right -->
             <div class="kite-row kite-row-top">
               <div class="kite-col-left">
-                <span class="kite-dim-label">Qty</span> <strong class="kite-val">${h.quantity.toLocaleString()}</strong>
-                <span class="kite-pipe">|</span>
-                <span class="kite-dim-label">Avg</span> <strong class="kite-val">${portfolioStore.formatMoney(h.avgPrice, 2).replace('₹ ', '')}</strong>
+                <span class="kite-dim-label">Qty</span>
+                <span class="kite-val">${h.quantity.toLocaleString()}</span>
+                <span class="kite-divider" aria-hidden="true"></span>
+                <span class="kite-dim-label">Avg</span>
+                <span class="kite-val">${portfolioStore.formatMoney(h.avgPrice, 2).replace('₹ ', '')}</span>
               </div>
               <div class="kite-col-right">
-                <span class="kite-dim-label">LTP</span> <strong class="kite-val cmp-val ${tickClass}">${portfolioStore.formatMoney(h.cmp, 2).replace('₹ ', '')}</strong>
+                <span class="kite-dim-label">LTP</span>
+                <span class="kite-val cmp-val ${tickClass}">${portfolioStore.formatMoney(h.cmp, 2).replace('₹ ', '')}</span>
                 <span class="kite-day-chg ${isDayProfit ? 'bull' : 'bear'}">
                   ${isDayProfit ? '↑' : '↓'} ${Math.abs(dayDiff).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} (${Math.abs(h.dayChangePercent || 0).toFixed(2)}%)
                 </span>
@@ -780,7 +783,7 @@ export class HoldingsView {
             <div class="kite-row kite-row-mid">
               <div class="kite-col-left">
                 <strong class="kite-symbol">${h.symbol}</strong>
-                <span class="kite-exchange">${h.exchange || 'NSE'}</span>
+                ${h.exchange && h.exchange !== 'NSE' ? `<span class="kite-exchange">${h.exchange}</span>` : ''}
               </div>
               <div class="kite-col-right">
                 <span class="kite-dim-label">P/L</span>
@@ -793,10 +796,12 @@ export class HoldingsView {
             <!-- Row 3: Invested on Left, Current on Right -->
             <div class="kite-row kite-row-bottom">
               <div class="kite-col-left">
-                <span class="kite-dim-label">Invested</span> <strong class="kite-money">${portfolioStore.formatMoney(h.invested, 2).replace('₹ ', '₹')}</strong>
+                <span class="kite-dim-label">Invested</span>
+                <span class="kite-money">${portfolioStore.formatMoney(h.invested, 2).replace('₹ ', '₹')}</span>
               </div>
               <div class="kite-col-right">
-                <span class="kite-dim-label">Current</span> <strong class="kite-money current-highlight">${portfolioStore.formatMoney(h.current, 2).replace('₹ ', '₹')}</strong>
+                <span class="kite-dim-label">Current</span>
+                <span class="kite-money current-highlight">${portfolioStore.formatMoney(h.current, 2).replace('₹ ', '₹')}</span>
               </div>
             </div>
           </div>
@@ -807,20 +812,20 @@ export class HoldingsView {
               <span>Day & 52-Week Range, RSI, Volume</span>
               <span class="summary-chevron">▾</span>
             </summary>
-            <div class="mobile-range-card-section" style="margin-top: 0.5rem; margin-bottom: 0;">
+            <div class="mobile-range-card-section" style="margin-top: 0.45rem; margin-bottom: 0;">
               ${this.renderRangeIndicator(h)}
             </div>
           </details>
 
           <!-- Action Buttons Bar -->
-          <div class="mobile-card-bottom" style="display: flex; gap: 0.45rem; align-items: center;">
+          <div class="mobile-card-bottom">
             <button class="btn btn-outline btn-sm watchlist-toggle-btn ${isInWatchlist ? 'active' : ''}" data-action="toggle-watchlist" data-symbol="${h.symbol}" title="${isInWatchlist ? 'Remove from Watchlist' : 'Save to Watchlist'}">
               ${isInWatchlist ? icons.starFilled : icons.star}
               <span>${isInWatchlist ? 'Saved' : 'Watchlist'}</span>
             </button>
-            <button class="btn btn-outline btn-avg-calc" data-action="buy-more" data-symbol="${h.symbol}" title="Open Average Price Calculator (${h.symbol})" style="flex: 1;">
+            <button class="btn btn-outline btn-sm btn-avg-calc" data-action="buy-more" data-symbol="${h.symbol}" title="Open Average Price Calculator (${h.symbol})" style="flex: 1;">
               ${icons.calculator || icons.plus}
-              <span>Average Calculator</span>
+              <span>Avg Calculator</span>
             </button>
             <button class="icon-action-btn delete-btn" data-action="delete-holding" data-id="${h.id}" data-symbol="${h.symbol}" title="Delete ${h.symbol}">
               ${icons.trash2}

@@ -1828,11 +1828,11 @@ body::after {
   background: var(--bg-surface);
   border: 1px solid var(--border-subtle);
   border-radius: var(--radius-md);
-  padding: 0.85rem 1rem;
+  padding: 0.8rem 0.95rem;
   display: flex;
   flex-direction: column;
-  gap: 0.55rem;
-  box-shadow: var(--shadow-sm);
+  gap: 0.42rem;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.12);
   transition: transform var(--transition-fast), border-color var(--transition-fast), box-shadow var(--transition-fast);
   cursor: default;
   position: relative;
@@ -1841,15 +1841,17 @@ body::after {
 
 .holding-mobile-card:hover {
   border-color: var(--border-active);
-  box-shadow: var(--shadow-md);
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.2);
 }
 
 /* Zerodha Kite-style Compact Mobile Holding Row */
 .kite-holding-view {
   display: flex;
   flex-direction: column;
-  gap: 0.42rem;
+  gap: 0.38rem;
   width: 100%;
+  font-family: var(--font-body);
+  -webkit-font-smoothing: antialiased;
 }
 
 .kite-row {
@@ -1860,47 +1862,70 @@ body::after {
   line-height: 1.25;
 }
 
-.kite-col-left,
-.kite-col-right {
+.kite-row-top {
+  font-size: 0.72rem;
+}
+
+.kite-row-mid {
+  margin: 0.1rem 0;
+}
+
+.kite-row-bottom {
+  font-size: 0.72rem;
+}
+
+.kite-col-left {
   display: flex;
   align-items: baseline;
-  gap: 0.35rem;
+  gap: 0.28rem;
   min-width: 0;
+  flex-shrink: 0;
 }
 
 .kite-col-right {
+  display: flex;
+  align-items: baseline;
   justify-content: flex-end;
   text-align: right;
+  gap: 0.28rem;
+  min-width: 0;
   flex-shrink: 0;
+  margin-left: auto;
 }
 
 .kite-dim-label {
   color: var(--text-muted);
-  font-size: 0.74rem;
-  font-family: var(--font-sans);
-  font-weight: 500;
+  font-size: 0.71rem;
+  font-family: var(--font-body);
+  font-weight: 400;
   letter-spacing: 0.01em;
 }
 
 .kite-val {
   color: var(--text-primary);
-  font-family: var(--font-mono);
-  font-size: 0.82rem;
-  font-weight: 600;
+  font-family: var(--font-body);
+  font-size: 0.74rem;
+  font-weight: 500;
+  font-variant-numeric: tabular-nums;
 }
 
-.kite-pipe {
-  color: var(--border-subtle);
-  font-size: 0.72rem;
-  opacity: 0.55;
-  margin: 0 0.15rem;
+.kite-divider {
+  display: inline-block;
+  width: 1px;
+  height: 9px;
+  background: var(--border-subtle);
+  opacity: 0.6;
+  margin: 0 0.32rem;
+  align-self: center;
 }
 
 .kite-day-chg {
-  font-family: var(--font-mono);
-  font-size: 0.74rem;
-  font-weight: 700;
-  margin-left: 0.25rem;
+  font-family: var(--font-body);
+  font-size: 0.71rem;
+  font-weight: 500;
+  font-variant-numeric: tabular-nums;
+  margin-left: 0.2rem;
+  white-space: nowrap;
 }
 
 .kite-day-chg.bull {
@@ -1913,27 +1938,33 @@ body::after {
 
 .kite-symbol {
   font-family: var(--font-heading);
-  font-size: 1.05rem;
-  font-weight: 800;
+  font-size: 1rem;
+  font-weight: 700;
   color: var(--text-primary);
-  letter-spacing: 0.02em;
+  letter-spacing: -0.01em;
+  line-height: 1.2;
 }
 
 .kite-exchange {
-  font-size: 0.62rem;
+  font-size: 0.58rem;
   font-weight: 600;
-  padding: 0.08rem 0.32rem;
+  padding: 0.05rem 0.25rem;
   border-radius: var(--radius-sm);
   background: var(--bg-surface-elevated);
   border: 1px solid var(--border-subtle);
   color: var(--text-muted);
-  letter-spacing: 0.03em;
+  letter-spacing: 0.02em;
+  margin-left: 0.25rem;
+  vertical-align: middle;
 }
 
 .kite-pnl-val {
-  font-family: var(--font-mono);
-  font-size: 0.98rem;
-  font-weight: 800;
+  font-family: var(--font-body);
+  font-size: 0.96rem;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.015em;
+  white-space: nowrap;
 }
 
 .kite-pnl-val.bull {
@@ -1945,32 +1976,34 @@ body::after {
 }
 
 .kite-money {
-  font-family: var(--font-mono);
-  font-size: 0.82rem;
-  font-weight: 600;
-  color: var(--text-primary);
+  font-family: var(--font-body);
+  font-size: 0.74rem;
+  font-weight: 500;
+  color: var(--text-secondary);
+  font-variant-numeric: tabular-nums;
 }
 
 .kite-money.current-highlight {
-  font-weight: 700;
+  color: var(--text-primary);
+  font-weight: 600;
 }
 
 /* Collapsible Details for Technical Indicators & Range */
 .mobile-card-details {
-  margin-top: 0.35rem;
+  margin-top: 0.25rem;
   border-top: 1px dashed var(--border-subtle);
-  padding-top: 0.35rem;
+  padding-top: 0.25rem;
 }
 
 .mobile-details-summary {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  font-size: 0.72rem;
-  font-weight: 600;
+  font-size: 0.7rem;
+  font-weight: 500;
   color: var(--text-muted);
   cursor: pointer;
-  padding: 0.2rem 0;
+  padding: 0.15rem 0;
   user-select: none;
   list-style: none;
 }
@@ -1984,7 +2017,7 @@ body::after {
 }
 
 .mobile-details-summary .summary-chevron {
-  font-size: 0.75rem;
+  font-size: 0.72rem;
   transition: transform var(--transition-fast);
 }
 
@@ -2175,35 +2208,51 @@ body::after {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 0.6rem;
-  padding-top: 0.65rem;
+  gap: 0.45rem;
+  padding-top: 0.45rem;
   border-top: 1px dashed var(--border-subtle);
 }
 
 .mobile-card-bottom .btn-avg-calc {
   flex: 1;
-  height: 36px;
-  padding: 0 0.95rem;
-  font-size: 0.82rem;
-  font-weight: 600;
+  height: 32px;
+  padding: 0 0.75rem;
+  font-size: 0.76rem;
+  font-weight: 500;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  gap: 0.45rem;
+  gap: 0.35rem;
   border-radius: var(--radius-md);
   box-sizing: border-box;
   white-space: nowrap !important;
 }
 
 .mobile-card-bottom .btn-avg-calc svg {
-  width: 14px;
-  height: 14px;
+  width: 13px;
+  height: 13px;
   flex-shrink: 0;
 }
 
+.mobile-card-bottom .watchlist-toggle-btn {
+  height: 32px;
+  padding: 0 0.65rem;
+  font-size: 0.76rem;
+  font-weight: 500;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  border-radius: var(--radius-md);
+}
+
+.mobile-card-bottom .watchlist-toggle-btn svg {
+  width: 13px;
+  height: 13px;
+}
+
 .mobile-card-bottom .icon-action-btn.delete-btn {
-  width: 36px;
-  height: 36px;
+  width: 32px;
+  height: 32px;
   border-radius: var(--radius-md);
   border: 1px solid rgba(239, 68, 68, 0.28);
   background: rgba(239, 68, 68, 0.05);
@@ -2224,8 +2273,8 @@ body::after {
 }
 
 .mobile-card-bottom .icon-action-btn.delete-btn svg {
-  width: 15px;
-  height: 15px;
+  width: 14px;
+  height: 14px;
 }
 
 /* Light Theme Polishing */
