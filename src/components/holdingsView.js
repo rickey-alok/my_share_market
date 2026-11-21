@@ -64,18 +64,11 @@ export class HoldingsView {
               ${icons.search}
               <input type="text" id="holdings-page-search" class="search-input" placeholder="Search stocks by symbol, company...">
             </div>
-            <div class="holdings-sort-box" title="Sort holdings">
-              <button type="button" class="btn-sort-icon" aria-label="Sort Holdings" title="Sort Holdings">
+            <div class="holdings-sort-box" id="holdings-sort-box" title="Sort holdings">
+              <button type="button" id="btn-holdings-sort" class="btn-sort-icon" aria-label="Sort Holdings" title="Sort Holdings" aria-expanded="false" aria-haspopup="true">
                 ${icons.arrowUpDown}
               </button>
-              <select id="holdings-page-sort-filter" class="sort-select-overlay" title="Sort holdings" aria-label="Sort holdings">
-                <option value="value-desc">Sort: Highest Value</option>
-                <option value="value-asc">Sort: Lowest Value</option>
-                <option value="pnl-desc">Sort: Highest Profit %</option>
-                <option value="pnl-asc">Sort: Lowest Profit %</option>
-                <option value="day-desc">Sort: Top Day Gainers</option>
-                <option value="symbol-asc">Sort: Symbol A-Z</option>
-              </select>
+              <div id="holdings-sort-menu" class="custom-sort-dropdown" style="display: none;" role="menu"></div>
             </div>
           </div>
         </div>
@@ -115,6 +108,31 @@ export class HoldingsView {
           <!-- Dynamically injected -->
         </div>
       </div>
+    `;
+    this.renderSortMenu();
+  }
+
+  renderSortMenu() {
+    const menu = this.container.querySelector('#holdings-sort-menu');
+    if (!menu) return;
+
+    const options = [
+      { value: 'value-desc', label: 'Highest Value' },
+      { value: 'value-asc', label: 'Lowest Value' },
+      { value: 'pnl-desc', label: 'Highest Profit %' },
+      { value: 'pnl-asc', label: 'Lowest Profit %' },
+      { value: 'day-desc', label: 'Top Day Gainers' },
+      { value: 'symbol-asc', label: 'Symbol A-Z' }
+    ];
+
+    menu.innerHTML = `
+      <div class="custom-sort-header">Sort By</div>
+      ${options.map(opt => `
+        <button type="button" class="custom-sort-item ${this.sortBy === opt.value ? 'active' : ''}" data-sort="${opt.value}" role="menuitem">
+          <span>${opt.label}</span>
+          ${this.sortBy === opt.value ? `<svg class="sort-check" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>` : ''}
+        </button>
+      `).join('')}
     `;
   }
 
@@ -160,17 +178,60 @@ export class HoldingsView {
       });
     }
 
-    // Sort Filter Icon & Select Overlay
-    const sortFilter = this.container.querySelector('#holdings-page-sort-filter');
-    const sortBtn = this.container.querySelector('.btn-sort-icon');
-    if (sortFilter) {
-      sortFilter.addEventListener('change', (e) => {
-        this.sortBy = e.target.value;
-        this.currentPage = 1;
-        if (sortBtn && e.target.selectedIndex >= 0) {
-          sortBtn.title = e.target.options[e.target.selectedIndex].text;
+    // Custom Sort Dropdown
+    const sortBox = this.container.querySelector('#holdings-sort-box');
+    const sortBtn = this.container.querySelector('#btn-holdings-sort');
+    const sortMenu = this.container.querySelector('#holdings-sort-menu');
+
+    if (sortBtn && sortMenu) {
+      sortBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        const isOpen = sortMenu.style.display !== 'none';
+        if (isOpen) {
+          sortMenu.style.display = 'none';
+          sortBtn.setAttribute('aria-expanded', 'false');
+          sortBtn.classList.remove('active');
+        } else {
+          this.renderSortMenu();
+          sortMenu.style.display = 'block';
+          sortBtn.setAttribute('aria-expanded', 'true');
+          sortBtn.classList.add('active');
         }
-        this.renderHoldingsTableAndCards();
+      });
+
+      sortMenu.addEventListener('click', (e) => {
+        const item = e.target.closest('.custom-sort-item');
+        if (!item) return;
+        const sortVal = item.dataset.sort;
+        if (sortVal) {
+          this.sortBy = sortVal;
+          this.currentPage = 1;
+          this.renderSortMenu();
+          sortMenu.style.display = 'none';
+          sortBtn.setAttribute('aria-expanded', 'false');
+          sortBtn.classList.remove('active');
+          const optLabel = item.querySelector('span')?.textContent || 'Sort Holdings';
+          sortBtn.setAttribute('title', `Sorted by: ${optLabel}`);
+          this.renderHoldingsTableAndCards();
+        }
+      });
+
+      // Close dropdown when clicking outside
+      document.addEventListener('click', (e) => {
+        if (sortBox && !sortBox.contains(e.target)) {
+          sortMenu.style.display = 'none';
+          sortBtn.setAttribute('aria-expanded', 'false');
+          sortBtn.classList.remove('active');
+        }
+      });
+
+      // Close dropdown on Escape key
+      document.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape' && sortMenu.style.display !== 'none') {
+          sortMenu.style.display = 'none';
+          sortBtn.setAttribute('aria-expanded', 'false');
+          sortBtn.classList.remove('active');
+        }
       });
     }
 
