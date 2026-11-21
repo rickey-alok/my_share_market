@@ -523,7 +523,9 @@ export class DashboardView {
             </div>
             <div class="kpi-mini-footer">
               <span class="kpi-mini-subtext">
-                ${metrics.totalRealizedPnL !== 0 ? 'Closed trades exit gains' : 'No booked sales yet'}
+                ${metrics.closedTradesCount > 0 
+                  ? `${metrics.closedTradesCount} closed trade${metrics.closedTradesCount > 1 ? 's' : ''} booked` 
+                  : (metrics.totalRealizedPnL !== 0 ? 'Closed trades exit gains' : 'No booked sales yet')}
               </span>
             </div>
           </div>

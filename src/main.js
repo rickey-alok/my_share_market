@@ -186,7 +186,12 @@ class App {
     if (watchlistContainer) watchlistContainer.classList.remove('active');
 
     if (viewName === 'dashboard') {
-      if (dashboardContainer) dashboardContainer.classList.add('active');
+      if (dashboardContainer) {
+        dashboardContainer.classList.add('active');
+        if (this.dashboardView) {
+          this.dashboardView.update();
+        }
+      }
     } else if (viewName === 'holdings') {
       if (holdingsContainer) {
         holdingsContainer.classList.add('active');

@@ -224,11 +224,17 @@ class PortfolioStore {
         } catch (e) {}
       }
       this.holdings = userHoldings;
-      this.transactions = this.loadUserTransactions(initialUser.uid);
+      const rawUserTxs = this.loadUserTransactions(initialUser.uid);
+      const { normalized: normUserTxs, updated: userTxsUpdated } = this.normalizeTransactions(rawUserTxs);
+      this.transactions = normUserTxs;
+      if (userTxsUpdated) this.saveTransactions(this.transactions);
       this.watchlist = this.loadUserWatchlist(initialUser.uid);
     } else {
       this.holdings = this.loadGuestHoldings();
-      this.transactions = this.loadGuestTransactions();
+      const rawGuestTxs = this.loadGuestTransactions();
+      const { normalized: normGuestTxs, updated: guestTxsUpdated } = this.normalizeTransactions(rawGuestTxs);
+      this.transactions = normGuestTxs;
+      if (guestTxsUpdated) this.saveTransactions(this.transactions);
       this.watchlist = this.loadGuestWatchlist();
     }
 
@@ -308,7 +314,10 @@ class PortfolioStore {
 
     // Load locally cached data for this specific user
     this.holdings = this.loadUserHoldings(userId);
-    this.transactions = this.loadUserTransactions(userId);
+    const cachedTxs = this.loadUserTransactions(userId);
+    const { normalized, updated } = this.normalizeTransactions(cachedTxs);
+    this.transactions = normalized;
+    if (updated) this.saveTransactions(this.transactions);
     this.watchlist = this.loadUserWatchlist(userId);
     this.notify({ type: 'PORTFOLIO_RESET' });
 
@@ -448,8 +457,17 @@ class PortfolioStore {
       if (this.activeSyncedUserId !== effectiveUid) return;
 
       if (Array.isArray(cloudTxs)) {
-        this.transactions = cloudTxs;
+        const { normalized, updated } = this.normalizeTransactions(cloudTxs);
+        this.transactions = normalized;
         this.saveTransactions(this.transactions);
+        if (updated && !this.isInspectingOtherUser) {
+          const u = this.getActiveUser();
+          normalized.forEach(tx => {
+            if ((tx.type || '').toUpperCase() === 'SELL') {
+              firebaseService.recordUserTransaction(effectiveUid, tx, u?.email).catch(() => {});
+            }
+          });
+        }
         this.notify({ type: 'CLOUD_TX_UPDATED' });
       }
     });
@@ -1302,6 +1320,67 @@ class PortfolioStore {
   }
 
   /**
+   * Normalizes transaction records, recalculating costBasis, realizedPnL and realizedPnLPercent for SELL transactions if missing
+   * @param {Array} transactions
+   * @returns {{ normalized: Array, updated: boolean }}
+   */
+  normalizeTransactions(transactions = []) {
+    if (!Array.isArray(transactions) || transactions.length === 0) {
+      return { normalized: [], updated: false };
+    }
+
+    let hasUpdates = false;
+    const normalized = transactions.map(t => {
+      if (!t) return t;
+      const type = (t.type || '').toUpperCase();
+      if (type === 'SELL') {
+        const qty = Number(t.quantity) || 0;
+        const sellPrice = Number(t.price) || 0;
+        let costBasis = t.costBasis !== undefined && t.costBasis !== null && !isNaN(Number(t.costBasis)) ? Number(t.costBasis) : null;
+        let realizedPnL = t.realizedPnL !== undefined && t.realizedPnL !== null && !isNaN(Number(t.realizedPnL)) ? Number(t.realizedPnL) : null;
+        let realizedPnLPercent = t.realizedPnLPercent !== undefined && t.realizedPnLPercent !== null && !isNaN(Number(t.realizedPnLPercent)) ? Number(t.realizedPnLPercent) : null;
+
+        if (realizedPnL === null || isNaN(realizedPnL)) {
+          const cleanSym = this.canonicalizeSymbol(t.symbol);
+          if (costBasis === null || isNaN(costBasis)) {
+            // 1. Try matching active holding
+            const holding = this.holdings.find(h => this.canonicalizeSymbol(h.symbol) === cleanSym || (t.holdingId && String(h.id) === String(t.holdingId)));
+            if (holding && holding.avgPrice) {
+              costBasis = Number(holding.avgPrice);
+            } else {
+              // 2. Try BUY transactions for this stock
+              const buyTxs = transactions.filter(x => (x.type || '').toUpperCase() === 'BUY' && this.canonicalizeSymbol(x.symbol) === cleanSym);
+              if (buyTxs.length > 0) {
+                const totalBuyAmount = buyTxs.reduce((sum, b) => sum + (Number(b.totalAmount) || ((Number(b.quantity) || 1) * (Number(b.price) || 0))), 0);
+                const totalBuyQty = buyTxs.reduce((sum, b) => sum + (Number(b.quantity) || 0), 0);
+                costBasis = totalBuyQty > 0 ? (totalBuyAmount / totalBuyQty) : Number(buyTxs[0].price);
+              } else {
+                // 3. Catalog fallback
+                const ref = POPULAR_STOCKS.find(s => s.symbol.toUpperCase() === cleanSym);
+                costBasis = ref ? (Number(ref.prevClose) || Number(ref.cmp) || sellPrice) : sellPrice;
+              }
+            }
+          }
+
+          realizedPnL = parseFloat(((sellPrice - costBasis) * qty).toFixed(2));
+          realizedPnLPercent = costBasis > 0 ? parseFloat((((sellPrice - costBasis) / costBasis) * 100).toFixed(2)) : 0;
+          hasUpdates = true;
+
+          return {
+            ...t,
+            costBasis: parseFloat(costBasis.toFixed(2)),
+            realizedPnL,
+            realizedPnLPercent
+          };
+        }
+      }
+      return t;
+    });
+
+    return { normalized, updated: hasUpdates };
+  }
+
+  /**
    * Adds or averages a holding
    * @param {Object} item - { symbol, name, exchange, sector, quantity, buyPrice, buyDate, notes, cmp }
    */
@@ -1775,9 +1854,25 @@ class PortfolioStore {
       : null;
 
     let totalRealizedPnL = 0;
+    let closedTradesCount = 0;
     this.transactions.forEach(t => {
-      if ((t.type || '').toUpperCase() === 'SELL' && t.realizedPnL !== undefined) {
-        totalRealizedPnL += Number(t.realizedPnL) || 0;
+      if ((t.type || '').toUpperCase() === 'SELL') {
+        closedTradesCount++;
+        const qty = Number(t.quantity) || 0;
+        const sellPrice = Number(t.price) || 0;
+        let pnl = 0;
+
+        if (t.realizedPnL !== undefined && t.realizedPnL !== null && !isNaN(Number(t.realizedPnL))) {
+          pnl = Number(t.realizedPnL);
+        } else if (t.costBasis !== undefined && t.costBasis !== null && !isNaN(Number(t.costBasis))) {
+          pnl = (sellPrice - Number(t.costBasis)) * qty;
+        } else {
+          const cleanSym = this.canonicalizeSymbol(t.symbol);
+          const holding = this.holdings.find(h => this.canonicalizeSymbol(h.symbol) === cleanSym || (t.holdingId && String(h.id) === String(t.holdingId)));
+          const costBasis = holding && holding.avgPrice ? Number(holding.avgPrice) : sellPrice;
+          pnl = (sellPrice - costBasis) * qty;
+        }
+        totalRealizedPnL += pnl;
       }
     });
 
@@ -1788,7 +1883,8 @@ class PortfolioStore {
       totalCurrentValue,
       totalPnL,
       totalPnLPercent,
-      totalRealizedPnL,
+      totalRealizedPnL: parseFloat(totalRealizedPnL.toFixed(2)),
+      closedTradesCount,
       totalDayPnL,
       totalDayPnLPercent,
       holdings: finalHoldings,

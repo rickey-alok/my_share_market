@@ -425,6 +425,16 @@ class FirebaseService {
         createdAt: serverTimestamp()
       };
 
+      if (tx.costBasis !== undefined && tx.costBasis !== null) {
+        payload.costBasis = Number(tx.costBasis);
+      }
+      if (tx.realizedPnL !== undefined && tx.realizedPnL !== null) {
+        payload.realizedPnL = Number(tx.realizedPnL);
+      }
+      if (tx.realizedPnLPercent !== undefined && tx.realizedPnLPercent !== null) {
+        payload.realizedPnLPercent = Number(tx.realizedPnLPercent);
+      }
+
       const userDocRef = doc(this.db, 'users', userId, 'transactions', tx.id);
       await setDoc(userDocRef, payload);
 
