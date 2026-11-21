@@ -269,43 +269,49 @@ export class AverageCalculatorModal {
           return;
         }
 
-        if (this.tradeMode === 'BUY') {
-          portfolioStore.addOrUpdateHolding({
-            symbol: currentHolding.symbol,
-            name: currentHolding.name,
-            exchange: currentHolding.exchange,
-            sector: currentHolding.sector,
-            quantity: qty,
-            buyPrice: price,
-            cmp: currentHolding.cmp,
-            buyDate: new Date().toISOString().split('T')[0],
-            notes: `Averaged down: +${qty} shares @ ₹${price}`
-          });
+        try {
+          if (this.tradeMode === 'BUY') {
+            portfolioStore.addOrUpdateHolding({
+              symbol: currentHolding.symbol,
+              name: currentHolding.name,
+              exchange: currentHolding.exchange,
+              sector: currentHolding.sector,
+              quantity: qty,
+              buyPrice: price,
+              cmp: currentHolding.cmp,
+              buyDate: new Date().toISOString().split('T')[0],
+              notes: `Averaged down: +${qty} shares @ ₹${price}`
+            });
 
-          alert(`🎉 Buy order executed! Added ${qty} shares of ${currentHolding.symbol} @ ₹${price}. Average price updated.`);
-        } else {
-          // SELL Mode
-          if (qty > currentHolding.quantity) {
-            alert(`Cannot sell ${qty} shares. You only own ${currentHolding.quantity} shares.`);
-            return;
+            alert(`🎉 Buy order executed! Added ${qty} shares of ${currentHolding.symbol} @ ₹${price}. Average price updated.`);
+          } else {
+            // SELL Mode
+            if (qty > currentHolding.quantity) {
+              alert(`Cannot sell ${qty} shares. You only own ${currentHolding.quantity} shares.`);
+              return;
+            }
+
+            portfolioStore.sellHolding({
+              id: currentHolding.id,
+              symbol: currentHolding.symbol,
+              quantity: qty,
+              sellPrice: price,
+              notes: `Sold ${qty} shares @ ₹${price}`
+            });
+
+            alert(`✅ Sell order executed! Sold ${qty} shares of ${currentHolding.symbol} @ ₹${price}.`);
           }
 
-          portfolioStore.sellHolding(
-            currentHolding.id,
-            qty,
-            price,
-            `Sold ${qty} shares @ ₹${price}`
-          );
-
-          alert(`✅ Sell order executed! Sold ${qty} shares of ${currentHolding.symbol} @ ₹${price}.`);
-        }
-
-        // Re-render modal data
-        const updatedHolding = portfolioStore.getHoldingBySymbol(this.currentSymbol);
-        if (updatedHolding && updatedHolding.quantity > 0) {
-          this.render();
-        } else {
-          this.close();
+          // Re-render modal data
+          const updatedHolding = portfolioStore.getHoldingBySymbol(this.currentSymbol);
+          if (updatedHolding && updatedHolding.quantity > 0) {
+            this.render();
+          } else {
+            this.close();
+          }
+        } catch (err) {
+          console.error('Order execution failed:', err);
+          alert(`Execution failed: ${err.message || err}`);
         }
       });
     }

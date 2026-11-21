@@ -1441,19 +1441,46 @@ class PortfolioStore {
 
   /**
    * Records a sell order for an existing holding, updates quantity or removes on full exit, and tracks realized P&L
-   * @param {Object} param - { symbol, quantity, sellPrice, sellDate, notes }
+   * Supports both object ({ symbol, id, quantity, sellPrice, sellDate, notes }) and positional (idOrSymbol, quantity, sellPrice, notes, sellDate)
    */
-  sellHolding({ symbol, quantity, sellPrice, sellDate, notes }) {
-    const sym = symbol.toUpperCase().trim();
+  sellHolding(firstArg, qtyArg, priceArg, notesArg, dateArg) {
+    let symbol, quantity, sellPrice, sellDate, notes, holdingId;
+
+    if (typeof firstArg === 'object' && firstArg !== null) {
+      symbol = firstArg.symbol;
+      holdingId = firstArg.id || firstArg.holdingId;
+      quantity = firstArg.quantity;
+      sellPrice = firstArg.sellPrice !== undefined ? firstArg.sellPrice : firstArg.price;
+      sellDate = firstArg.sellDate || firstArg.date;
+      notes = firstArg.notes;
+    } else {
+      holdingId = firstArg;
+      symbol = firstArg;
+      quantity = qtyArg;
+      sellPrice = priceArg;
+      notes = notesArg;
+      sellDate = dateArg;
+    }
+
     const qtyToSell = parseFloat(quantity);
     const price = parseFloat(sellPrice);
-    const holdingIndex = this.holdings.findIndex(h => h.symbol.toUpperCase() === sym);
+
+    const holdingIndex = this.holdings.findIndex(h => {
+      if (holdingId && String(h.id) === String(holdingId)) return true;
+      if (symbol) {
+        const strSym = String(symbol).toUpperCase().trim();
+        if (h.symbol && h.symbol.toUpperCase().trim() === strSym) return true;
+        if (this.canonicalizeSymbol(h.symbol) === this.canonicalizeSymbol(strSym)) return true;
+      }
+      return false;
+    });
 
     if (holdingIndex === -1) {
-      throw new Error(`Stock ${sym} not found in active portfolio`);
+      throw new Error(`Stock ${symbol || holdingId} not found in active portfolio`);
     }
 
     const holding = this.holdings[holdingIndex];
+    const sym = holding.symbol.toUpperCase().trim();
     if (isNaN(qtyToSell) || qtyToSell <= 0) {
       throw new Error('Sell quantity must be greater than 0');
     }
