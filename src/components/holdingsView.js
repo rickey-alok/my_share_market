@@ -2,7 +2,7 @@
 import { portfolioStore } from '../state/portfolioStore.js';
 import { authService } from '../services/authService.js';
 import { liveMarketService } from '../services/liveMarketService.js';
-import { SECTORS, calculateStockRSI, calculateStockVolumeMetrics } from '../data/stocksDatabase.js';
+import { calculateStockRSI, calculateStockVolumeMetrics } from '../data/stocksDatabase.js';
 
 import { icons } from '../utils/icons.js';
 import { AverageCalculatorModal } from './averageCalculatorModal.js';
@@ -13,7 +13,6 @@ export class HoldingsView {
     this.onNavigateToAddHolding = onNavigateToAddHolding;
     this.averageModal = new AverageCalculatorModal();
     this.searchTerm = '';
-    this.selectedSector = 'ALL';
     this.sortBy = 'value-desc';
     this.pageSize = 10;
     this.currentPage = 1;
@@ -61,30 +60,22 @@ export class HoldingsView {
       <!-- Holdings Container -->
       <div class="holdings-container">
         <div class="holdings-toolbar">
-          <!-- Row 1: Large Search Input -->
           <div class="holdings-toolbar-row holdings-toolbar-primary">
             <div class="search-input-box">
               ${icons.search}
               <input type="text" id="holdings-page-search" class="search-input" placeholder="Search stocks by symbol, company...">
             </div>
-          </div>
-
-          <!-- Row 2: Filter by Sector + Sort by -->
-          <div class="holdings-toolbar-row holdings-toolbar-secondary">
-            <div class="filter-select-wrapper">
-              <select id="holdings-page-sector-filter" class="filter-select">
-                <option value="ALL">All Sectors</option>
-                ${SECTORS.map(s => `<option value="${s}">${s}</option>`).join('')}
-              </select>
-            </div>
-            <div class="filter-select-wrapper">
-              <select id="holdings-page-sort-filter" class="filter-select">
-                <option value="value-desc">Sort by: Highest Value</option>
-                <option value="value-asc">Sort by: Lowest Value</option>
-                <option value="pnl-desc">Sort by: Highest Profit %</option>
-                <option value="pnl-asc">Sort by: Lowest Profit %</option>
-                <option value="day-desc">Sort by: Top Day Gainers</option>
-                <option value="symbol-asc">Sort by: Symbol A-Z</option>
+            <div class="holdings-sort-box" title="Sort holdings">
+              <button type="button" class="btn-sort-icon" aria-label="Sort Holdings" title="Sort Holdings">
+                ${icons.arrowUpDown}
+              </button>
+              <select id="holdings-page-sort-filter" class="sort-select-overlay" title="Sort holdings" aria-label="Sort holdings">
+                <option value="value-desc">Sort: Highest Value</option>
+                <option value="value-asc">Sort: Lowest Value</option>
+                <option value="pnl-desc">Sort: Highest Profit %</option>
+                <option value="pnl-asc">Sort: Lowest Profit %</option>
+                <option value="day-desc">Sort: Top Day Gainers</option>
+                <option value="symbol-asc">Sort: Symbol A-Z</option>
               </select>
             </div>
           </div>
@@ -170,22 +161,16 @@ export class HoldingsView {
       });
     }
 
-    // Sector Filter
-    const sectorFilter = this.container.querySelector('#holdings-page-sector-filter');
-    if (sectorFilter) {
-      sectorFilter.addEventListener('change', (e) => {
-        this.selectedSector = e.target.value;
-        this.currentPage = 1;
-        this.renderHoldingsTableAndCards();
-      });
-    }
-
-    // Sort Filter
+    // Sort Filter Icon & Select Overlay
     const sortFilter = this.container.querySelector('#holdings-page-sort-filter');
+    const sortBtn = this.container.querySelector('.btn-sort-icon');
     if (sortFilter) {
       sortFilter.addEventListener('change', (e) => {
         this.sortBy = e.target.value;
         this.currentPage = 1;
+        if (sortBtn && e.target.selectedIndex >= 0) {
+          sortBtn.title = e.target.options[e.target.selectedIndex].text;
+        }
         this.renderHoldingsTableAndCards();
       });
     }
@@ -612,11 +597,9 @@ export class HoldingsView {
 
     // Filter
     let filtered = metrics.holdings.filter(h => {
-      const matchSearch = this.searchTerm === '' || 
+      return this.searchTerm === '' || 
         h.symbol.toLowerCase().includes(this.searchTerm) || 
         h.name.toLowerCase().includes(this.searchTerm);
-      const matchSector = this.selectedSector === 'ALL' || h.sector === this.selectedSector;
-      return matchSearch && matchSector;
     });
 
     // Sort
