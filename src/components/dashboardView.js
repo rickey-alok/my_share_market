@@ -789,7 +789,7 @@ export class DashboardView {
             <h2 class="card-title" style="display: flex; align-items: center; gap: 0.45rem;">
               ${icons.trendingUp} Performance Highlights
             </h2>
-            <span class="brand-badge" style="font-size: 0.7rem;">Profit & Loss 5</span>
+            <span class="brand-badge" style="font-size: 0.7rem;">Top & Bottom 5</span>
           </div>
           
           <!-- Full-width Single-Line Segmented Control for Profit/Loss % and Profit/Loss Amt -->
