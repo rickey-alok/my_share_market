@@ -48,6 +48,10 @@ export class HoldingsView {
             ${icons.plus}
             <span>Add Holdings</span>
           </button>
+          <button id="btn-holdings-clear-all" class="btn btn-outline btn-sm btn-clear-all" title="Delete all shares from portfolio and database">
+            ${icons.trash2}
+            <span>Delete All</span>
+          </button>
           <button id="btn-holdings-sync-market" class="dashboard-sync-btn" title="Refresh Live Quotes" aria-label="Refresh Live Quotes">
             ${icons.refreshCw}
           </button>
@@ -57,16 +61,12 @@ export class HoldingsView {
       <!-- Holdings Container -->
       <div class="holdings-container">
         <div class="holdings-toolbar">
-          <!-- Row 1: Large Search Input + Delete All Button -->
+          <!-- Row 1: Large Search Input -->
           <div class="holdings-toolbar-row holdings-toolbar-primary">
             <div class="search-input-box">
               ${icons.search}
               <input type="text" id="holdings-page-search" class="search-input" placeholder="Search stocks by symbol, company...">
             </div>
-            <button id="btn-holdings-clear-all" class="btn btn-outline btn-clear-all" title="Delete all shares from portfolio and database">
-              ${icons.trash2}
-              <span>Delete All</span>
-            </button>
           </div>
 
           <!-- Row 2: Filter by Sector + Sort by -->

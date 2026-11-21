@@ -1508,14 +1508,14 @@ body::after {
 }
 
 .btn-clear-all {
-  height: 38px;
-  padding: 0 0.95rem;
-  font-size: 0.8rem;
+  height: 35px;
+  padding: 0 0.8rem;
+  font-size: 0.79rem;
   font-weight: 600;
   color: var(--bear-red);
   background: rgba(239, 68, 68, 0.05);
   border: 1px solid rgba(239, 68, 68, 0.28);
-  border-radius: var(--radius-md);
+  border-radius: var(--radius-sm);
   white-space: nowrap !important;
   flex-shrink: 0;
   display: inline-flex;
