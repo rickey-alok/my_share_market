@@ -170,7 +170,7 @@ export class AnalysisView {
             </div>
           </div>
 
-          <!-- Index Selector & Superimpose Chips (NIFTY 50 + BANK NIFTY + NIFTY IT) -->
+          <!-- Index Selector & Superimpose Chips (NIFTY 50 + BANK NIFTY + NIFTY IT + NIFTY METAL) -->
           <div class="index-chips-scroll" id="index-switch-toggle" role="tablist">
             <button type="button" class="index-chip active" data-index="nifty" title="Base benchmark index">
               <span class="index-chip-dot nifty"></span> NIFTY 50
@@ -180,6 +180,9 @@ export class AnalysisView {
             </button>
             <button type="button" class="index-chip" data-index="nifty_it" title="Click to superimpose NIFTY IT over NIFTY 50">
               + <span class="index-chip-dot it"></span> NIFTY IT
+            </button>
+            <button type="button" class="index-chip" data-index="nifty_metal" title="Click to superimpose NIFTY METAL over NIFTY 50">
+              + <span class="index-chip-dot metal"></span> NIFTY METAL
             </button>
           </div>
 
@@ -318,7 +321,7 @@ export class AnalysisView {
             this.superimposedIndices.clear();
             this.renderIndexSection();
           }
-        } else if (idxKey === 'bank_nifty' || idxKey === 'nifty_it') {
+        } else if (idxKey === 'bank_nifty' || idxKey === 'nifty_it' || idxKey === 'nifty_metal') {
           // Toggle superimposing this index over NIFTY 50
           if (this.superimposedIndices.has(idxKey)) {
             this.superimposedIndices.delete(idxKey);
@@ -634,6 +637,7 @@ export class AnalysisView {
     const niftyBtn = this.container.querySelector('#index-switch-toggle [data-index="nifty"]');
     const bankBtn = this.container.querySelector('#index-switch-toggle [data-index="bank_nifty"]');
     const itBtn = this.container.querySelector('#index-switch-toggle [data-index="nifty_it"]');
+    const metalBtn = this.container.querySelector('#index-switch-toggle [data-index="nifty_metal"]');
 
     if (niftyBtn) {
       niftyBtn.classList.toggle('active', true);
@@ -651,6 +655,13 @@ export class AnalysisView {
       itBtn.classList.toggle('active', isItOn);
       itBtn.innerHTML = `${isItOn ? '✓' : '+'} <span class="index-chip-dot it"></span> NIFTY IT`;
       itBtn.setAttribute('title', isItOn ? 'Click to remove NIFTY IT overlay' : 'Click to superimpose NIFTY IT over NIFTY 50');
+    }
+    if (metalBtn) {
+      const isMetalOn = this.superimposedIndices.has('nifty_metal');
+      metalBtn.classList.toggle('active-metal', isMetalOn);
+      metalBtn.classList.toggle('active', isMetalOn);
+      metalBtn.innerHTML = `${isMetalOn ? '✓' : '+'} <span class="index-chip-dot metal"></span> NIFTY METAL`;
+      metalBtn.setAttribute('title', isMetalOn ? 'Click to remove NIFTY METAL overlay' : 'Click to superimpose NIFTY METAL over NIFTY 50');
     }
 
     const summaryContainer = this.container.querySelector('#index-summary-container');
@@ -706,6 +717,21 @@ export class AnalysisView {
               <span class="mono">₹${itInfo.current.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</span>
               <span class="return-badge ${itPos ? 'bull' : 'bear'}" style="font-size: 0.74rem; padding: 0.12rem 0.45rem;">
                 ${itPos ? '+' : ''}${itInfo.changePct.toFixed(2)}% (${tfLabel})
+              </span>
+            </div>
+          `;
+        }
+
+        if (this.superimposedIndices.has('nifty_metal')) {
+          const metalInfo = timeframeData.nifty_metal || { current: 12271.10, changePct: 19.22 };
+          const metalPos = metalInfo.changePct >= 0;
+          summaryHtml += `
+            <div class="index-comp-pill metal">
+              <span class="pill-dot"></span>
+              <span><strong>NIFTY METAL</strong></span>
+              <span class="mono">₹${metalInfo.current.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</span>
+              <span class="return-badge ${metalPos ? 'bull' : 'bear'}" style="font-size: 0.74rem; padding: 0.12rem 0.45rem;">
+                ${metalPos ? '+' : ''}${metalInfo.changePct.toFixed(2)}% (${tfLabel})
               </span>
             </div>
           `;
@@ -928,6 +954,29 @@ export class AnalysisView {
       });
     }
 
+    let metalRaw = null;
+    if (this.superimposedIndices.has('nifty_metal')) {
+      const metalInfo = timeframeData.nifty_metal || { points: [] };
+      metalRaw = metalInfo.points;
+      const metalBase = metalRaw[0] || 1;
+      const metalPct = metalRaw.map(p => parseFloat((((p - metalBase) / metalBase) * 100).toFixed(2)));
+
+      datasets.push({
+        label: 'NIFTY METAL',
+        indexKey: 'nifty_metal',
+        data: metalPct,
+        borderColor: '#06b6d4', // Vibrant Cyan
+        backgroundColor: 'transparent',
+        fill: false,
+        tension: 0.35,
+        borderWidth: 2.8,
+        pointRadius: 3.5,
+        pointBackgroundColor: '#06b6d4',
+        pointBorderColor: '#ffffff',
+        pointHoverRadius: 6
+      });
+    }
+
     this.indexChart = new Chart(ctx, {
       type: 'line',
       data: {
@@ -960,6 +1009,7 @@ export class AnalysisView {
                 if (item.dataset.indexKey === 'nifty') rawVal = niftyRaw[idx];
                 else if (item.dataset.indexKey === 'bank_nifty' && bankRaw) rawVal = bankRaw[idx];
                 else if (item.dataset.indexKey === 'nifty_it' && itRaw) rawVal = itRaw[idx];
+                else if (item.dataset.indexKey === 'nifty_metal' && metalRaw) rawVal = metalRaw[idx];
                 const rawStr = rawVal ? ` (₹${rawVal.toLocaleString('en-IN', { minimumFractionDigits: 2 })})` : '';
                 return ` ${item.dataset.label}: ${item.raw >= 0 ? '+' : ''}${item.raw.toFixed(2)}%${rawStr}`;
               }
