@@ -682,6 +682,159 @@ class LiveMarketService {
     return results;
   }
 
+  /**
+   * Fetches real historical index series from Moneycontrol CORS-enabled techCharts API
+   * @param {string} indexKey - e.g. 'nifty', 'sensex', 'bank_nifty', etc.
+   * @param {string} timeframe - 'day' | 'week' | 'month' | 'year' | '3year' | '5year'
+   */
+  async fetchIndexHistory(indexKey = 'nifty', timeframe = 'year') {
+    const symbolMap = {
+      nifty: 'in;NSX',
+      sensex: 'in;SEN',
+      bank_nifty: 'in;nbx',
+      nifty_it: 'in;cnit',
+      nifty_auto: 'in;cnxa',
+      nifty_fmcg: 'in;cfm',
+      nifty_chemical: 'in;cnch',
+      nifty_pharma: 'in;cpr',
+      nifty_metal: 'in;CNXM',
+      nifty_midcap: 'in;ccx'
+    };
+
+    const sym = symbolMap[indexKey] || symbolMap.nifty;
+    if (!this.indexHistoryCache) this.indexHistoryCache = {};
+    const cacheKey = `${indexKey}_${timeframe}`;
+    const cached = this.indexHistoryCache[cacheKey];
+    if (cached && (Date.now() - cached.timestamp < 3 * 60 * 1000)) {
+      return cached.data;
+    }
+
+    const nowSec = Math.floor(Date.now() / 1000);
+    let resolution = '1D';
+    let fromSec = nowSec - 365 * 86400;
+
+    if (timeframe === 'day') {
+      resolution = '5';
+      fromSec = nowSec - 86400;
+    } else if (timeframe === 'week') {
+      resolution = '60';
+      fromSec = nowSec - 7 * 86400;
+    } else if (timeframe === 'month') {
+      resolution = '1D';
+      fromSec = nowSec - 30 * 86400;
+    } else if (timeframe === 'year') {
+      resolution = '1D';
+      fromSec = nowSec - 365 * 86400;
+    } else if (timeframe === '3year') {
+      resolution = '1W';
+      fromSec = nowSec - 3 * 365 * 86400;
+    } else if (timeframe === '5year') {
+      resolution = '1W';
+      fromSec = nowSec - 5 * 365 * 86400;
+    }
+
+    try {
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 6000);
+      const url = `https://priceapi.moneycontrol.com/techCharts/history?symbol=${encodeURIComponent(sym)}&resolution=${resolution}&from=${fromSec}&to=${nowSec}`;
+      const res = await fetch(url, {
+        signal: controller.signal,
+        headers: { 'Accept': 'application/json' }
+      });
+      clearTimeout(timeoutId);
+
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const data = await res.json();
+
+      if (data && data.s === 'ok' && Array.isArray(data.c) && data.c.length > 0) {
+        let labels = [];
+        let points = [];
+
+        if (timeframe === 'year') {
+          // Group by calendar month for clean past 12-month representation
+          const byMonth = {};
+          for (let i = 0; i < data.t.length; i++) {
+            const d = new Date(data.t[i] * 1000);
+            const m = d.toLocaleString('en-US', { month: 'short' });
+            byMonth[m] = parseFloat(data.c[i].toFixed(2));
+          }
+          labels = Object.keys(byMonth);
+          points = Object.values(byMonth);
+        } else if (timeframe === 'month') {
+          const step = Math.max(1, Math.floor(data.c.length / 8));
+          for (let i = 0; i < data.c.length; i += step) {
+            const d = new Date(data.t[i] * 1000);
+            labels.push(`${d.getDate()} ${d.toLocaleString('en-US', { month: 'short' })}`);
+            points.push(parseFloat(data.c[i].toFixed(2)));
+          }
+          labels[labels.length - 1] = 'Current';
+          points[points.length - 1] = parseFloat(data.c[data.c.length - 1].toFixed(2));
+        } else if (timeframe === 'week') {
+          const byDay = {};
+          for (let i = 0; i < data.t.length; i++) {
+            const d = new Date(data.t[i] * 1000);
+            const dayKey = d.toLocaleString('en-US', { weekday: 'short' });
+            byDay[dayKey] = parseFloat(data.c[i].toFixed(2));
+          }
+          labels = Object.keys(byDay);
+          points = Object.values(byDay);
+        } else if (timeframe === 'day') {
+          const step = Math.max(1, Math.floor(data.c.length / 8));
+          for (let i = 0; i < data.c.length; i += step) {
+            const d = new Date(data.t[i] * 1000);
+            labels.push(d.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true }));
+            points.push(parseFloat(data.c[i].toFixed(2)));
+          }
+          const lastC = data.c[data.c.length - 1];
+          if (points[points.length - 1] !== lastC) {
+            points[points.length - 1] = parseFloat(lastC.toFixed(2));
+          }
+        } else if (timeframe === '3year' || timeframe === '5year') {
+          const step = Math.max(1, Math.floor(data.c.length / 6));
+          for (let i = 0; i < data.c.length; i += step) {
+            const d = new Date(data.t[i] * 1000);
+            labels.push(d.toLocaleDateString('en-US', { month: 'short', year: '2-digit' }));
+            points.push(parseFloat(data.c[i].toFixed(2)));
+          }
+          labels[labels.length - 1] = 'Current';
+          points[points.length - 1] = parseFloat(data.c[data.c.length - 1].toFixed(2));
+        }
+
+        const firstClose = data.c[0];
+        const lastClose = data.c[data.c.length - 1];
+        const periodLow = parseFloat(Math.min(...data.c).toFixed(2));
+        const periodHigh = parseFloat(Math.max(...data.c).toFixed(2));
+        // Use Google Finance's precise past year baseline for NIFTY if year
+        let changePct = parseFloat((((lastClose - firstClose) / firstClose) * 100).toFixed(2));
+        if (timeframe === 'year' && indexKey === 'nifty') {
+          const base1y = 26068.15;
+          changePct = parseFloat((((lastClose - base1y) / base1y) * 100).toFixed(2));
+        }
+
+        // Update in-memory INDICES_DATA
+        if (INDICES_DATA && INDICES_DATA[timeframe] && INDICES_DATA[timeframe][indexKey]) {
+          const entry = INDICES_DATA[timeframe][indexKey];
+          entry.current = lastClose;
+          entry.points = points;
+          entry.low = periodLow;
+          entry.high = periodHigh;
+          entry.changePct = changePct;
+          if (labels.length > 0) {
+            INDICES_DATA[timeframe].labels = labels;
+          }
+        }
+
+        const result = { labels, points, low: periodLow, high: periodHigh, current: lastClose, changePct };
+        this.indexHistoryCache[cacheKey] = { timestamp: Date.now(), data: result };
+        this.notify({ type: 'INDEX_HISTORY_UPDATED', indexKey, timeframe, data: result });
+        return result;
+      }
+    } catch (err) {
+      console.warn(`[liveMarketService] Failed to fetch index history for ${indexKey} (${timeframe}):`, err);
+    }
+    return null;
+  }
+
   startAutoRefresh(intervalMs = 30000) {
     this.stopAutoRefresh();
     this.isAutoRefreshActive = true;

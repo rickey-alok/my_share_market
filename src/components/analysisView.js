@@ -52,10 +52,21 @@ export class AnalysisView {
       }
     }).catch(err => console.warn('AnalysisView initial live indices fetch failed:', err));
 
+    liveMarketService.fetchIndexHistory(this.selectedIndex, this.indexTimeframe).then(res => {
+      if (res && this.container.classList.contains('active') && this.activeTab === 'indices') {
+        this.renderIndexSection();
+      }
+    }).catch(err => console.warn('AnalysisView initial live index history fetch failed:', err));
+
     // Listen to liveMarketService updates (e.g. background polling or indices refresh)
     this.unsubscribeLiveMarket = liveMarketService.subscribe((event) => {
-      if (event.type === 'INDICES_UPDATED' && this.container.classList.contains('active') && this.activeTab === 'indices') {
+      if (!this.container.classList.contains('active') || this.activeTab !== 'indices') return;
+      if (event.type === 'INDICES_UPDATED') {
         this.renderIndexSection();
+      } else if (event.type === 'INDEX_HISTORY_UPDATED') {
+        if (event.indexKey === this.selectedIndex && event.timeframe === this.indexTimeframe) {
+          this.renderIndexSection();
+        }
       }
     });
 
@@ -269,6 +280,7 @@ export class AnalysisView {
     // 2. Benchmark & Sectoral Indices sync button
     setupSyncButton('#btn-index-sync', 'Indices Data Synced!', 'Refresh Indices Live Data', async () => {
       await liveMarketService.fetchLiveIndices();
+      await liveMarketService.fetchIndexHistory(this.selectedIndex, this.indexTimeframe);
       this.renderIndexSection();
     });
 
@@ -297,6 +309,11 @@ export class AnalysisView {
         btn.classList.add('active');
         this.selectedIndex = btn.getAttribute('data-index');
         this.renderIndexSection();
+        liveMarketService.fetchIndexHistory(this.selectedIndex, this.indexTimeframe).then(res => {
+          if (res && this.container.classList.contains('active') && this.activeTab === 'indices') {
+            this.renderIndexSection();
+          }
+        });
       });
     });
 
@@ -308,6 +325,11 @@ export class AnalysisView {
         pill.classList.add('active');
         this.indexTimeframe = pill.getAttribute('data-timeframe');
         this.renderIndexSection();
+        liveMarketService.fetchIndexHistory(this.selectedIndex, this.indexTimeframe).then(res => {
+          if (res && this.container.classList.contains('active') && this.activeTab === 'indices') {
+            this.renderIndexSection();
+          }
+        });
       });
     });
 
@@ -401,6 +423,11 @@ export class AnalysisView {
           this.renderIndexSection();
         }
       }).catch(err => console.warn('Failed to refresh indices on tab switch:', err));
+      liveMarketService.fetchIndexHistory(this.selectedIndex, this.indexTimeframe).then(res => {
+        if (res && this.container.classList.contains('active') && this.activeTab === 'indices') {
+          this.renderIndexSection();
+        }
+      }).catch(err => console.warn('Failed to refresh index history on tab switch:', err));
     } else if (tabKey === 'holdings') {
       this.updateStockSelector();
       this.renderStockAnalysis();
@@ -660,18 +687,30 @@ export class AnalysisView {
     const gridColor = isLight ? 'rgba(0,0,0,0.06)' : 'rgba(255,255,255,0.06)';
     const textColor = isLight ? '#64748b' : '#94a3b8';
 
+    const isBull = indexInfo.changePct >= 0;
+    const lineColor = isBull ? '#10b981' : '#ef4444';
+    const pointColor = isBull ? '#10b981' : '#ef4444';
+
+    const ctx = canvas.getContext('2d');
+    const gradient = ctx.createLinearGradient(0, 0, 0, 300);
+    if (isBull) {
+      gradient.addColorStop(0, 'rgba(16, 185, 129, 0.28)');
+      gradient.addColorStop(1, 'rgba(16, 185, 129, 0.0)');
+    } else {
+      gradient.addColorStop(0, 'rgba(239, 68, 68, 0.25)');
+      gradient.addColorStop(1, 'rgba(239, 68, 68, 0.0)');
+    }
+
     if (this.indexChart) {
       this.indexChart.data.labels = timeframeData.labels;
       this.indexChart.data.datasets[0].label = `${indexInfo.name} Level`;
       this.indexChart.data.datasets[0].data = indexInfo.points;
+      this.indexChart.data.datasets[0].borderColor = lineColor;
+      this.indexChart.data.datasets[0].backgroundColor = gradient;
+      this.indexChart.data.datasets[0].pointBackgroundColor = pointColor;
       this.indexChart.update();
       return;
     }
-
-    const ctx = canvas.getContext('2d');
-    const gradient = ctx.createLinearGradient(0, 0, 0, 300);
-    gradient.addColorStop(0, 'rgba(16, 185, 129, 0.28)');
-    gradient.addColorStop(1, 'rgba(16, 185, 129, 0.0)');
 
     this.indexChart = new Chart(ctx, {
       type: 'line',
@@ -680,13 +719,13 @@ export class AnalysisView {
         datasets: [{
           label: `${indexInfo.name} Level`,
           data: indexInfo.points,
-          borderColor: '#10b981',
+          borderColor: lineColor,
           backgroundColor: gradient,
           fill: true,
           tension: 0.35,
           borderWidth: 2.5,
           pointRadius: 4,
-          pointBackgroundColor: '#10b981',
+          pointBackgroundColor: pointColor,
           pointBorderColor: '#ffffff',
           pointHoverRadius: 6
         }]
