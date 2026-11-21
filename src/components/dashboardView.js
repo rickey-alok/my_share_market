@@ -450,7 +450,6 @@ export class DashboardView {
 
     const isTotalProfit = metrics.totalPnL >= 0;
     const isDayProfit = metrics.totalDayPnL >= 0;
-    const isRealizedProfit = (metrics.totalRealizedPnL || 0) >= 0;
 
     kpiContainer.innerHTML = `
       <!-- Card 1: Combined Portfolio Capital & Valuation (Invested on Left, Current Value on Right) -->
@@ -509,28 +508,6 @@ export class DashboardView {
             <span class="return-badge-sm ${isDayProfit ? 'bull' : 'bear'}">
               ${isDayProfit ? '+' : ''}${metrics.totalDayPnLPercent.toFixed(2)}%
             </span>
-          </div>
-        </div>
-      </div>
-
-      <!-- Card 3: Dedicated Realized Profit Card -->
-      <div class="kpi-card kpi-card-realized">
-        <div class="kpi-realized-content">
-          <div class="kpi-realized-meta">
-            <div class="kpi-mini-header">
-              <span class="kpi-mini-title" style="color: #a855f7;">${icons.pieChart} Realized Profits</span>
-              <span class="kpi-subtext-pill">Booked</span>
-            </div>
-            <div class="kpi-mini-footer">
-              <span class="kpi-mini-subtext">
-                ${metrics.closedTradesCount > 0 
-                  ? `${metrics.closedTradesCount} closed trade${metrics.closedTradesCount > 1 ? 's' : ''} booked` 
-                  : (metrics.totalRealizedPnL !== 0 ? 'Closed trades exit gains' : 'No booked sales yet')}
-              </span>
-            </div>
-          </div>
-          <div class="kpi-mini-value ${isRealizedProfit ? 'bull' : 'bear'}">
-            ${isRealizedProfit ? '+' : ''}${portfolioStore.formatMoney(metrics.totalRealizedPnL)}
           </div>
         </div>
       </div>

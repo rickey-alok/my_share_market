@@ -16,7 +16,6 @@ export class AverageCalculatorModal {
     this.containerId = containerId;
     this.container = null;
     this.currentSymbol = null;
-    this.tradeMode = 'BUY'; // 'BUY' or 'SELL'
     this.init();
   }
 
@@ -53,7 +52,6 @@ export class AverageCalculatorModal {
   open(symbol) {
     if (!symbol) return;
     this.currentSymbol = symbol.toUpperCase().trim();
-    this.tradeMode = 'BUY';
 
     const holding = portfolioStore.getHoldingBySymbol(this.currentSymbol);
     if (!holding) {
@@ -115,19 +113,10 @@ export class AverageCalculatorModal {
         <div class="avg-modal-body">
           <!-- Left Column: Average Calculator Form -->
           <div class="avg-modal-col">
+            <!-- Modal Section Title -->
             <div class="avg-modal-section-title">
               ${modalIcons.calculator}
               <span id="avg-modal-calc-title">Average Down / Buy Calculator</span>
-            </div>
-
-            <!-- Segmented Trade Mode Toggle: BUY vs SELL -->
-            <div class="trade-mode-toggle" id="avg-modal-trade-toggle">
-              <button type="button" class="trade-mode-btn buy ${this.tradeMode === 'BUY' ? 'active' : ''}" data-mode="BUY">
-                ${modalIcons.plus} Buy / Average
-              </button>
-              <button type="button" class="trade-mode-btn sell ${this.tradeMode === 'SELL' ? 'active' : ''}" data-mode="SELL">
-                ${modalIcons.trendingDown} Sell / Book Profit
-              </button>
             </div>
 
             <p class="averaging-tool-desc" id="avg-modal-tool-desc" style="font-size: 0.82rem; margin: 0.5rem 0 0.85rem 0; color: var(--text-secondary);">
@@ -138,9 +127,6 @@ export class AverageCalculatorModal {
               <div class="form-group" style="margin-bottom: 0.85rem;">
                 <div class="avg-label-row">
                   <label for="avg-modal-input-qty" id="avg-modal-label-qty" class="avg-field-title">Additional Shares to Buy</label>
-                  <span id="avg-modal-avail-hint" class="avg-avail-badge" style="display: none;">
-                    Available: <strong class="mono" style="color: var(--text-primary); margin: 0 0.2rem;">${holding.quantity.toLocaleString()}</strong> shares
-                  </span>
                 </div>
 
                 <div class="quick-pills" id="avg-modal-qty-pills" style="margin-bottom: 0.55rem;">
@@ -199,7 +185,7 @@ export class AverageCalculatorModal {
     `;
 
     this.attachEvents(holding, currentCmp);
-    this.renderPillsForMode(holding);
+    this.renderPills(holding);
     this.updateProjectedImpact();
   }
 
@@ -208,15 +194,6 @@ export class AverageCalculatorModal {
     if (btnClose) {
       btnClose.addEventListener('click', () => this.close());
     }
-
-    // Toggle BUY vs SELL modes
-    const modeBtns = this.container.querySelectorAll('#avg-modal-trade-toggle .trade-mode-btn');
-    modeBtns.forEach(btn => {
-      btn.addEventListener('click', () => {
-        const mode = btn.getAttribute('data-mode');
-        this.setTradeMode(mode);
-      });
-    });
 
     // "Use CMP" helper button
     const btnUseCmp = this.container.querySelector('#avg-modal-btn-use-cmp');
@@ -270,37 +247,19 @@ export class AverageCalculatorModal {
         }
 
         try {
-          if (this.tradeMode === 'BUY') {
-            await portfolioStore.addOrUpdateHolding({
-              symbol: currentHolding.symbol,
-              name: currentHolding.name,
-              exchange: currentHolding.exchange,
-              sector: currentHolding.sector,
-              quantity: qty,
-              buyPrice: price,
-              cmp: currentHolding.cmp,
-              buyDate: new Date().toISOString().split('T')[0],
-              notes: `Averaged down: +${qty} shares @ ₹${price}`
-            });
+          await portfolioStore.addOrUpdateHolding({
+            symbol: currentHolding.symbol,
+            name: currentHolding.name,
+            exchange: currentHolding.exchange,
+            sector: currentHolding.sector,
+            quantity: qty,
+            buyPrice: price,
+            cmp: currentHolding.cmp,
+            buyDate: new Date().toISOString().split('T')[0],
+            notes: `Averaged down: +${qty} shares @ ₹${price}`
+          });
 
-            alert(`🎉 Buy order executed! Added ${qty} shares of ${currentHolding.symbol} @ ₹${price}. Average price updated.`);
-          } else {
-            // SELL Mode
-            if (qty > currentHolding.quantity) {
-              alert(`Cannot sell ${qty} shares. You only own ${currentHolding.quantity} shares.`);
-              return;
-            }
-
-            await portfolioStore.sellHolding({
-              id: currentHolding.id,
-              symbol: currentHolding.symbol,
-              quantity: qty,
-              sellPrice: price,
-              notes: `Sold ${qty} shares @ ₹${price}`
-            });
-
-            alert(`✅ Sell order executed! Sold ${qty} shares of ${currentHolding.symbol} @ ₹${price}.`);
-          }
+          alert(`🎉 Buy order executed! Added ${qty} shares of ${currentHolding.symbol} @ ₹${price}. Average price updated.`);
 
           // Re-render modal data
           const updatedHolding = portfolioStore.getHoldingBySymbol(this.currentSymbol);
@@ -317,112 +276,18 @@ export class AverageCalculatorModal {
     }
   }
 
-  setTradeMode(mode) {
-    this.tradeMode = mode;
-    const holding = portfolioStore.getHoldingBySymbol(this.currentSymbol);
-    if (!holding) return;
-
-    const modeBtns = this.container.querySelectorAll('#avg-modal-trade-toggle .trade-mode-btn');
-    modeBtns.forEach(b => {
-      if (b.getAttribute('data-mode') === mode) {
-        b.classList.add('active');
-      } else {
-        b.classList.remove('active');
-      }
-    });
-
-    const cardTitle = this.container.querySelector('#avg-modal-calc-title');
-    const toolDesc = this.container.querySelector('#avg-modal-tool-desc');
-    const labelQty = this.container.querySelector('#avg-modal-label-qty');
-    const availHint = this.container.querySelector('#avg-modal-avail-hint');
-    const labelPrice = this.container.querySelector('#avg-modal-label-price');
-    const submitBtn = this.container.querySelector('#avg-modal-submit-btn');
-    const submitLabel = this.container.querySelector('#avg-modal-submit-label');
-    const inputQty = this.container.querySelector('#avg-modal-input-qty');
-    const inputPrice = this.container.querySelector('#avg-modal-input-price');
-
-    if (mode === 'BUY') {
-      if (cardTitle) cardTitle.textContent = 'Average Down / Buy Calculator';
-      if (toolDesc) toolDesc.innerHTML = `Calculate how buying more shares of <strong>${holding.symbol}</strong> adjusts your weighted average price:`;
-      if (labelQty) labelQty.textContent = 'Additional Shares to Buy';
-      if (availHint) availHint.style.display = 'none';
-      if (labelPrice) labelPrice.textContent = 'Expected Purchase Price (₹)';
-      if (submitBtn) {
-        submitBtn.className = 'btn btn-primary';
-        submitBtn.style.marginTop = '0.5rem';
-      }
-      if (submitLabel) submitLabel.textContent = 'Execute Buy & Update Average';
-      if (inputQty && (parseInt(inputQty.value, 10) <= 0 || parseInt(inputQty.value, 10) > holding.quantity)) {
-        inputQty.value = 10;
-      }
-    } else {
-      if (cardTitle) cardTitle.textContent = 'Profit Booking / Sell Calculator';
-      if (toolDesc) toolDesc.innerHTML = `Calculate your realized profit/loss and capital released by selling shares of <strong>${holding.symbol}</strong>:`;
-      if (labelQty) labelQty.textContent = 'Shares to Sell';
-      if (availHint) {
-        availHint.style.display = 'inline-flex';
-        availHint.innerHTML = `Available: <strong class="mono" style="color: var(--text-primary); margin: 0 0.2rem;">${holding.quantity.toLocaleString()}</strong> shares`;
-      }
-      if (labelPrice) labelPrice.textContent = 'Expected Selling Price (₹)';
-      if (submitBtn) {
-        submitBtn.className = 'btn btn-danger btn-sell-action';
-        submitBtn.style.marginTop = '0.5rem';
-      }
-      if (submitLabel) submitLabel.textContent = 'Execute Sell & Book P&L';
-      if (inputQty) {
-        const defaultSellQty = Math.max(1, Math.round(holding.quantity * 0.5));
-        inputQty.value = defaultSellQty;
-      }
-    }
-
-    if (inputPrice) {
-      inputPrice.value = (holding.cmp || holding.avgPrice).toFixed(2);
-    }
-
-    this.renderPillsForMode(holding);
-    this.updateProjectedImpact();
-  }
-
-  renderPillsForMode(holding) {
+  renderPills(holding) {
     const pillsContainer = this.container.querySelector('#avg-modal-qty-pills');
     const inputQty = this.container.querySelector('#avg-modal-input-qty');
     if (!pillsContainer || !holding) return;
 
-    if (this.tradeMode === 'BUY') {
-      const buyAmounts = [5, 10, 25, 50, 100];
-      const curQty = inputQty ? parseInt(inputQty.value, 10) : 10;
-      pillsContainer.innerHTML = buyAmounts.map(val => `
-        <button type="button" class="quick-pill buy-pill ${val === curQty ? 'active' : ''}" data-qty="${val}">
-          +${val}
-        </button>
-      `).join('');
-    } else {
-      const q = holding.quantity || 1;
-      const p25 = Math.max(1, Math.round(q * 0.25));
-      const p50 = Math.max(1, Math.round(q * 0.5));
-      const p75 = Math.max(1, Math.round(q * 0.75));
-      const p100 = q;
-      const curQty = inputQty ? parseInt(inputQty.value, 10) : p50;
-
-      pillsContainer.innerHTML = `
-        <button type="button" class="quick-pill sell-pill ${curQty === p25 ? 'active' : ''}" data-qty="${p25}" title="Sell 25% (${p25} shares)">
-          <span>25%</span>
-          <span class="pill-sub">(${p25.toLocaleString()})</span>
-        </button>
-        <button type="button" class="quick-pill sell-pill ${curQty === p50 ? 'active' : ''}" data-qty="${p50}" title="Sell 50% (${p50} shares)">
-          <span>50%</span>
-          <span class="pill-sub">(${p50.toLocaleString()})</span>
-        </button>
-        <button type="button" class="quick-pill sell-pill ${curQty === p75 ? 'active' : ''}" data-qty="${p75}" title="Sell 75% (${p75} shares)">
-          <span>75%</span>
-          <span class="pill-sub">(${p75.toLocaleString()})</span>
-        </button>
-        <button type="button" class="quick-pill sell-pill ${curQty === p100 ? 'active' : ''}" data-qty="${p100}" title="Sell 100% (All ${p100} shares)">
-          <span>100%</span>
-          <span class="pill-sub">(All ${p100.toLocaleString()})</span>
-        </button>
-      `;
-    }
+    const buyAmounts = [5, 10, 25, 50, 100];
+    const curQty = inputQty ? parseInt(inputQty.value, 10) : 10;
+    pillsContainer.innerHTML = buyAmounts.map(val => `
+      <button type="button" class="quick-pill buy-pill ${val === curQty ? 'active' : ''}" data-qty="${val}">
+        +${val}
+      </button>
+    `).join('');
 
     const pills = pillsContainer.querySelectorAll('.quick-pill');
     pills.forEach(p => {
@@ -449,110 +314,57 @@ export class AverageCalculatorModal {
     const submitBtn = this.container.querySelector('#avg-modal-submit-btn');
     if (!inputQty || !inputPrice || !projectedBox) return;
 
+    if (warningBanner) warningBanner.style.display = 'none';
+    if (submitBtn) submitBtn.disabled = false;
+
     const tradeQty = Math.max(0, parseFloat(inputQty.value) || 0);
     const tradePrice = Math.max(0, parseFloat(inputPrice.value) || 0);
     const currentQty = holding.quantity;
     const currentAvgPrice = holding.avgPrice;
 
-    if (this.tradeMode === 'BUY') {
-      if (warningBanner) warningBanner.style.display = 'none';
-      if (submitBtn) submitBtn.disabled = false;
-
-      const newTotalQty = currentQty + tradeQty;
-      let newAvgPrice = currentAvgPrice;
-      if (newTotalQty > 0) {
-        const newTotalCost = (currentQty * currentAvgPrice) + (tradeQty * tradePrice);
-        newAvgPrice = newTotalCost / newTotalQty;
-      }
-      const priceDiff = newAvgPrice - currentAvgPrice;
-      const capitalReq = tradeQty * tradePrice;
-
-      let impactText = 'Unchanged';
-      let impactColor = 'var(--text-secondary)';
-      if (tradeQty === 0) {
-        impactText = 'No change';
-      } else if (priceDiff < 0) {
-        impactText = `▼ Decreases by ${portfolioStore.formatMoney(Math.abs(priceDiff))}`;
-        impactColor = 'var(--bull-green)';
-      } else if (priceDiff > 0) {
-        impactText = `▲ Increases by ${portfolioStore.formatMoney(priceDiff)}`;
-        impactColor = 'var(--bear-red)';
-      }
-
-      projectedBox.innerHTML = `
-        <div class="projected-row">
-          <span class="projected-label">Current Avg Price:</span>
-          <span class="projected-val mono">${portfolioStore.formatMoney(currentAvgPrice)}</span>
-        </div>
-        <div class="projected-row highlight">
-          <span class="projected-label">New Weighted Avg Price:</span>
-          <span class="projected-val mono" style="color: var(--brand-indigo-light); font-weight: 700;">${portfolioStore.formatMoney(newAvgPrice)}</span>
-        </div>
-        <div class="projected-row">
-          <span class="projected-label">Impact on Avg Cost:</span>
-          <span class="projected-val mono" style="font-weight: 600; color: ${impactColor};">${impactText}</span>
-        </div>
-        <div class="projected-row">
-          <span class="projected-label">New Total Shares:</span>
-          <span class="projected-val mono">${newTotalQty.toLocaleString()} shares</span>
-        </div>
-        <div class="projected-row">
-          <span class="projected-label">Capital Required:</span>
-          <span class="projected-val mono">${portfolioStore.formatMoney(capitalReq)}</span>
-        </div>
-      `;
-    } else {
-      // SELL Mode Calculations
-      const isExceeding = tradeQty > currentQty;
-      const isFullExit = tradeQty === currentQty;
-
-      if (isExceeding) {
-        if (warningBanner) {
-          warningBanner.style.display = 'flex';
-          warningBanner.innerHTML = `⚠️ Cannot sell ${tradeQty} shares. You currently only hold ${currentQty} shares.`;
-        }
-        if (submitBtn) submitBtn.disabled = true;
-      } else if (isFullExit && tradeQty > 0) {
-        if (warningBanner) {
-          warningBanner.style.display = 'flex';
-          warningBanner.style.background = 'rgba(234, 179, 8, 0.12)';
-          warningBanner.style.borderColor = 'rgba(234, 179, 8, 0.4)';
-          warningBanner.style.color = '#eab308';
-          warningBanner.innerHTML = `ℹ️ This will completely exit your position in ${holding.symbol}.`;
-        }
-        if (submitBtn) submitBtn.disabled = false;
-      } else {
-        if (warningBanner) warningBanner.style.display = 'none';
-        if (submitBtn) submitBtn.disabled = false;
-      }
-
-      const costBasis = tradeQty * currentAvgPrice;
-      const saleProceeds = tradeQty * tradePrice;
-      const realizedPnL = saleProceeds - costBasis;
-      const realizedPnLPercent = costBasis > 0 ? (realizedPnL / costBasis) * 100 : 0;
-      const remainingQty = Math.max(0, currentQty - tradeQty);
-
-      projectedBox.innerHTML = `
-        <div class="projected-row">
-          <span class="projected-label">Current Holdings:</span>
-          <span class="projected-val mono">${currentQty.toLocaleString()} shares</span>
-        </div>
-        <div class="projected-row">
-          <span class="projected-label">Shares After Sale:</span>
-          <span class="projected-val mono" style="font-weight: 700;">${remainingQty.toLocaleString()} shares</span>
-        </div>
-        <div class="projected-row highlight">
-          <span class="projected-label">Cash Inflow (Proceeds):</span>
-          <span class="projected-val mono" style="color: var(--brand-indigo-light); font-weight: 700;">${portfolioStore.formatMoney(saleProceeds)}</span>
-        </div>
-        <div class="projected-row">
-          <span class="projected-label">Booked Profit/Loss:</span>
-          <span class="projected-val mono" style="font-weight: 700; color: ${realizedPnL >= 0 ? 'var(--bull-green)' : 'var(--bear-red)'};">
-            ${realizedPnL >= 0 ? '+' : ''}${portfolioStore.formatMoney(realizedPnL)} (${realizedPnL >= 0 ? '+' : ''}${realizedPnLPercent.toFixed(2)}%)
-          </span>
-        </div>
-      `;
+    const newTotalQty = currentQty + tradeQty;
+    let newAvgPrice = currentAvgPrice;
+    if (newTotalQty > 0) {
+      const newTotalCost = (currentQty * currentAvgPrice) + (tradeQty * tradePrice);
+      newAvgPrice = newTotalCost / newTotalQty;
     }
+    const priceDiff = newAvgPrice - currentAvgPrice;
+    const capitalReq = tradeQty * tradePrice;
+
+    let impactText = 'Unchanged';
+    let impactColor = 'var(--text-secondary)';
+    if (tradeQty === 0) {
+      impactText = 'No change';
+    } else if (priceDiff < 0) {
+      impactText = `▼ Decreases by ${portfolioStore.formatMoney(Math.abs(priceDiff))}`;
+      impactColor = 'var(--bull-green)';
+    } else if (priceDiff > 0) {
+      impactText = `▲ Increases by ${portfolioStore.formatMoney(priceDiff)}`;
+      impactColor = 'var(--bear-red)';
+    }
+
+    projectedBox.innerHTML = `
+      <div class="projected-row">
+        <span class="projected-label">Current Avg Price:</span>
+        <span class="projected-val mono">${portfolioStore.formatMoney(currentAvgPrice)}</span>
+      </div>
+      <div class="projected-row highlight">
+        <span class="projected-label">New Weighted Avg Price:</span>
+        <span class="projected-val mono" style="color: var(--brand-indigo-light); font-weight: 700;">${portfolioStore.formatMoney(newAvgPrice)}</span>
+      </div>
+      <div class="projected-row">
+        <span class="projected-label">Impact on Avg Cost:</span>
+        <span class="projected-val mono" style="font-weight: 600; color: ${impactColor};">${impactText}</span>
+      </div>
+      <div class="projected-row">
+        <span class="projected-label">New Total Shares:</span>
+        <span class="projected-val mono">${newTotalQty.toLocaleString()} shares</span>
+      </div>
+      <div class="projected-row">
+        <span class="projected-label">Capital Required:</span>
+        <span class="projected-val mono">${portfolioStore.formatMoney(capitalReq)}</span>
+      </div>
+    `;
   }
 
   renderTransactionsHtml(transactions, currentCmp) {
@@ -619,11 +431,7 @@ export class AverageCalculatorModal {
                       <span class="mono" style="font-weight: 700; color: ${isOrderProfit ? 'var(--bull-green)' : 'var(--bear-red)'}; font-size: 0.78rem;">
                         ${isOrderProfit ? '+' : ''}${portfolioStore.formatMoney(orderPnl)}
                       </span>
-                    ` : (tx.realizedPnL !== undefined ? `
-                      <span class="mono" style="font-weight: 700; color: ${tx.realizedPnL >= 0 ? 'var(--bull-green)' : 'var(--bear-red)'}; font-size: 0.78rem;">
-                        ${tx.realizedPnL >= 0 ? '+' : ''}${portfolioStore.formatMoney(tx.realizedPnL)}
-                      </span>
-                    ` : `<span class="mono" style="color: var(--text-muted);">-</span>`)}
+                    ` : `<span class="mono" style="color: var(--text-muted);">-</span>`}
                   </td>
                 </tr>
               `;
@@ -677,11 +485,7 @@ export class AverageCalculatorModal {
                     <div class="mono" style="font-size: 0.72rem; color: ${isOrderProfit ? 'var(--bull-green)' : 'var(--bear-red)'};">
                       (${isOrderProfit ? '+' : ''}${orderPnlPercent.toFixed(2)}%)
                     </div>
-                  ` : (tx.realizedPnL !== undefined ? `
-                    <div class="mono" style="font-weight: 700; font-size: 0.82rem; color: ${tx.realizedPnL >= 0 ? 'var(--bull-green)' : 'var(--bear-red)'};">
-                      Realized: ${tx.realizedPnL >= 0 ? '+' : ''}${portfolioStore.formatMoney(tx.realizedPnL)}
-                    </div>
-                  ` : '')}
+                  ` : ''}
                 </div>
               </div>
 
