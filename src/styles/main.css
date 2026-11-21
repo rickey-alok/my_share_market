@@ -6222,29 +6222,32 @@ body::after {
   margin-left: auto;
 }
 
-.perf-summary-label {
+.perf-summary-group-title {
   font-size: 0.68rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  font-family: var(--font-heading);
+  line-height: 1.25;
+}
+
+.perf-summary-group-title.bull {
+  color: var(--bull-green);
+}
+
+.perf-summary-group-title.bear {
+  color: var(--bear-red);
+}
+
+.perf-summary-label {
+  font-size: 0.63rem;
   color: var(--text-muted);
   text-transform: uppercase;
   letter-spacing: 0.04em;
   font-family: var(--font-heading);
   font-weight: 600;
-  line-height: 1.25;
-}
-
-.perf-summary-sublabel {
-  font-size: 0.64rem;
-  font-weight: 700;
-  letter-spacing: 0.04em;
-  margin-top: 0.06rem;
-}
-
-.perf-summary-card.bull .perf-summary-sublabel {
-  color: var(--bull-green);
-}
-
-.perf-summary-card.bear .perf-summary-sublabel {
-  color: var(--bear-red);
+  margin-top: 0.14rem;
+  line-height: 1.2;
 }
 
 .perf-summary-val-inv {
@@ -6315,17 +6318,17 @@ body::after {
   box-shadow: 0 3px 12px rgba(239, 68, 68, 0.16);
 }
 
-[data-theme="light"] .perf-summary-label {
-  color: #475569;
-  font-weight: 700;
-}
-
-[data-theme="light"] .perf-summary-card.bull .perf-summary-sublabel {
+[data-theme="light"] .perf-summary-group-title.bull {
   color: #047857;
 }
 
-[data-theme="light"] .perf-summary-card.bear .perf-summary-sublabel {
+[data-theme="light"] .perf-summary-group-title.bear {
   color: #be123c;
+}
+
+[data-theme="light"] .perf-summary-label {
+  color: #475569;
+  font-weight: 700;
 }
 
 [data-theme="light"] .perf-summary-val-inv {
