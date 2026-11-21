@@ -143,6 +143,7 @@ export class DashboardView {
         <div>
           <div class="page-title-with-action">
             <h1 class="page-title">Portfolio Dashboard</h1>
+            <span class="brand-badge" id="portfolio-header-count">0 Assets</span>
             <button id="btn-refresh-quotes" class="dashboard-sync-btn" title="Refresh Live Quotes" aria-label="Refresh Live Quotes">
               ${icons.refreshCw}
             </button>
@@ -175,7 +176,6 @@ export class DashboardView {
               <h2 class="card-title" style="display: flex; align-items: center; gap: 0.45rem;">
                 ${icons.layoutDashboard} Market Carpet
               </h2>
-              <span class="brand-badge" id="carpet-assets-count">0 Assets</span>
             </div>
             
             <div style="display: flex; align-items: center; gap: 0.4rem; flex-wrap: wrap;">
@@ -431,9 +431,17 @@ export class DashboardView {
   update(event = {}) {
     this.updateGuestBanner();
     const metrics = portfolioStore.getPortfolioMetrics();
+    this.renderHeaderCount(metrics);
     this.renderKPIs(metrics);
     this.renderMarketCarpet(metrics);
     this.renderHighlights(metrics, event);
+  }
+
+  renderHeaderCount(metrics) {
+    const countEl = this.container.querySelector('#portfolio-header-count');
+    if (countEl) {
+      countEl.textContent = `${metrics.totalHoldingsCount} Assets`;
+    }
   }
 
   updateGuestBanner() {
@@ -515,12 +523,7 @@ export class DashboardView {
 
   renderMarketCarpet(metrics) {
     const container = this.container.querySelector('#market-carpet-container');
-    const countBadge = this.container.querySelector('#carpet-assets-count');
     if (!container) return;
-
-    if (countBadge) {
-      countBadge.textContent = `${metrics.totalHoldingsCount} Assets`;
-    }
 
     // Update active tab buttons
     const btnStock = this.container.querySelector('#btn-carpet-mode-stock');
