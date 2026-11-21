@@ -170,7 +170,7 @@ export class AnalysisView {
             </div>
           </div>
 
-          <!-- Index Selector & Superimpose Chips (NIFTY 50 + BANK NIFTY + NIFTY IT + NIFTY METAL) -->
+          <!-- Index Selector & Superimpose Chips (NIFTY 50 + BANK NIFTY + NIFTY IT + NIFTY METAL + NIFTY AUTO + NIFTY PHARMA) -->
           <div class="index-chips-scroll" id="index-switch-toggle" role="tablist">
             <button type="button" class="index-chip active" data-index="nifty" title="Base benchmark index">
               <span class="index-chip-dot nifty"></span> NIFTY 50
@@ -183,6 +183,12 @@ export class AnalysisView {
             </button>
             <button type="button" class="index-chip" data-index="nifty_metal" title="Click to superimpose NIFTY METAL over NIFTY 50">
               + <span class="index-chip-dot metal"></span> NIFTY METAL
+            </button>
+            <button type="button" class="index-chip" data-index="nifty_auto" title="Click to superimpose NIFTY AUTO over NIFTY 50">
+              + <span class="index-chip-dot auto"></span> NIFTY AUTO
+            </button>
+            <button type="button" class="index-chip" data-index="nifty_pharma" title="Click to superimpose NIFTY PHARMA over NIFTY 50">
+              + <span class="index-chip-dot pharma"></span> NIFTY PHARMA
             </button>
           </div>
 
@@ -321,7 +327,7 @@ export class AnalysisView {
             this.superimposedIndices.clear();
             this.renderIndexSection();
           }
-        } else if (idxKey === 'bank_nifty' || idxKey === 'nifty_it' || idxKey === 'nifty_metal') {
+        } else if (['bank_nifty', 'nifty_it', 'nifty_metal', 'nifty_auto', 'nifty_pharma'].includes(idxKey)) {
           // Toggle superimposing this index over NIFTY 50
           if (this.superimposedIndices.has(idxKey)) {
             this.superimposedIndices.delete(idxKey);
@@ -638,6 +644,8 @@ export class AnalysisView {
     const bankBtn = this.container.querySelector('#index-switch-toggle [data-index="bank_nifty"]');
     const itBtn = this.container.querySelector('#index-switch-toggle [data-index="nifty_it"]');
     const metalBtn = this.container.querySelector('#index-switch-toggle [data-index="nifty_metal"]');
+    const autoBtn = this.container.querySelector('#index-switch-toggle [data-index="nifty_auto"]');
+    const pharmaBtn = this.container.querySelector('#index-switch-toggle [data-index="nifty_pharma"]');
 
     if (niftyBtn) {
       niftyBtn.classList.toggle('active', true);
@@ -662,6 +670,20 @@ export class AnalysisView {
       metalBtn.classList.toggle('active', isMetalOn);
       metalBtn.innerHTML = `${isMetalOn ? '✓' : '+'} <span class="index-chip-dot metal"></span> NIFTY METAL`;
       metalBtn.setAttribute('title', isMetalOn ? 'Click to remove NIFTY METAL overlay' : 'Click to superimpose NIFTY METAL over NIFTY 50');
+    }
+    if (autoBtn) {
+      const isAutoOn = this.superimposedIndices.has('nifty_auto');
+      autoBtn.classList.toggle('active-auto', isAutoOn);
+      autoBtn.classList.toggle('active', isAutoOn);
+      autoBtn.innerHTML = `${isAutoOn ? '✓' : '+'} <span class="index-chip-dot auto"></span> NIFTY AUTO`;
+      autoBtn.setAttribute('title', isAutoOn ? 'Click to remove NIFTY AUTO overlay' : 'Click to superimpose NIFTY AUTO over NIFTY 50');
+    }
+    if (pharmaBtn) {
+      const isPharmaOn = this.superimposedIndices.has('nifty_pharma');
+      pharmaBtn.classList.toggle('active-pharma', isPharmaOn);
+      pharmaBtn.classList.toggle('active', isPharmaOn);
+      pharmaBtn.innerHTML = `${isPharmaOn ? '✓' : '+'} <span class="index-chip-dot pharma"></span> NIFTY PHARMA`;
+      pharmaBtn.setAttribute('title', isPharmaOn ? 'Click to remove NIFTY PHARMA overlay' : 'Click to superimpose NIFTY PHARMA over NIFTY 50');
     }
 
     const summaryContainer = this.container.querySelector('#index-summary-container');
@@ -732,6 +754,36 @@ export class AnalysisView {
               <span class="mono">₹${metalInfo.current.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</span>
               <span class="return-badge ${metalPos ? 'bull' : 'bear'}" style="font-size: 0.74rem; padding: 0.12rem 0.45rem;">
                 ${metalPos ? '+' : ''}${metalInfo.changePct.toFixed(2)}% (${tfLabel})
+              </span>
+            </div>
+          `;
+        }
+
+        if (this.superimposedIndices.has('nifty_auto')) {
+          const autoInfo = timeframeData.nifty_auto || { current: 28787.65, changePct: 3.65 };
+          const autoPos = autoInfo.changePct >= 0;
+          summaryHtml += `
+            <div class="index-comp-pill auto">
+              <span class="pill-dot"></span>
+              <span><strong>NIFTY AUTO</strong></span>
+              <span class="mono">₹${autoInfo.current.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</span>
+              <span class="return-badge ${autoPos ? 'bull' : 'bear'}" style="font-size: 0.74rem; padding: 0.12rem 0.45rem;">
+                ${autoPos ? '+' : ''}${autoInfo.changePct.toFixed(2)}% (${tfLabel})
+              </span>
+            </div>
+          `;
+        }
+
+        if (this.superimposedIndices.has('nifty_pharma')) {
+          const pharmaInfo = timeframeData.nifty_pharma || { current: 28386.90, changePct: 23.43 };
+          const pharmaPos = pharmaInfo.changePct >= 0;
+          summaryHtml += `
+            <div class="index-comp-pill pharma">
+              <span class="pill-dot"></span>
+              <span><strong>NIFTY PHARMA</strong></span>
+              <span class="mono">₹${pharmaInfo.current.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</span>
+              <span class="return-badge ${pharmaPos ? 'bull' : 'bear'}" style="font-size: 0.74rem; padding: 0.12rem 0.45rem;">
+                ${pharmaPos ? '+' : ''}${pharmaInfo.changePct.toFixed(2)}% (${tfLabel})
               </span>
             </div>
           `;
@@ -977,6 +1029,52 @@ export class AnalysisView {
       });
     }
 
+    let autoRaw = null;
+    if (this.superimposedIndices.has('nifty_auto')) {
+      const autoInfo = timeframeData.nifty_auto || { points: [] };
+      autoRaw = autoInfo.points;
+      const autoBase = autoRaw[0] || 1;
+      const autoPct = autoRaw.map(p => parseFloat((((p - autoBase) / autoBase) * 100).toFixed(2)));
+
+      datasets.push({
+        label: 'NIFTY AUTO',
+        indexKey: 'nifty_auto',
+        data: autoPct,
+        borderColor: '#f43f5e', // Rose Pink/Red
+        backgroundColor: 'transparent',
+        fill: false,
+        tension: 0.35,
+        borderWidth: 2.8,
+        pointRadius: 3.5,
+        pointBackgroundColor: '#f43f5e',
+        pointBorderColor: '#ffffff',
+        pointHoverRadius: 6
+      });
+    }
+
+    let pharmaRaw = null;
+    if (this.superimposedIndices.has('nifty_pharma')) {
+      const pharmaInfo = timeframeData.nifty_pharma || { points: [] };
+      pharmaRaw = pharmaInfo.points;
+      const pharmaBase = pharmaRaw[0] || 1;
+      const pharmaPct = pharmaRaw.map(p => parseFloat((((p - pharmaBase) / pharmaBase) * 100).toFixed(2)));
+
+      datasets.push({
+        label: 'NIFTY PHARMA',
+        indexKey: 'nifty_pharma',
+        data: pharmaPct,
+        borderColor: '#3b82f6', // Vibrant Blue
+        backgroundColor: 'transparent',
+        fill: false,
+        tension: 0.35,
+        borderWidth: 2.8,
+        pointRadius: 3.5,
+        pointBackgroundColor: '#3b82f6',
+        pointBorderColor: '#ffffff',
+        pointHoverRadius: 6
+      });
+    }
+
     this.indexChart = new Chart(ctx, {
       type: 'line',
       data: {
@@ -1010,6 +1108,8 @@ export class AnalysisView {
                 else if (item.dataset.indexKey === 'bank_nifty' && bankRaw) rawVal = bankRaw[idx];
                 else if (item.dataset.indexKey === 'nifty_it' && itRaw) rawVal = itRaw[idx];
                 else if (item.dataset.indexKey === 'nifty_metal' && metalRaw) rawVal = metalRaw[idx];
+                else if (item.dataset.indexKey === 'nifty_auto' && autoRaw) rawVal = autoRaw[idx];
+                else if (item.dataset.indexKey === 'nifty_pharma' && pharmaRaw) rawVal = pharmaRaw[idx];
                 const rawStr = rawVal ? ` (₹${rawVal.toLocaleString('en-IN', { minimumFractionDigits: 2 })})` : '';
                 return ` ${item.dataset.label}: ${item.raw >= 0 ? '+' : ''}${item.raw.toFixed(2)}%${rawStr}`;
               }

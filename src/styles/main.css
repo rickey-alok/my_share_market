@@ -3866,6 +3866,8 @@ body::after {
 .index-chip-dot.bank { background: #8b5cf6; }
 .index-chip-dot.it { background: #f59e0b; }
 .index-chip-dot.metal { background: #06b6d4; }
+.index-chip-dot.auto { background: #f43f5e; }
+.index-chip-dot.pharma { background: #3b82f6; }
 
 .index-chip.active-bank {
   background: #8b5cf6 !important;
@@ -3886,6 +3888,20 @@ body::after {
   border-color: #06b6d4 !important;
   color: #ffffff !important;
   box-shadow: 0 2px 8px rgba(6, 182, 212, 0.4) !important;
+}
+
+.index-chip.active-auto {
+  background: #f43f5e !important;
+  border-color: #f43f5e !important;
+  color: #ffffff !important;
+  box-shadow: 0 2px 8px rgba(244, 63, 94, 0.4) !important;
+}
+
+.index-chip.active-pharma {
+  background: #3b82f6 !important;
+  border-color: #3b82f6 !important;
+  color: #ffffff !important;
+  box-shadow: 0 2px 8px rgba(59, 130, 246, 0.4) !important;
 }
 
 .index-superimpose-bar {
@@ -3921,6 +3937,8 @@ body::after {
 .index-comp-pill.bank .pill-dot { background: #8b5cf6; }
 .index-comp-pill.it .pill-dot { background: #f59e0b; }
 .index-comp-pill.metal .pill-dot { background: #06b6d4; }
+.index-comp-pill.auto .pill-dot { background: #f43f5e; }
+.index-comp-pill.pharma .pill-dot { background: #3b82f6; }
 
 /* Compact Index Card & Gauge */
 .index-summary-box {
