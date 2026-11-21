@@ -6188,6 +6188,149 @@ body::after {
   border-color: var(--brand-indigo-light);
 }
 
+/* Performance Highlights Hero Summary Card */
+.perf-summary-card {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0.65rem 0.95rem;
+  border-radius: var(--radius-md);
+  margin-top: 0.65rem;
+  gap: 0.5rem;
+  transition: all var(--transition-fast);
+}
+
+.perf-summary-card.bull {
+  background: linear-gradient(135deg, rgba(16, 185, 129, 0.12) 0%, rgba(99, 102, 241, 0.08) 100%);
+  border: 1px solid rgba(16, 185, 129, 0.32);
+  box-shadow: 0 2px 10px rgba(16, 185, 129, 0.08);
+}
+
+.perf-summary-card.bear {
+  background: linear-gradient(135deg, rgba(239, 68, 68, 0.12) 0%, rgba(245, 158, 11, 0.08) 100%);
+  border: 1px solid rgba(239, 68, 68, 0.32);
+  box-shadow: 0 2px 10px rgba(239, 68, 68, 0.08);
+}
+
+.perf-summary-left {
+  text-align: left;
+  flex-shrink: 0;
+}
+
+.perf-summary-right {
+  text-align: right;
+  margin-left: auto;
+}
+
+.perf-summary-label {
+  font-size: 0.68rem;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  font-family: var(--font-heading);
+  font-weight: 600;
+}
+
+.perf-summary-val-inv {
+  font-family: var(--font-body);
+  color: var(--text-primary);
+  font-weight: 700;
+  font-size: 0.95rem;
+  margin-top: 0.12rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.perf-summary-val-row {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 0.45rem;
+  margin-top: 0.12rem;
+  flex-wrap: wrap;
+}
+
+.perf-summary-val-cur {
+  font-family: var(--font-body);
+  font-weight: 800;
+  font-size: 0.98rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.perf-summary-val-cur.bull {
+  color: var(--bull-green);
+}
+
+.perf-summary-val-cur.bear {
+  color: var(--bear-red);
+}
+
+.perf-summary-badge {
+  font-family: var(--font-body);
+  font-weight: 700;
+  font-size: 0.72rem;
+  padding: 0.12rem 0.48rem;
+  border-radius: 5px;
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+
+.perf-summary-badge.bull {
+  background: rgba(16, 185, 129, 0.2);
+  color: #34d399;
+  border: 1px solid rgba(16, 185, 129, 0.35);
+}
+
+.perf-summary-badge.bear {
+  background: rgba(239, 68, 68, 0.2);
+  color: #f87171;
+  border: 1px solid rgba(239, 68, 68, 0.35);
+}
+
+/* Light Theme: Vivid & distinctive compared to the plain #f8fafc stock rows */
+[data-theme="light"] .perf-summary-card.bull {
+  background: linear-gradient(135deg, #e6f9f0 0%, #f0fdf4 100%);
+  border: 1.5px solid #6ee7b7;
+  box-shadow: 0 3px 12px rgba(16, 185, 129, 0.16);
+}
+
+[data-theme="light"] .perf-summary-card.bear {
+  background: linear-gradient(135deg, #fff1f2 0%, #fef2f2 100%);
+  border: 1.5px solid #fda4af;
+  box-shadow: 0 3px 12px rgba(239, 68, 68, 0.16);
+}
+
+[data-theme="light"] .perf-summary-label {
+  color: #475569;
+  font-weight: 700;
+}
+
+[data-theme="light"] .perf-summary-val-inv {
+  color: #0f172a;
+  font-weight: 800;
+}
+
+[data-theme="light"] .perf-summary-val-cur.bull {
+  color: #047857;
+}
+
+[data-theme="light"] .perf-summary-val-cur.bear {
+  color: #be123c;
+}
+
+[data-theme="light"] .perf-summary-badge.bull {
+  background: #10b981;
+  color: #ffffff;
+  border: none;
+  box-shadow: 0 1px 4px rgba(16, 185, 129, 0.3);
+}
+
+[data-theme="light"] .perf-summary-badge.bear {
+  background: #ef4444;
+  color: #ffffff;
+  border: none;
+  box-shadow: 0 1px 4px rgba(239, 68, 68, 0.3);
+}
+
 /* ==========================================================================
    Performance Highlights Tabbed Control (Top 5 / Bottom 5)
    ========================================================================== */
