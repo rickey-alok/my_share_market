@@ -755,70 +755,64 @@ export class HoldingsView {
       const tickClass = isTicking ? (tickDirection === 'up' ? 'tick-up' : 'tick-down') : (isSynced ? 'tick-up' : '');
       const cardSyncClass = isSynced ? 'card-synced' : '';
       const isInWatchlist = portfolioStore.isInWatchlist(h.symbol);
+      const dayDiff = h.dayChangePerShare !== undefined ? h.dayChangePerShare : (h.cmp - (h.prevClose || h.cmp));
 
       return `
         <div class="holding-mobile-card ${cardSyncClass}" data-symbol="${h.symbol}" title="Click to view ${h.symbol} transactions & details">
-          <div class="mobile-card-top">
-            <div class="stock-identity">
-              <div class="stock-names">
-                <div class="stock-sym">
-                  ${h.symbol}
-                  <span class="exchange-tag">${h.exchange || 'NSE'}</span>
-                </div>
-                <span class="stock-full-name">${h.name}</span>
+          <!-- Zerodha Kite-style 3-row Holding Layout -->
+          <div class="kite-holding-view">
+            <!-- Row 1: Qty | Avg on Left, LTP + Day Change on Right -->
+            <div class="kite-row kite-row-top">
+              <div class="kite-col-left">
+                <span class="kite-dim-label">Qty</span> <strong class="kite-val">${h.quantity.toLocaleString()}</strong>
+                <span class="kite-pipe">|</span>
+                <span class="kite-dim-label">Avg</span> <strong class="kite-val">${portfolioStore.formatMoney(h.avgPrice, 2).replace('₹ ', '')}</strong>
+              </div>
+              <div class="kite-col-right">
+                <span class="kite-dim-label">LTP</span> <strong class="kite-val cmp-val ${tickClass}">${portfolioStore.formatMoney(h.cmp, 2).replace('₹ ', '')}</strong>
+                <span class="kite-day-chg ${isDayProfit ? 'bull' : 'bear'}">
+                  ${isDayProfit ? '↑' : '↓'} ${Math.abs(dayDiff).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} (${Math.abs(h.dayChangePercent || 0).toFixed(2)}%)
+                </span>
               </div>
             </div>
-            <div class="mobile-price-block">
-              <div class="num-cell cmp-cell ${tickClass}">
-                ${portfolioStore.formatMoney(h.cmp)}
+
+            <!-- Row 2: Symbol on Left, P/L on Right -->
+            <div class="kite-row kite-row-mid">
+              <div class="kite-col-left">
+                <strong class="kite-symbol">${h.symbol}</strong>
+                <span class="kite-exchange">${h.exchange || 'NSE'}</span>
               </div>
-              <div class="mobile-day-pill ${isDayProfit ? 'bull' : 'bear'}">
-                ${isDayProfit ? '▲ +' : '▼ '}${Math.abs(h.dayChangePercent).toFixed(2)}%
+              <div class="kite-col-right">
+                <span class="kite-dim-label">P/L</span>
+                <strong class="kite-pnl-val ${isProfit ? 'bull' : 'bear'}">
+                  ${isProfit ? '' : '-'}${portfolioStore.formatMoney(Math.abs(h.pnl), 2).replace('₹ ', '')} (${isProfit ? '' : '-'}${Math.abs(h.pnlPercent).toFixed(2)}%)
+                </strong>
+              </div>
+            </div>
+
+            <!-- Row 3: Invested on Left, Current on Right -->
+            <div class="kite-row kite-row-bottom">
+              <div class="kite-col-left">
+                <span class="kite-dim-label">Invested</span> <strong class="kite-money">${portfolioStore.formatMoney(h.invested, 2).replace('₹ ', '₹')}</strong>
+              </div>
+              <div class="kite-col-right">
+                <span class="kite-dim-label">Current</span> <strong class="kite-money current-highlight">${portfolioStore.formatMoney(h.current, 2).replace('₹ ', '₹')}</strong>
               </div>
             </div>
           </div>
 
-          <div class="mobile-card-metrics">
-            <div class="mobile-metric-item">
-              <span class="mobile-metric-label">Shares Held</span>
-              <span class="mobile-metric-value">${h.quantity.toLocaleString()}</span>
+          <!-- Collapsible Technical Indicators & Price Range Section -->
+          <details class="mobile-card-details">
+            <summary class="mobile-details-summary">
+              <span>Day & 52-Week Range, RSI, Volume</span>
+              <span class="summary-chevron">▾</span>
+            </summary>
+            <div class="mobile-range-card-section" style="margin-top: 0.5rem; margin-bottom: 0;">
+              ${this.renderRangeIndicator(h)}
             </div>
-            <div class="mobile-metric-item">
-              <span class="mobile-metric-label">Avg. Buy Price</span>
-              <span class="mobile-metric-value">${portfolioStore.formatMoney(h.avgPrice)}</span>
-            </div>
-            <div class="mobile-metric-item">
-              <span class="mobile-metric-label">Total Invested</span>
-              <span class="mobile-metric-value">${portfolioStore.formatMoney(h.invested)}</span>
-              ${h.weight ? `<span class="mobile-metric-subtext">${h.weight.toFixed(1)}% Weight</span>` : ''}
-            </div>
-            <div class="mobile-metric-item">
-              <span class="mobile-metric-label">Current Value</span>
-              <span class="mobile-metric-value val-highlight">${portfolioStore.formatMoney(h.current)}</span>
-            </div>
-          </div>
+          </details>
 
-          <!-- Dedicated Full-Width Total P&L Strip -->
-          <div class="mobile-pnl-strip ${isProfit ? 'bull' : 'bear'}">
-            <div class="pnl-strip-left">
-              <span class="pnl-strip-label">Total Unrealized Returns</span>
-              <span class="pnl-strip-value">${isProfit ? '+' : ''}${portfolioStore.formatMoney(h.pnl)}</span>
-            </div>
-            <div class="pnl-strip-right">
-              <span class="pnl-strip-pill">
-                ${isProfit ? '▲ +' : '▼ '}${Math.abs(h.pnlPercent).toFixed(2)}%
-              </span>
-            </div>
-          </div>
-
-          <!-- Price Ranges & Indicators Section (Day, 52-Week, RSI & Volume) -->
-          <div class="mobile-range-card-section">
-            <div class="mobile-range-title">
-              <span>Day, 52-Week, RSI & Volume</span>
-            </div>
-            ${this.renderRangeIndicator(h)}
-          </div>
-
+          <!-- Action Buttons Bar -->
           <div class="mobile-card-bottom" style="display: flex; gap: 0.45rem; align-items: center;">
             <button class="btn btn-outline btn-sm watchlist-toggle-btn ${isInWatchlist ? 'active' : ''}" data-action="toggle-watchlist" data-symbol="${h.symbol}" title="${isInWatchlist ? 'Remove from Watchlist' : 'Save to Watchlist'}">
               ${isInWatchlist ? icons.starFilled : icons.star}
